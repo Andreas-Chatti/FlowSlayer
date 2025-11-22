@@ -1,10 +1,18 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Logging/LogMacros.h"
+#include "InputActionValue.h"
+#include "Engine/LocalPlayer.h"
+#include "Camera/CameraComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/Controller.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "FSWeapon.h"
+#include "Public/FSDamageable.h"
 #include "FlowSlayerCharacter.generated.h"
 
 class USpringArmComponent;
@@ -15,10 +23,16 @@ struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
+// Delegates for hitbox activation/deactivation
+DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
+DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
+
 UCLASS(config=Game)
-class AFlowSlayerCharacter : public ACharacter
+class FLOWSLAYER_API AFlowSlayerCharacter : public ACharacter, public IFSDamageable
 {
 	GENERATED_BODY()
+
+private:
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -44,30 +58,91 @@ class AFlowSlayerCharacter : public ACharacter
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
+	/** Dash Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* DashAction;
+
+	/** Attack Input Action */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* AttackAction;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* attackMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* deathMontage;
+
 public:
+
 	AFlowSlayerCharacter();
-	
+
+	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	FOnHitboxActivated OnHitboxActivated;
+	FOnHitboxDeactivated OnHitboxDeactivated;
+
+	virtual bool IsDead() const override { return bIsDead; }
+
+	virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
 
 protected:
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movements")
+	FRotator RotationSpeed{ 0.f, 500.f, 0.f };
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
+	float MaxWalkSpeed{ 600.f };
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
+	float dashDistance{ 1250.0f };
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
+	float dashCooldown{ 0.75f };
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
+	float MaxHealth{ 100.f };
+
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TSubclassOf<AFSWeapon> weaponClass;
 
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
-			
 
-protected:
+	/** Called for dashing input */
+	void Dash(const FInputActionValue& Value);
+
+	/** Called for attacking input */
+	void Attack(const FInputActionValue& Value);
+			
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
-	// To add mapping context
 	virtual void BeginPlay();
 
-public:
-	/** Returns CameraBoom subobject **/
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	/** Returns FollowCamera subobject **/
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	void Ragdoll();
+	void DisableAllInputs();
+
+private:
+
+	// Dash
+	bool canDash{ true };
+	static constexpr float MIN_DASH_VELOCITY{ 10.0f };
+	FTimerHandle dashCooldownTimerHandle;
+
+	// Weapon
+	AFSWeapon* equippedWeapon;
+	FString weaponSocket{ "WeaponSocket" };
+
+	float CurrentHealth;
+
+	bool InitializeWeapon();
+
+	bool bIsDead{ false };
+
+	void Die();
 };
 
