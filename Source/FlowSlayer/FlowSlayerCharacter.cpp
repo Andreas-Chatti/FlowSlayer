@@ -1,20 +1,6 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "FlowSlayerCharacter.h"
-#include "Engine/LocalPlayer.h"
-#include "Camera/CameraComponent.h"
-#include "Components/CapsuleComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/SpringArmComponent.h"
-#include "GameFramework/Controller.h"
-#include "EnhancedInputComponent.h"
-#include "EnhancedInputSubsystems.h"
-#include "InputActionValue.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
-
-//////////////////////////////////////////////////////////////////////////
-// AFlowSlayerCharacter
 
 AFlowSlayerCharacter::AFlowSlayerCharacter()
 {
@@ -26,17 +12,16 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	// Configure character movement
-	GetCharacterMovement()->bOrientRotationToMovement = true; // Character moves in the direction of input...	
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f); // ...at this rotation rate
+	GetCharacterMovement()->bOrientRotationToMovement = true;	
+	GetCharacterMovement()->RotationRate = RotationSpeed;
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
-	GetCharacterMovement()->JumpZVelocity = 700.f;
+	GetCharacterMovement()->JumpZVelocity = 700.0f;
 	GetCharacterMovement()->AirControl = 0.35f;
-	GetCharacterMovement()->MaxWalkSpeed = 500.f;
-	GetCharacterMovement()->MinAnalogWalkSpeed = 20.f;
-	GetCharacterMovement()->BrakingDecelerationWalking = 2000.f;
+	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeed;
+	GetCharacterMovement()->MinAnalogWalkSpeed = 20.0f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 2000.0f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
@@ -50,33 +35,125 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	// Note: The skeletal mesh and anim blueprint references on the Mesh component (inherited from Character) 
-	// are set in the derived blueprint asset named ThirdPersonCharacter (to avoid direct content references in C++)
+	CurrentHealth = MaxHealth;
+}
+
+void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
+{
+	if (bIsDead)
+		return;
+
+    CurrentHealth -= DamageAmount;
+    UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
+        *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
+
+    if (CurrentHealth <= 0.f)
+        Die();
+}
+
+void AFlowSlayerCharacter::Die()
+{
+	bIsDead = true;
+
+	DisableAllInputs();
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	if (deathMontage)
+	{
+		PlayAnimMontage(deathMontage);
+
+
+		float MontageLength{ deathMontage->GetPlayLength() };
+		float BlendOutTime{ deathMontage->BlendOut.GetBlendTime() };
+		float TimerDelay{ MontageLength - BlendOutTime };  
+
+		FTimerHandle DeathTimerHandle;
+		GetWorld()->GetTimerManager().SetTimer(
+			DeathTimerHandle,
+			[this]()
+			{
+				USkeletalMeshComponent* Mesh{ GetMesh() };
+				if (Mesh && Mesh->GetAnimInstance())
+					Mesh->bPauseAnims = true;
+			},
+			TimerDelay,
+			false
+		);
+	}
 }
 
 void AFlowSlayerCharacter::BeginPlay()
 {
-	// Call the base class  
 	Super::BeginPlay();
+
+	bool isWeaponInitialized{ InitializeWeapon() };
+	if (isWeaponInitialized)
+	{
+		OnHitboxActivated.AddUObject(equippedWeapon, &AFSWeapon::ActivateHitbox);
+		OnHitboxDeactivated.AddUObject(equippedWeapon, &AFSWeapon::DeactivateHitbox);
+	}
 }
 
-//////////////////////////////////////////////////////////////////////////
-// Input
+void AFlowSlayerCharacter::Ragdoll()
+{
+	USkeletalMeshComponent* playerMesh{ GetMesh() };
+	if (playerMesh)
+	{
+		playerMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		playerMesh->SetSimulatePhysics(true);
+		playerMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		playerMesh->SetCollisionProfileName(TEXT("Ragdoll"));
+
+		FVector ImpulseDirection = GetActorForwardVector() * -500.f + FVector(0, 0, 300.f);
+		playerMesh->AddImpulse(ImpulseDirection, NAME_None, true);
+	}
+}
+
+void AFlowSlayerCharacter::DisableAllInputs()
+{
+	APlayerController* PlayerController{ Cast<APlayerController>(GetController()) };
+	if (PlayerController)
+	{
+		UEnhancedInputLocalPlayerSubsystem* Subsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) };
+		if (Subsystem && DefaultMappingContext)
+			Subsystem->RemoveMappingContext(DefaultMappingContext);
+
+		DisableInput(PlayerController);
+	}
+	GetCharacterMovement()->DisableMovement();
+}
+
+bool AFlowSlayerCharacter::InitializeWeapon()
+{
+	if (!weaponClass)
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("[AFlowSlayerCharacter] LOADING EQUIPPED WEAPON FAILED"));
+		return false;
+	}
+
+	FActorSpawnParameters spawnParams;
+	spawnParams.Owner = this;
+	equippedWeapon = GetWorld()->SpawnActor<AFSWeapon>(weaponClass, spawnParams);
+	if (!equippedWeapon || !equippedWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket")))
+	{
+		UE_LOG(LogTemplateCharacter, Error, TEXT("[AFlowSlayerCharacter] LOADING EQUIPPED WEAPON FAILED"));
+		return false;
+	}
+
+	return true;
+}
 
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	// Add Input Mapping Context
-	if (APlayerController* PlayerController = Cast<APlayerController>(GetController()))
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()))
-		{
-			Subsystem->AddMappingContext(DefaultMappingContext, 0);
-		}
-	}
+	APlayerController* PlayerController{ Cast<APlayerController>(GetController()) };
+	UEnhancedInputLocalPlayerSubsystem* Subsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) };
+	if (PlayerController && Subsystem)
+		Subsystem->AddMappingContext(DefaultMappingContext, 0);
 	
 	// Set up action bindings
-	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent)) {
-		
+	UEnhancedInputComponent* EnhancedInputComponent{ Cast<UEnhancedInputComponent>(PlayerInputComponent) };
+	if (EnhancedInputComponent)
+	{
 		// Jumping
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
@@ -86,22 +163,26 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Look);
+
+		// Dashing
+		EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Dash);
+
+		// Attacking
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Attack);
 	}
+
 	else
-	{
 		UE_LOG(LogTemplateCharacter, Error, TEXT("'%s' Failed to find an Enhanced Input component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
-	}
 }
 
 void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 {
 	// input is a Vector2D
-	FVector2D MovementVector = Value.Get<FVector2D>();
-
+	FVector2D MovementVector{ Value.Get<FVector2D>() };
 	if (Controller != nullptr)
 	{
 		// find out which way is forward
-		const FRotator Rotation = Controller->GetControlRotation();
+		const FRotator Rotation{ Controller->GetControlRotation() };
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
 
 		// get forward vector
@@ -119,12 +200,36 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 {
 	// input is a Vector2D
-	FVector2D LookAxisVector = Value.Get<FVector2D>();
+	FVector2D LookAxisVector{ Value.Get<FVector2D>() };
 
 	if (Controller != nullptr)
 	{
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 		AddControllerPitchInput(LookAxisVector.Y);
+	}
+}
+
+void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
+{
+	double charVelocity{ GetCharacterMovement()->Velocity.Length() };
+	bool hasEnoughVelocity{ charVelocity > MIN_DASH_VELOCITY };
+	if (!canDash || !hasEnoughVelocity)
+		return;
+
+	canDash = false;
+	FVector launchVelocity{ GetCharacterMovement()->GetLastInputVector().GetSafeNormal() * dashDistance };
+	LaunchCharacter(launchVelocity, false, false);
+
+	FLatentActionInfo LatentInfo;
+	LatentInfo.CallbackTarget = this;
+	GetWorldTimerManager().SetTimer(dashCooldownTimerHandle, [this]() { canDash = true; }, dashCooldown, false);
+}
+
+void AFlowSlayerCharacter::Attack(const FInputActionValue& Value)
+{
+	if (attackMontage)
+	{
+		PlayAnimMontage(attackMontage);
 	}
 }
