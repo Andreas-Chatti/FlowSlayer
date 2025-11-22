@@ -34,7 +34,7 @@ void AFSEnemy::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (bIsDamageHitboxActive)
+    if (bIsDamageHitboxActive && !bIsDead)
         UpdateDamageHitbox();
 }
 
@@ -79,6 +79,8 @@ void AFSEnemy::Die()
     // Disable collision and movement
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     GetCharacterMovement()->DisableMovement();
+
+    PlayDeathMontage();
 
     // TODO: Play death animation
     // TODO: Award XP to player
@@ -144,4 +146,29 @@ void AFSEnemy::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     if (Montage == AttackMontage)
         bIsAttacking = false;
+}
+
+void AFSEnemy::PlayDeathMontage()
+{
+    if (!DeathMontage)
+        return;
+
+    PlayAnimMontage(DeathMontage);
+    
+    float MontageLength{ DeathMontage->GetPlayLength() };
+    float BlendOutTime{ DeathMontage->BlendOut.GetBlendTime() };
+    float TimerDelay{ MontageLength - BlendOutTime };
+    
+    FTimerHandle DeathTimerHandle;
+    GetWorld()->GetTimerManager().SetTimer(
+        DeathTimerHandle,
+        [this]()
+        {
+            USkeletalMeshComponent* Mesh{ GetMesh() };
+            if (Mesh && Mesh->GetAnimInstance())
+                Mesh->bPauseAnims = true;
+        },
+        TimerDelay,
+        false
+    );
 }

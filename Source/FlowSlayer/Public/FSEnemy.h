@@ -66,12 +66,15 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
     UAnimMontage* AttackMontage;
 
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
+    UAnimMontage* DeathMontage;
+
 private:
 
     bool bIsDead{ false };
     bool bIsAttacking{ false };
     bool bIsDamageHitboxActive{ false };
-    static constexpr float destroyDelay{ 2.0f };
+    static constexpr float destroyDelay{ 5.f };
     APawn* Player;
 
     // Pour le sweep de la hitbox
@@ -84,4 +87,6 @@ private:
 
     UFUNCTION()
     void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+
+    void PlayDeathMontage();
 };

@@ -7,6 +7,11 @@ AFSWeapon::AFSWeapon()
     initializeComponents();
 }
 
+void AFSWeapon::setDamage(float damage)
+{
+    Damage = damage;
+}
+
 void AFSWeapon::ActivateHitbox()
 {
     bHitboxActive = true;
@@ -41,13 +46,8 @@ void AFSWeapon::initializeComponents()
     hitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
-void AFSWeapon::Tick(float DeltaTime)
+void AFSWeapon::UpdateDamageHitbox()
 {
-    Super::Tick(DeltaTime);
-
-    if (!bHitboxActive)
-        return;
-
     TArray<FHitResult> sweepResults;
     FCollisionQueryParams queryParams;
     queryParams.AddIgnoredActor(GetOwner());
@@ -81,7 +81,15 @@ void AFSWeapon::Tick(float DeltaTime)
         //DrawDebugSphere(GetWorld(), hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
 
         if (IFSDamageable * damageableActor{ Cast<IFSDamageable>(hitActor) })
-            damageableActor->ReceiveDamage(20.0f, this);
+            damageableActor->ReceiveDamage(Damage, this);
     }
     previousHitboxLocation = currentLocation;
+}
+
+void AFSWeapon::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (bHitboxActive)
+        UpdateDamageHitbox();
 }

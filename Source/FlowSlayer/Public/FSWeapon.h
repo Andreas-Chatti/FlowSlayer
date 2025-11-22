@@ -19,11 +19,18 @@ public:
 
     AFSWeapon();
 
+    UFUNCTION(BlueprintCallable)
+    void setDamage(float damage);
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void ActivateHitbox();
+
+    UFUNCTION(BlueprintCallable, Category = "Combat")
+    void DeactivateHitbox();
+
 protected:
 
     virtual void Tick(float DeltaTime) override;
-
-public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     USceneComponent* rootComp;
@@ -33,12 +40,6 @@ public:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UBoxComponent* hitbox;
-
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    void ActivateHitbox();
-
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    void DeactivateHitbox();
 
 private:
 
@@ -51,4 +52,7 @@ private:
     const FVector DEFAULT_HITBOX_TRANSFORM{ 50.0f, 20.0f, 80.0f };
 
     void initializeComponents();
+    void UpdateDamageHitbox();
+
+    float Damage;
 };
