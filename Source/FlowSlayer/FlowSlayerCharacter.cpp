@@ -51,6 +51,14 @@ void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDeale
         Die();
 }
 
+bool AFlowSlayerCharacter::CanJumpInternal_Implementation() const
+{
+	if (bIsAttacking)
+		return false;
+
+	return Super::CanJumpInternal_Implementation();
+}
+
 void AFlowSlayerCharacter::Die()
 {
 	bIsDead = true;
@@ -61,7 +69,6 @@ void AFlowSlayerCharacter::Die()
 	if (deathMontage)
 	{
 		PlayAnimMontage(deathMontage);
-
 
 		float MontageLength{ deathMontage->GetPlayLength() };
 		float BlendOutTime{ deathMontage->BlendOut.GetBlendTime() };
@@ -86,12 +93,17 @@ void AFlowSlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	bool isWeaponInitialized{ InitializeWeapon() };
-	if (isWeaponInitialized)
+	InitializeAndAttachWeapon();
+	if (equippedWeapon)
 	{
 		OnHitboxActivated.AddUObject(equippedWeapon, &AFSWeapon::ActivateHitbox);
 		OnHitboxDeactivated.AddUObject(equippedWeapon, &AFSWeapon::DeactivateHitbox);
+		equippedWeapon->setDamage(Damage);
 	}
+
+	UAnimInstance* AnimInstance{ GetMesh()->GetAnimInstance() };
+	if (AnimInstance)
+		AnimInstance->OnMontageEnded.AddDynamic(this, &AFlowSlayerCharacter::OnAttackMontageEnded);
 }
 
 void AFlowSlayerCharacter::Ragdoll()
@@ -123,7 +135,7 @@ void AFlowSlayerCharacter::DisableAllInputs()
 	GetCharacterMovement()->DisableMovement();
 }
 
-bool AFlowSlayerCharacter::InitializeWeapon()
+bool AFlowSlayerCharacter::InitializeAndAttachWeapon()
 {
 	if (!weaponClass)
 	{
@@ -177,6 +189,9 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 {
+	if (bIsAttacking)
+		return;
+
 	// input is a Vector2D
 	FVector2D MovementVector{ Value.Get<FVector2D>() };
 	if (Controller != nullptr)
@@ -212,6 +227,9 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 
 void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 {
+	if (bIsAttacking)
+		return;
+
 	double charVelocity{ GetCharacterMovement()->Velocity.Length() };
 	bool hasEnoughVelocity{ charVelocity > MIN_DASH_VELOCITY };
 	if (!canDash || !hasEnoughVelocity)
@@ -228,8 +246,33 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 
 void AFlowSlayerCharacter::Attack(const FInputActionValue& Value)
 {
+	if (bIsAttacking)
+		return;
+
+	bIsAttacking = true;
+	
+	// Si Player est en Attack State, ne peut pas Jump jusqu'à fin de l'animation
+
+	RotatePlayerToCameraDirection();
+
 	if (attackMontage)
-	{
 		PlayAnimMontage(attackMontage);
-	}
+}
+
+void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
+{
+	if (!Controller)
+		return;
+
+	FRotator ControlRotation{ Controller->GetControlRotation() };
+	FRotator NewRotation{ FRotator(0.0f, ControlRotation.Yaw, 0.0f) };
+	SetActorRotation(NewRotation);
+}
+
+void AFlowSlayerCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (Montage == attackMontage)
+		bIsAttacking = false;
+
+	// Peut jump à nouveau
 }

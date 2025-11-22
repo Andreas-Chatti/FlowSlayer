@@ -86,6 +86,8 @@ public:
 
 	virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
 
+	virtual bool CanJumpInternal_Implementation() const override;
+
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movements")
@@ -103,6 +105,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
 	float MaxHealth{ 100.f };
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
+	float Damage{ 50.f };
+
 	UPROPERTY(EditDefaultsOnly, Category = "Combat")
 	TSubclassOf<AFSWeapon> weaponClass;
 
@@ -117,7 +122,7 @@ protected:
 
 	/** Called for attacking input */
 	void Attack(const FInputActionValue& Value);
-			
+
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
@@ -139,10 +144,16 @@ private:
 
 	float CurrentHealth;
 
-	bool InitializeWeapon();
+	bool InitializeAndAttachWeapon();
 
 	bool bIsDead{ false };
+	bool bIsAttacking{ false };
 
 	void Die();
+
+	UFUNCTION()
+	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+
+	void RotatePlayerToCameraDirection();
 };
 

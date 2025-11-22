@@ -32,5 +32,7 @@ private:
 
 	void FollowPlayer();
 
+	void RotateToPlayer();
+
 	void OnMoveToTargetCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result);
 };

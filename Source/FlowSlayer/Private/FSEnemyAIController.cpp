@@ -23,14 +23,17 @@ void AFSEnemyAIController::OnMoveToTargetCompleted(FAIRequestID RequestID, const
         return;
 
     if (OwnedEnemyPawn && !OwnedEnemyPawn->IsDead())
+    {
+        RotateToPlayer();
         OwnedEnemyPawn->Attack();
+    }
 }
 
 void AFSEnemyAIController::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsAttacking())
+    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsAttacking() && !OwnedEnemyPawn->IsDead())
         FollowPlayer();
 }
 
@@ -44,6 +47,20 @@ void AFSEnemyAIController::FollowPlayer()
     EPathFollowingStatus::Type Status{ GetMoveStatus() };
     if (Status == EPathFollowingStatus::Idle)
         MoveToActor(PlayerPawn, OwnedEnemyPawn->getAttackRange());
+}
+
+void AFSEnemyAIController::RotateToPlayer()
+{
+    UWorld* World{ GetWorld() };
+    APawn* PlayerPawn{ UGameplayStatics::GetPlayerPawn(World, 0) };
+    if (!World || !PlayerPawn)
+        return;
+
+    FVector DirectionToPlayer = PlayerPawn->GetActorLocation() - OwnedEnemyPawn->GetActorLocation();
+    DirectionToPlayer.Z = 0.0f;
+
+    FRotator LookAtRotation = DirectionToPlayer.Rotation();
+    OwnedEnemyPawn->SetActorRotation(LookAtRotation);
 }
 
 void AFSEnemyAIController::JumpToDestination(FVector Destination)
