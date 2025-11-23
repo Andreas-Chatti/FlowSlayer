@@ -27,6 +27,13 @@ protected:
 	/** Wether Damage Hitbox is activated */
 	bool bIsDamageHitboxActive{ false };
 
+	/* Damage Attack area
+	* Is activated by ActivateDamageHitbox() on a specific frame of the Attack Animation
+	* Is deactivated by DeactivateDamageHitbox() on a specific frame of the Attack Animation
+	*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	UBoxComponent* DamageHitbox;
+
 	/** Unique list of actors hit during an attack */
 	UPROPERTY()
 	TSet<AActor*> ActorsHitThisAttack;

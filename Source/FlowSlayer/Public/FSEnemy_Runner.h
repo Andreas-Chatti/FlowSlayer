@@ -1,6 +1,8 @@
 #pragma once
 #include "CoreMinimal.h"
+#include "Sockets.h"
 #include "FSEnemy.h"
+#include "FSProjectile.h"
 #include "FSEnemy_Runner.generated.h"
 
 UCLASS()
@@ -16,7 +18,14 @@ protected:
 
 	virtual void BeginPlay() override;
 
-	// Override Attack pour ajouter comportement spécifique au Runner
 	virtual void Attack_Implementation() override;
+
+	void ShootProjectileAtPlayer();
+
+	UPROPERTY(EditDefaultsOnly, Category = "Combat")
+	TSubclassOf<AFSProjectile> ProjectileClass;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
+	FName ProjectileShootSocket;
 };
 

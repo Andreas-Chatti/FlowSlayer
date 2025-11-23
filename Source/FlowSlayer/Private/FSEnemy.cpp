@@ -8,11 +8,6 @@ AFSEnemy::AFSEnemy()
     PrimaryActorTick.bStartWithTickEnabled = true;
     CurrentHealth = MaxHealth;
 
-    DamageHitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("DamageHitbox"));
-    DamageHitbox->SetupAttachment(RootComponent);
-    DamageHitbox->SetBoxExtent(FVector{ 50.f, 50.f, 50.f });
-    DamageHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
     GetCharacterMovement()->bOrientRotationToMovement = true;
 }
 
