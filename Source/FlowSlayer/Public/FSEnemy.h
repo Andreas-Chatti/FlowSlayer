@@ -69,21 +69,16 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage* DeathMontage;
 
-private:
-
     bool bIsDead{ false };
     bool bIsAttacking{ false };
-    bool bIsDamageHitboxActive{ false };
-    static constexpr float destroyDelay{ 5.f };
+
+    /** Player Reference */
+    UPROPERTY()
     APawn* Player;
 
-    // Pour le sweep de la hitbox
-    TSet<AActor*> ActorsHitThisAttack;
-    FVector PreviousHitboxLocation;
+private:
 
-    void ActivateDamageHitbox();
-    void DeactivateDamageHitbox();
-    void UpdateDamageHitbox();  // Appelé chaque frame dans Tick()
+    static constexpr float destroyDelay{ 5.f };
 
     UFUNCTION()
     void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);

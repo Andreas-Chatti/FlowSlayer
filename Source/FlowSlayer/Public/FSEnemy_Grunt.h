@@ -18,6 +18,19 @@ protected:
 
 	virtual void Tick(float DeltaTime) override;
 
-	// Override Attack pour ajouter comportement spécifique au Grunt
-	virtual void Attack_Implementation() override;
+	void Attack_Implementation() override;
+
+	void UpdateDamageHitbox();
+	void ActivateDamageHitbox();
+	void DeactivateDamageHitbox();
+
+	/** Wether Damage Hitbox is activated */
+	bool bIsDamageHitboxActive{ false };
+
+	/** Unique list of actors hit during an attack */
+	UPROPERTY()
+	TSet<AActor*> ActorsHitThisAttack;
+
+	/** Used for sweep during an attack */
+	FVector PreviousHitboxLocation;
 };

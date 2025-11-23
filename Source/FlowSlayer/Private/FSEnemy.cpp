@@ -22,9 +22,6 @@ void AFSEnemy::BeginPlay()
 
     Player = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
 
-    OnHitboxActivated.AddUObject(this, &AFSEnemy::ActivateDamageHitbox);
-    OnHitboxDeactivated.AddUObject(this, &AFSEnemy::DeactivateDamageHitbox);
-
     UAnimInstance* AnimInstance{ GetMesh()->GetAnimInstance() };
     if (AnimInstance)
         AnimInstance->OnMontageEnded.AddDynamic(this, &AFSEnemy::OnAttackMontageEnded);
@@ -33,9 +30,6 @@ void AFSEnemy::BeginPlay()
 void AFSEnemy::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-
-    if (bIsDamageHitboxActive && !bIsDead)
-        UpdateDamageHitbox();
 }
 
 void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
@@ -60,13 +54,6 @@ void AFSEnemy::Attack_Implementation()
 {
     bIsAttacking = true;
 
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Generic Attack: Dealing %.1f damage"), *GetName(), Damage);
-
-    // TODO: Logique commune à tous les ennemis
-    // - Animation d'attaque par défaut
-    // - Son d'attaque
-    // - Application des dégâts
-
     if (Player && AttackMontage)
         PlayAnimMontage(AttackMontage);
 }
@@ -82,64 +69,10 @@ void AFSEnemy::Die()
 
     PlayDeathMontage();
 
-    // TODO: Play death animation
     // TODO: Award XP to player
     // TODO: Spawn loot/pickups
 
     SetLifeSpan(destroyDelay);
-}
-
-void AFSEnemy::ActivateDamageHitbox()
-{
-    bIsDamageHitboxActive = true;
-    ActorsHitThisAttack.Empty();
-    PreviousHitboxLocation = DamageHitbox->GetComponentLocation();
-
-    UE_LOG(LogTemp, Warning, TEXT("⚔️ Hitbox ACTIVATED"));
-}
-
-void AFSEnemy::UpdateDamageHitbox()
-{
-    FCollisionQueryParams QueryParams;
-    QueryParams.AddIgnoredActor(GetOwner());
-    QueryParams.AddIgnoredActor(this);
-
-    FVector CurrentLocation{ DamageHitbox->GetComponentLocation() };
-    FVector BoxExtent{ DamageHitbox->GetScaledBoxExtent() };
-    TArray<FHitResult> SweepResults;
-
-    GetWorld()->SweepMultiByObjectType(
-        SweepResults,
-        PreviousHitboxLocation,
-        CurrentLocation,
-        DamageHitbox->GetComponentQuat(),
-        FCollisionObjectQueryParams::AllObjects,
-        FCollisionShape::MakeBox(BoxExtent),
-        QueryParams
-    );
-
-    for (const FHitResult& Hit : SweepResults)
-    {
-        AActor* HitActor = Hit.GetActor();
-        if (!HitActor)
-            continue;
-
-        if (ActorsHitThisAttack.Contains(HitActor))
-            continue;
-
-        ActorsHitThisAttack.Add(HitActor);
-        DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
-
-        if (IFSDamageable * DamageableActor{ Cast<IFSDamageable>(HitActor) })
-            DamageableActor->ReceiveDamage(Damage, this);
-    }
-    PreviousHitboxLocation = CurrentLocation;
-}
-
-void AFSEnemy::DeactivateDamageHitbox()
-{
-    bIsDamageHitboxActive = false;
-    ActorsHitThisAttack.Empty();
 }
 
 void AFSEnemy::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
