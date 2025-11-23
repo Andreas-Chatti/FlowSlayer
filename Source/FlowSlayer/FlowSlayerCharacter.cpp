@@ -232,16 +232,16 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 
 	double charVelocity{ GetCharacterMovement()->Velocity.Length() };
 	bool hasEnoughVelocity{ charVelocity > MIN_DASH_VELOCITY };
-	if (!canDash || !hasEnoughVelocity)
+	if (!bCanDash || !hasEnoughVelocity)
 		return;
 
-	canDash = false;
+	bCanDash = false;
 	FVector launchVelocity{ GetCharacterMovement()->GetLastInputVector().GetSafeNormal() * dashDistance };
 	LaunchCharacter(launchVelocity, false, false);
 
 	FLatentActionInfo LatentInfo;
 	LatentInfo.CallbackTarget = this;
-	GetWorldTimerManager().SetTimer(dashCooldownTimerHandle, [this]() { canDash = true; }, dashCooldown, false);
+	GetWorldTimerManager().SetTimer(dashCooldownTimerHandle, [this]() { bCanDash = true; }, dashCooldown, false);
 }
 
 void AFlowSlayerCharacter::Attack(const FInputActionValue& Value)
@@ -250,13 +250,17 @@ void AFlowSlayerCharacter::Attack(const FInputActionValue& Value)
 		return;
 
 	bIsAttacking = true;
-	
-	// Si Player est en Attack State, ne peut pas Jump jusqu'à fin de l'animation
 
 	RotatePlayerToCameraDirection();
 
-	if (attackMontage)
+	if (RunningAttackMontage && IsMoving() && !GetCharacterMovement()->IsFalling())
+		PlayAnimMontage(RunningAttackMontage);
+
+	else if (attackMontage && !IsMoving() && !GetCharacterMovement()->IsFalling())
 		PlayAnimMontage(attackMontage);
+
+	else
+		bIsAttacking = false;
 }
 
 void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
@@ -271,8 +275,20 @@ void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
 
 void AFlowSlayerCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	if (Montage == attackMontage)
+	if (Montage == attackMontage || Montage == RunningAttackMontage)
 		bIsAttacking = false;
+}
 
-	// Peut jump à nouveau
+void AFlowSlayerCharacter::Jump()
+{
+	if (!CanJumpInternal_Implementation())
+		return;
+
+	Super::Jump();
+
+	if (IdleJumpMontage && !IsMoving())
+		PlayAnimMontage(IdleJumpMontage);
+
+	else if (ForwardJumpMontage && IsMoving())
+		PlayAnimMontage(ForwardJumpMontage);
 }

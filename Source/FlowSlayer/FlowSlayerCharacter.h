@@ -70,7 +70,16 @@ private:
 	UAnimMontage* attackMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* RunningAttackMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* deathMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* IdleJumpMontage;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* ForwardJumpMontage;
 
 public:
 
@@ -79,6 +88,9 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
+	/** Event delegates notify 
+	* Notified during a MELEE attack Animation
+	*/
 	FOnHitboxActivated OnHitboxActivated;
 	FOnHitboxDeactivated OnHitboxDeactivated;
 
@@ -87,6 +99,8 @@ public:
 	virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
 
 	virtual bool CanJumpInternal_Implementation() const override;
+
+	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
 
 protected:
 
@@ -126,34 +140,43 @@ protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	
-	virtual void BeginPlay();
+	virtual void BeginPlay() override;
 
 	void Ragdoll();
 	void DisableAllInputs();
 
 private:
 
-	// Dash
-	bool canDash{ true };
-	static constexpr float MIN_DASH_VELOCITY{ 10.0f };
-	FTimerHandle dashCooldownTimerHandle;
-
-	// Weapon
-	AFSWeapon* equippedWeapon;
-	FString weaponSocket{ "WeaponSocket" };
+	bool bCanDash{ true };
+	bool bIsDead{ false };
+	bool bIsAttacking{ false };
 
 	float CurrentHealth;
 
-	bool InitializeAndAttachWeapon();
+	/** Minimum velocity required in order to use Dash */
+	static constexpr float MIN_DASH_VELOCITY{ 10.0f };
 
-	bool bIsDead{ false };
-	bool bIsAttacking{ false };
+	/** Dash cooldown timer */
+	UPROPERTY()
+	FTimerHandle dashCooldownTimerHandle;
+
+	/** Player's Weapon */
+	UPROPERTY()
+	AFSWeapon* equippedWeapon;
+
+	/** Weapon socket */
+	FString weaponSocket{ "WeaponSocket" };
+
+	bool InitializeAndAttachWeapon();
 
 	void Die();
 
 	UFUNCTION()
 	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
+	virtual void Jump() override;
+
+	/** Rotate the player character in the direction of the player camera view */
 	void RotatePlayerToCameraDirection();
 };
 
