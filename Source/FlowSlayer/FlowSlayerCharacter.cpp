@@ -93,6 +93,8 @@ void AFlowSlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	Tags.Add("Player");
+
 	InitializeAndAttachWeapon();
 	if (equippedWeapon)
 	{

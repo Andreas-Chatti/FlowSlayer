@@ -4,6 +4,11 @@ AFSEnemy_Grunt::AFSEnemy_Grunt()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
+
+    DamageHitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("DamageHitbox"));
+    DamageHitbox->SetupAttachment(RootComponent);
+    DamageHitbox->SetBoxExtent(FVector{ 50.f, 50.f, 50.f });
+    DamageHitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
 void AFSEnemy_Grunt::BeginPlay()
@@ -24,7 +29,7 @@ void AFSEnemy_Grunt::Tick(float DeltaTime)
 
 void AFSEnemy_Grunt::Attack_Implementation()
 {
-	Super::Attack_Implementation();
+    Super::Attack_Implementation();
 
 	UE_LOG(LogTemp, Warning, TEXT("[GRUNT SPECIFIC] Slow heavy swing!"));
 
@@ -72,18 +77,20 @@ void AFSEnemy_Grunt::UpdateDamageHitbox()
 
     for (const FHitResult& Hit : SweepResults)
     {
-        AActor* HitActor = Hit.GetActor();
-        if (!HitActor)
+        AActor* hitActor{ Hit.GetActor() };
+        if (!hitActor)
             continue;
 
-        if (ActorsHitThisAttack.Contains(HitActor))
+        if (ActorsHitThisAttack.Contains(hitActor))
             continue;
 
-        ActorsHitThisAttack.Add(HitActor);
+        ActorsHitThisAttack.Add(hitActor);
         DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
 
-        if (IFSDamageable * DamageableActor{ Cast<IFSDamageable>(HitActor) })
-            DamageableActor->ReceiveDamage(Damage, this);
+        IFSDamageable* damageableActor{ Cast<IFSDamageable>(hitActor) };
+        bool isPlayer{ hitActor->ActorHasTag("Player") };
+        if (damageableActor && isPlayer)
+            damageableActor->ReceiveDamage(Damage, this);
     }
     PreviousHitboxLocation = CurrentLocation;
 }

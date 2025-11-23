@@ -11,6 +11,7 @@
 
 DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated)
 DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated)
+DECLARE_MULTICAST_DELEGATE(FOnProjectileSpawned)
 
 UCLASS(Abstract)
 class FLOWSLAYER_API AFSEnemy : public ACharacter, public IFSDamageable
@@ -33,6 +34,7 @@ public:
 
     FOnHitboxActivated OnHitboxActivated;
     FOnHitboxDeactivated OnHitboxDeactivated;
+    FOnProjectileSpawned OnProjectileSpawned;
 
 protected:
 
@@ -59,9 +61,6 @@ protected:
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     virtual void Die();
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    UBoxComponent* DamageHitbox;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
     UAnimMontage* AttackMontage;
