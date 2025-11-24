@@ -13,6 +13,7 @@
 #include "EnhancedInputSubsystems.h"
 #include "FSWeapon.h"
 #include "Public/FSDamageable.h"
+#include "Public/FSCombatComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
 class USpringArmComponent;
@@ -22,10 +23,6 @@ class UInputAction;
 struct FInputActionValue;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
-
-// Delegates for hitbox activation/deactivation
-DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
-DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
 
 UCLASS(config=Game)
 class FLOWSLAYER_API AFlowSlayerCharacter : public ACharacter, public IFSDamageable
@@ -41,7 +38,11 @@ private:
 	/** Follow camera */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
-	
+
+	/** Combat component class */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UFSCombatComponent* CombatComponent;
+
 	/** MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext;
@@ -67,12 +68,6 @@ private:
 	UInputAction* AttackAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* attackMontage;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* RunningAttackMontage;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* deathMontage;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
@@ -88,12 +83,6 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-	/** Event delegates notify 
-	* Notified during a MELEE attack Animation
-	*/
-	FOnHitboxActivated OnHitboxActivated;
-	FOnHitboxDeactivated OnHitboxDeactivated;
-
 	virtual bool IsDead() const override { return bIsDead; }
 
 	virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
@@ -102,13 +91,9 @@ public:
 
 	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
 
+	const UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
+
 protected:
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movements")
-	FRotator RotationSpeed{ 0.f, 500.f, 0.f };
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
-	float MaxWalkSpeed{ 600.f };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
 	float dashDistance{ 1250.0f };
@@ -119,12 +104,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
 	float MaxHealth{ 100.f };
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
-	float Damage{ 50.f };
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combat")
-	TSubclassOf<AFSWeapon> weaponClass;
-
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
 
@@ -134,8 +113,7 @@ protected:
 	/** Called for dashing input */
 	void Dash(const FInputActionValue& Value);
 
-	/** Called for attacking input */
-	void Attack(const FInputActionValue& Value);
+	void OnAttackTriggered(const FInputActionValue& Value);
 
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -149,30 +127,13 @@ private:
 
 	bool bCanDash{ true };
 	bool bIsDead{ false };
-	bool bIsAttacking{ false };
 
 	float CurrentHealth;
 
 	/** Minimum velocity required in order to use Dash */
 	static constexpr float MIN_DASH_VELOCITY{ 10.0f };
 
-	/** Dash cooldown timer */
-	UPROPERTY()
-	FTimerHandle dashCooldownTimerHandle;
-
-	/** Player's Weapon */
-	UPROPERTY()
-	AFSWeapon* equippedWeapon;
-
-	/** Weapon socket */
-	FString weaponSocket{ "WeaponSocket" };
-
-	bool InitializeAndAttachWeapon();
-
 	void Die();
-
-	UFUNCTION()
-	void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 	virtual void Jump() override;
 
