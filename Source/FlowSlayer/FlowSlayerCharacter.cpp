@@ -13,13 +13,13 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	bUseControllerRotationRoll = false;
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;	
-	GetCharacterMovement()->RotationRate = RotationSpeed;
+	GetCharacterMovement()->RotationRate = FRotator{ 0.f, 500.f, 0.f };
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 700.0f;
 	GetCharacterMovement()->AirControl = 0.35f;
-	GetCharacterMovement()->MaxWalkSpeed = MaxWalkSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.0f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.0f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
@@ -27,7 +27,13 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->SetRelativeLocation(FVector{ 0, 0, 60 });
+	CameraBoom->bEnableCameraLag = true;
+	CameraBoom->CameraLagSpeed = 8.f;
+	CameraBoom->bEnableCameraRotationLag = true;
+	CameraBoom->CameraRotationLagSpeed = 10.f;
 	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
+	CameraBoom->SocketOffset = FVector{ 0, 40, 60 };
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
 	// Create a follow camera
@@ -35,7 +41,18 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
+	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
+	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
+
 	CurrentHealth = MaxHealth;
+}
+
+void AFlowSlayerCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+
+	/** Tag used when other classes trying to avoid direct dependance to this class */
+	Tags.Add("Player");
 }
 
 void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
@@ -53,7 +70,7 @@ void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDeale
 
 bool AFlowSlayerCharacter::CanJumpInternal_Implementation() const
 {
-	if (bIsAttacking)
+	if (CombatComponent->isAttacking())
 		return false;
 
 	return Super::CanJumpInternal_Implementation();
@@ -89,25 +106,6 @@ void AFlowSlayerCharacter::Die()
 	}
 }
 
-void AFlowSlayerCharacter::BeginPlay()
-{
-	Super::BeginPlay();
-
-	Tags.Add("Player");
-
-	InitializeAndAttachWeapon();
-	if (equippedWeapon)
-	{
-		OnHitboxActivated.AddUObject(equippedWeapon, &AFSWeapon::ActivateHitbox);
-		OnHitboxDeactivated.AddUObject(equippedWeapon, &AFSWeapon::DeactivateHitbox);
-		equippedWeapon->setDamage(Damage);
-	}
-
-	UAnimInstance* AnimInstance{ GetMesh()->GetAnimInstance() };
-	if (AnimInstance)
-		AnimInstance->OnMontageEnded.AddDynamic(this, &AFlowSlayerCharacter::OnAttackMontageEnded);
-}
-
 void AFlowSlayerCharacter::Ragdoll()
 {
 	USkeletalMeshComponent* playerMesh{ GetMesh() };
@@ -137,26 +135,6 @@ void AFlowSlayerCharacter::DisableAllInputs()
 	GetCharacterMovement()->DisableMovement();
 }
 
-bool AFlowSlayerCharacter::InitializeAndAttachWeapon()
-{
-	if (!weaponClass)
-	{
-		UE_LOG(LogTemplateCharacter, Error, TEXT("[AFlowSlayerCharacter] LOADING EQUIPPED WEAPON FAILED"));
-		return false;
-	}
-
-	FActorSpawnParameters spawnParams;
-	spawnParams.Owner = this;
-	equippedWeapon = GetWorld()->SpawnActor<AFSWeapon>(weaponClass, spawnParams);
-	if (!equippedWeapon || !equippedWeapon->AttachToComponent(GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket")))
-	{
-		UE_LOG(LogTemplateCharacter, Error, TEXT("[AFlowSlayerCharacter] LOADING EQUIPPED WEAPON FAILED"));
-		return false;
-	}
-
-	return true;
-}
-
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	APlayerController* PlayerController{ Cast<APlayerController>(GetController()) };
@@ -182,7 +160,7 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Dash);
 
 		// Attacking
-		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Attack);
+		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::OnAttackTriggered);
 	}
 
 	else
@@ -191,7 +169,7 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 {
-	if (bIsAttacking)
+	if (CombatComponent->isAttacking())
 		return;
 
 	// input is a Vector2D
@@ -229,7 +207,7 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 
 void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 {
-	if (bIsAttacking)
+	if (CombatComponent->isAttacking())
 		return;
 
 	double charVelocity{ GetCharacterMovement()->Velocity.Length() };
@@ -243,26 +221,8 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 
 	FLatentActionInfo LatentInfo;
 	LatentInfo.CallbackTarget = this;
+	FTimerHandle dashCooldownTimerHandle;
 	GetWorldTimerManager().SetTimer(dashCooldownTimerHandle, [this]() { bCanDash = true; }, dashCooldown, false);
-}
-
-void AFlowSlayerCharacter::Attack(const FInputActionValue& Value)
-{
-	if (bIsAttacking)
-		return;
-
-	bIsAttacking = true;
-
-	RotatePlayerToCameraDirection();
-
-	if (RunningAttackMontage && IsMoving() && !GetCharacterMovement()->IsFalling())
-		PlayAnimMontage(RunningAttackMontage);
-
-	else if (attackMontage && !IsMoving() && !GetCharacterMovement()->IsFalling())
-		PlayAnimMontage(attackMontage);
-
-	else
-		bIsAttacking = false;
 }
 
 void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
@@ -273,12 +233,6 @@ void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
 	FRotator ControlRotation{ Controller->GetControlRotation() };
 	FRotator NewRotation{ FRotator(0.0f, ControlRotation.Yaw, 0.0f) };
 	SetActorRotation(NewRotation);
-}
-
-void AFlowSlayerCharacter::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
-{
-	if (Montage == attackMontage || Montage == RunningAttackMontage)
-		bIsAttacking = false;
 }
 
 void AFlowSlayerCharacter::Jump()
@@ -293,4 +247,13 @@ void AFlowSlayerCharacter::Jump()
 
 	else if (ForwardJumpMontage && IsMoving())
 		PlayAnimMontage(ForwardJumpMontage);
+}
+
+void AFlowSlayerCharacter::OnAttackTriggered(const FInputActionValue& Value)
+{
+	if (CombatComponent && !CombatComponent->isAttacking())
+	{
+		RotatePlayerToCameraDirection();
+		CombatComponent->Attack(IsMoving(), GetCharacterMovement()->IsFalling());
+	}
 }

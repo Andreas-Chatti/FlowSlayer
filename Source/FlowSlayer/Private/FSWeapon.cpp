@@ -79,9 +79,11 @@ void AFSWeapon::UpdateDamageHitbox()
         actorsHitThisAttack.Add(hitActor);
         //UE_LOG(LogTemp, Warning, TEXT("⚔️ HIT: %s"), *hitActor->GetName());
         //DrawDebugSphere(GetWorld(), hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
-
         if (IFSDamageable * damageableActor{ Cast<IFSDamageable>(hitActor) })
+        {
             damageableActor->ReceiveDamage(Damage, this);
+            OnEnemyHit.Broadcast(hitActor, hit.ImpactPoint);
+        }
     }
     previousHitboxLocation = currentLocation;
 }

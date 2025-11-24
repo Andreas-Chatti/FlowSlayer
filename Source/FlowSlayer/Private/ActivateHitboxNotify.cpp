@@ -6,7 +6,7 @@ void UActivateHitboxNotify::Notify(USkeletalMeshComponent* meshComp, UAnimSequen
         return;
 
     if (AFlowSlayerCharacter * character{ Cast<AFlowSlayerCharacter>(meshComp->GetOwner()) })
-        character->OnHitboxActivated.Broadcast();
+        character->GetCombatComponent()->OnHitboxActivated.Broadcast();
 
     else if (AFSEnemy * enemy{ Cast<AFSEnemy>(meshComp->GetOwner()) })
         enemy->OnHitboxActivated.Broadcast();

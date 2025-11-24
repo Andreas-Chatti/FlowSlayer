@@ -7,6 +7,8 @@
 #include "FSDamageable.h"
 #include "FSWeapon.generated.h"
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHit, AActor* hitActor, const FVector& hitLocation);
+
 class UBoxComponent;
 class UStaticMeshComponent;
 
@@ -27,6 +29,9 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void DeactivateHitbox();
+
+    /** Delegate called when an enemy is hit inside the sweep hitbox */
+    FOnEnemyHit OnEnemyHit;
 
 protected:
 

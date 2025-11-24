@@ -6,7 +6,6 @@ AFSEnemy::AFSEnemy()
 {
     PrimaryActorTick.bCanEverTick = true;
     PrimaryActorTick.bStartWithTickEnabled = true;
-    CurrentHealth = MaxHealth;
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
 }
@@ -14,6 +13,8 @@ AFSEnemy::AFSEnemy()
 void AFSEnemy::BeginPlay()
 {
     Super::BeginPlay();
+
+    CurrentHealth = MaxHealth;
 
     Player = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
 
