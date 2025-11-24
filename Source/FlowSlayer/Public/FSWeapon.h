@@ -5,6 +5,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "FSDamageable.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "FSWeapon.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHit, AActor* hitActor, const FVector& hitLocation);
@@ -37,6 +39,8 @@ protected:
 
     virtual void Tick(float DeltaTime) override;
 
+    virtual void BeginPlay() override;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     USceneComponent* rootComp;
 
@@ -45,6 +49,13 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UBoxComponent* hitbox;
+
+    /** Sword trail VFX */
+    UPROPERTY(EditDefaultsOnly, Category = "VFX")
+    UNiagaraSystem* SwordTrailSystem;
+
+    UPROPERTY()
+    UNiagaraComponent* SwordTrailComponent;
 
 private:
 

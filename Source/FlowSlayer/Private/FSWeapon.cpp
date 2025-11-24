@@ -18,6 +18,10 @@ void AFSWeapon::ActivateHitbox()
     SetActorTickEnabled(true);
     previousHitboxLocation = hitbox->GetComponentLocation();
 
+    // Active le trail
+    if (SwordTrailComponent)
+        SwordTrailComponent->Activate();
+
     //UE_LOG(LogTemp, Warning, TEXT("⚔️ Hitbox ACTIVATED - Continuous tracing started"));
 }
 
@@ -27,7 +31,10 @@ void AFSWeapon::DeactivateHitbox()
     SetActorTickEnabled(false);
     actorsHitThisAttack.Empty();
 
-    //int32 numHit{ actorsHitThisAttack.Num() };
+    // Désactive le trail
+    if (SwordTrailComponent)
+        SwordTrailComponent->Deactivate();
+
     //UE_LOG(LogTemp, Warning, TEXT("⚔️ Hitbox DEACTIVATED - %d enemies hit total"), numHit);
 }
 
@@ -44,6 +51,11 @@ void AFSWeapon::initializeComponents()
     hitbox->SetupAttachment(RootComponent);
     hitbox->SetBoxExtent(DEFAULT_HITBOX_TRANSFORM);
     hitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    /** Trail VFX */
+    SwordTrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SwordTrail"));
+    SwordTrailComponent->SetupAttachment(weaponMesh, "S_WeaponTip");
+    SwordTrailComponent->bAutoActivate = false;
 }
 
 void AFSWeapon::UpdateDamageHitbox()
@@ -94,4 +106,12 @@ void AFSWeapon::Tick(float DeltaTime)
 
     if (bHitboxActive)
         UpdateDamageHitbox();
+}
+
+void AFSWeapon::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (SwordTrailSystem && SwordTrailComponent)
+        SwordTrailComponent->SetAsset(SwordTrailSystem);
 }
