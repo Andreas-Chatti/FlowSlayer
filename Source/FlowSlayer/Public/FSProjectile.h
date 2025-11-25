@@ -3,6 +3,8 @@
 #include "GameFramework/Actor.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/ProjectileMovementComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "FSDamageable.h"
 #include "FSProjectile.generated.h"
 
@@ -26,6 +28,21 @@ protected:
 
     virtual void BeginPlay() override;
 
+    // === VFX ===
+
+    /** Trail Particules VFX */
+    UPROPERTY(EditDefaultsOnly, Category = "VFX")
+    UNiagaraSystem* trailParticules;
+
+    UPROPERTY()
+    UNiagaraComponent* TrailComponent;
+
+    /** Hit Particules VFX */
+    UPROPERTY(EditDefaultsOnly, Category = "VFX")
+    TArray<UNiagaraSystem*> hitParticlesSystemArray;
+
+    void SpawnHitVFX(const FVector& location);
+
 private:
 
     UPROPERTY(VisibleAnywhere, Category = "Components")
@@ -48,4 +65,7 @@ private:
     UFUNCTION()
     void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, 
         const FHitResult& Hit);
+
+    UFUNCTION()
+    void OnTrailSystemFinished(UNiagaraComponent* PSystem);
 };
