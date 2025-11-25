@@ -20,7 +20,6 @@ void AFSEnemy_Runner::Attack_Implementation()
 	Super::Attack_Implementation();
 
 	// 2️⃣ ENSUITE : Ajoute le comportement spécifique au Runner
-	UE_LOG(LogTemp, Warning, TEXT("[RUNNER SPECIFIC] Magic Projectile throwed !"));
 
 	// TODO: Comportement unique au Runner
 	// - Animation rapide de dash

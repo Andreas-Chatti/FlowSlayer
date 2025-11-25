@@ -9,6 +9,8 @@
 #include "Logging/LogMacros.h"
 #include "FSWeapon.h"
 #include "EnhancedInputLibrary.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 #include "FSCombatComponent.generated.h"
 
 class USoundBase;

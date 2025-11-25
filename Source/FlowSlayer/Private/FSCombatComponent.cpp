@@ -135,12 +135,8 @@ void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
     TArray<UMaterialInterface*> ogMats;
     for (int32 i{}; i < enemyMesh->GetNumMaterials(); i++)
     {
-        UMaterialInstanceDynamic* MID{ enemyMesh->CreateDynamicMaterialInstance(i) };
-        if (MID)
-        {
-            ogMats.Add(MID);
-            enemyMesh->SetMaterial(i, HitFlashMaterial);
-        }
+        ogMats.Add(enemyMesh->GetMaterials()[i]); 
+        enemyMesh->SetMaterial(i, HitFlashMaterial);
     }
 
     FTimerHandle flashTimerHandle;

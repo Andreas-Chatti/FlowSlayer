@@ -25,6 +25,11 @@ AFSProjectile::AFSProjectile()
     ProjectileMovement->bShouldBounce = false;
     ProjectileMovement->ProjectileGravityScale = 0.0f;
 
+    TrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("TrailComponent"));
+    TrailComponent->SetupAttachment(MeshComponent);
+    TrailComponent->bAutoActivate = true;
+    TrailComponent->OnSystemFinished.AddDynamic(this, &AFSProjectile::OnTrailSystemFinished);
+
     InitialLifeSpan = Lifetime;
 }
 
@@ -35,6 +40,9 @@ void AFSProjectile::BeginPlay()
     Owner = GetOwner();
     if (Owner)
         CollisionComponent->IgnoreActorWhenMoving(Owner, true);
+
+    if (trailParticules && TrailComponent)
+        TrailComponent->SetAsset(trailParticules);
 }
 
 void AFSProjectile::FireInDirection(const FVector& ShootDirection)
@@ -64,7 +72,7 @@ AFSProjectile* AFSProjectile::SpawnProjectile(UWorld* world, AActor* owner, TSub
 
 void AFSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-    DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+    //DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
 
     if (!OtherActor || OtherActor == Owner)
         return;
@@ -74,7 +82,41 @@ void AFSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPri
     if (damageable && isPlayer)
         damageable->ReceiveDamage(Damage, Owner);
 
-    // TODO: Spawn impact VFX/SFX
+    SpawnHitVFX(Hit.ImpactPoint);
 
+    if (!TrailComponent)
+        Destroy();
+
+    TrailComponent->Deactivate();
+    CollisionComponent->DestroyComponent();
+}
+
+void AFSProjectile::OnTrailSystemFinished(UNiagaraComponent* PSystem)
+{
     Destroy();
+}
+
+void AFSProjectile::SpawnHitVFX(const FVector& location)
+{
+    if (hitParticlesSystemArray.IsEmpty())
+        return;
+
+    uint32 randIndex{ static_cast<uint32>(FMath::RandRange(0, hitParticlesSystemArray.Num() - 1)) };
+    if (!hitParticlesSystemArray.IsValidIndex(randIndex))
+        return;
+
+    UNiagaraSystem* hitParticulesSystem{ hitParticlesSystemArray[randIndex] };
+    if (hitParticulesSystem)
+    {
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+            GetWorld(),
+            hitParticulesSystem,
+            location,
+            FRotator::ZeroRotator,
+            FVector(1.0f),
+            true,
+            true,
+            ENCPoolMethod::None
+        );
+    }
 }
