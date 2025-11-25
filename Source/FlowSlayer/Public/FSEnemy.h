@@ -24,6 +24,8 @@ public:
 
     virtual bool IsDead() const override;
 
+    bool IsStunned() const;
+
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat")
     void Attack();
 
@@ -59,17 +61,25 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     float AttackRange{ 150.f };
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
+    float CcImuneDelay{ 6.f };
+
     UFUNCTION(BlueprintCallable, Category = "Combat")
     virtual void Die();
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
     UAnimMontage* AttackMontage;
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
+    UAnimMontage* HitMontage;
+
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
     UAnimMontage* DeathMontage;
 
     bool bIsDead{ false };
     bool bIsAttacking{ false };
+    bool bIsStunned{ false };
+    bool bIsCcImune{ false };
 
     /** Player Reference */
     UPROPERTY()

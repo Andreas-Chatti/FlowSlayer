@@ -33,7 +33,7 @@ void AFSEnemyAIController::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsAttacking() && !OwnedEnemyPawn->IsDead())
+    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsAttacking() && !OwnedEnemyPawn->IsDead() && !OwnedEnemyPawn->IsStunned())
         FollowPlayer();
 }
 
