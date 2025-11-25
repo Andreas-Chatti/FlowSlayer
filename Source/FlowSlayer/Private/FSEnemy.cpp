@@ -8,6 +8,7 @@ AFSEnemy::AFSEnemy()
     PrimaryActorTick.bStartWithTickEnabled = true;
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
+    AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 }
 
 void AFSEnemy::BeginPlay()
@@ -39,11 +40,26 @@ void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
 
     if (CurrentHealth <= 0.f)
         Die();
+
+    else if (HitMontage && !bIsCcImune)
+    {
+        PlayAnimMontage(HitMontage);
+        bIsStunned = true;
+        bIsCcImune = true;
+
+        FTimerHandle ccImuneTimer;
+        GetWorld()->GetTimerManager().SetTimer(ccImuneTimer, [this]() {bIsCcImune = false;}, CcImuneDelay, false);
+    }
 }
 
 bool AFSEnemy::IsDead() const
 {
     return bIsDead;
+}
+
+bool AFSEnemy::IsStunned() const
+{
+    return bIsStunned;
 }
 
 void AFSEnemy::Attack_Implementation()
@@ -75,6 +91,9 @@ void AFSEnemy::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     if (Montage == AttackMontage)
         bIsAttacking = false;
+
+    else if (Montage == HitMontage)
+        bIsStunned = false;
 }
 
 void AFSEnemy::PlayDeathMontage()
