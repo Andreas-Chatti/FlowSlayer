@@ -73,8 +73,9 @@ public:
 
     // === VFX ===
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat VFX")
-    UParticleSystem* hitParticles{ nullptr };
+    /** Hit Particules VFX */
+    UPROPERTY(EditDefaultsOnly, Category = "VFX")
+    TArray<UNiagaraSystem*> hitParticlesSystemArray;
 
     void SpawnHitVFX(const FVector& location);
 

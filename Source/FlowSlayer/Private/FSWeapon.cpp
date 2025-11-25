@@ -7,6 +7,42 @@ AFSWeapon::AFSWeapon()
     initializeComponents();
 }
 
+void AFSWeapon::initializeComponents()
+{
+    rootComp = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
+    RootComponent = rootComp;
+
+    weaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+    weaponMesh->SetupAttachment(RootComponent);
+    weaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    hitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("Hitbox"));
+    hitbox->SetupAttachment(RootComponent);
+    hitbox->SetBoxExtent(DEFAULT_HITBOX_TRANSFORM);
+    hitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+    /** Trail VFX */
+    SwordTrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SwordTrail"));
+    SwordTrailComponent->SetupAttachment(weaponMesh, "S_WeaponTip");
+    SwordTrailComponent->bAutoActivate = false;
+}
+
+void AFSWeapon::BeginPlay()
+{
+    Super::BeginPlay();
+
+    if (SwordTrailSystem && SwordTrailComponent)
+        SwordTrailComponent->SetAsset(SwordTrailSystem);
+}
+
+void AFSWeapon::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+
+    if (bHitboxActive)
+        UpdateDamageHitbox();
+}
+
 void AFSWeapon::setDamage(float damage)
 {
     Damage = damage;
@@ -36,26 +72,6 @@ void AFSWeapon::DeactivateHitbox()
         SwordTrailComponent->Deactivate();
 
     //UE_LOG(LogTemp, Warning, TEXT("⚔️ Hitbox DEACTIVATED - %d enemies hit total"), numHit);
-}
-
-void AFSWeapon::initializeComponents()
-{
-    rootComp = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
-    RootComponent = rootComp;
-
-    weaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
-    weaponMesh->SetupAttachment(RootComponent);
-    weaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-    hitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("Hitbox"));
-    hitbox->SetupAttachment(RootComponent);
-    hitbox->SetBoxExtent(DEFAULT_HITBOX_TRANSFORM);
-    hitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-    /** Trail VFX */
-    SwordTrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SwordTrail"));
-    SwordTrailComponent->SetupAttachment(weaponMesh, "S_WeaponTip");
-    SwordTrailComponent->bAutoActivate = false;
 }
 
 void AFSWeapon::UpdateDamageHitbox()
@@ -98,20 +114,4 @@ void AFSWeapon::UpdateDamageHitbox()
         }
     }
     previousHitboxLocation = currentLocation;
-}
-
-void AFSWeapon::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-
-    if (bHitboxActive)
-        UpdateDamageHitbox();
-}
-
-void AFSWeapon::BeginPlay()
-{
-    Super::BeginPlay();
-
-    if (SwordTrailSystem && SwordTrailComponent)
-        SwordTrailComponent->SetAsset(SwordTrailSystem);
 }

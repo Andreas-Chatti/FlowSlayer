@@ -58,12 +58,25 @@ void UFSCombatComponent::ResetTimeDilation()
 
 void UFSCombatComponent::SpawnHitVFX(const FVector& location)
 {
-    if (hitParticles)
+    if (hitParticlesSystemArray.IsEmpty())
+        return;
+
+    uint32 randIndex{ static_cast<uint32>(FMath::RandRange(0, hitParticlesSystemArray.Num() - 1)) };
+    if (!hitParticlesSystemArray.IsValidIndex(randIndex))
+        return;
+
+    UNiagaraSystem* hitParticulesSystem{ hitParticlesSystemArray[randIndex] };
+    if (hitParticulesSystem)
     {
-        UGameplayStatics::SpawnEmitterAtLocation(
+        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
             GetWorld(),
-            hitParticles,
-            location
+            hitParticulesSystem,
+            location,
+            FRotator::ZeroRotator,  
+            FVector(1.0f),         
+            true,         
+            true,               
+            ENCPoolMethod::None   
         );
     }
 }
