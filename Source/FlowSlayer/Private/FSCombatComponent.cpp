@@ -132,13 +132,26 @@ void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
     if (!enemyMesh)
         return;
 
-    UMaterialInterface* ogMat{ enemyMesh->GetMaterial(0) };
-    enemyMesh->SetMaterial(0, HitFlashMaterial);
+    TArray<UMaterialInterface*> ogMats;
+    for (int32 i{}; i < enemyMesh->GetNumMaterials(); i++)
+    {
+        UMaterialInstanceDynamic* MID{ enemyMesh->CreateDynamicMaterialInstance(i) };
+        if (MID)
+        {
+            ogMats.Add(MID);
+            enemyMesh->SetMaterial(i, HitFlashMaterial);
+        }
+    }
 
     FTimerHandle flashTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(
         flashTimerHandle,
-        [this, enemyMesh, ogMat]() { enemyMesh->SetMaterial(0, ogMat); },
+        [enemyMesh, ogMats]()
+        {
+            for (int32 i{}; i < enemyMesh->GetNumMaterials(); i++)
+                if (ogMats.IsValidIndex(i))
+                    enemyMesh->SetMaterial(i, ogMats[i]);
+        },
         hitFlashDuration,
         false
     );
