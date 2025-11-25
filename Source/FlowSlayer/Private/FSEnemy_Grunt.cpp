@@ -31,8 +31,6 @@ void AFSEnemy_Grunt::Attack_Implementation()
 {
     Super::Attack_Implementation();
 
-	UE_LOG(LogTemp, Warning, TEXT("[GRUNT SPECIFIC] Slow heavy swing!"));
-
 	// TODO: Comportement unique au Grunt
 	// - Animation spéciale du Grunt
 	// - Son spécifique
@@ -45,8 +43,6 @@ void AFSEnemy_Grunt::ActivateDamageHitbox()
 	bIsDamageHitboxActive = true;
 	ActorsHitThisAttack.Empty();
 	PreviousHitboxLocation = DamageHitbox->GetComponentLocation();
-
-	UE_LOG(LogTemp, Warning, TEXT("⚔️ Hitbox ACTIVATED"));
 }
 
 void AFSEnemy_Grunt::DeactivateDamageHitbox()
@@ -85,7 +81,7 @@ void AFSEnemy_Grunt::UpdateDamageHitbox()
             continue;
 
         ActorsHitThisAttack.Add(hitActor);
-        DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+        //DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
 
         IFSDamageable* damageableActor{ Cast<IFSDamageable>(hitActor) };
         bool isPlayer{ hitActor->ActorHasTag("Player") };
