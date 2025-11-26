@@ -9,25 +9,263 @@ void UFSCombatComponent::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Setting up core variables (PlayerOwner, AnimInstance and equippedWeapon)
     PlayerOwner = Cast<ACharacter>(GetOwner());
-
     AnimInstance = PlayerOwner->GetMesh()->GetAnimInstance();
-    if (AnimInstance)
-    {
-        AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
-        AnimInstance->OnPlayMontageNotifyBegin.AddDynamic(this, &UFSCombatComponent::AnimNotify_ComboWindow);
-        AnimInstance->OnPlayMontageNotifyEnd.AddDynamic(this, &UFSCombatComponent::AnimNotify_AttackEnd);
-    }
-
     InitializeAndAttachWeapon();
+
+    checkf(PlayerOwner && AnimInstance && equippedWeapon, TEXT("FATAL: One or more Core CombatComponent variables are NULL"));
+
     OnHitboxActivated.AddUObject(equippedWeapon, &AFSWeapon::ActivateHitbox);
     OnHitboxDeactivated.AddUObject(equippedWeapon, &AFSWeapon::DeactivateHitbox);
     equippedWeapon->OnEnemyHit.AddUObject(this, &UFSCombatComponent::OnHitLanded);
     equippedWeapon->setDamage(Damage);
 
-    checkf(PlayerOwner && AnimInstance && equippedWeapon, TEXT("Core CombatComponent is NULL"));
+    // Bind MODULAR combo window delegates (broadcasted by AnimNotifyState_ModularCombo)
+    OnModularComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleModularComboWindowOpened);
+    OnModularComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleModularComboWindowClosed);
+
+    // Bind FULL combo window delegates (broadcasted by AnimNotifyState_FullCombo)
+    OnFullComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleFullComboWindowOpened);
+    OnFullComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleFullComboWindowClosed);
+
+    AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
 }
 
+bool UFSCombatComponent::InitializeAndAttachWeapon()
+{
+    if (!weaponClass)
+    {
+        UE_LOG(LogTemp, Error, TEXT("LOADING EQUIPPED WEAPON FAILED"));
+        return false;
+    }
+
+    FActorSpawnParameters spawnParams;
+    spawnParams.Owner = PlayerOwner;
+    equippedWeapon = GetWorld()->SpawnActor<AFSWeapon>(weaponClass, spawnParams);
+    if (!equippedWeapon || !equippedWeapon->AttachToComponent(PlayerOwner->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket")))
+    {
+        UE_LOG(LogTemp, Error, TEXT("LOADING EQUIPPED WEAPON FAILED"));
+        return false;
+    }
+
+    return true;
+}
+
+
+////////////////////////////////////////////////
+/*
+* 
+* Core combo-related methods 
+* 
+*/
+////////////////////////////////////////////////
+void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling)
+{
+    if (bIsAttacking && !bComboWindowOpened)
+        return;
+
+    else if (bIsAttacking && bComboWindowOpened)
+    {
+        if (OngoingCombo->Num() == 1 || ComboIndex <= MaxComboIndex)
+        {
+            bComboWindowOpened = false;
+            bContinueCombo = true;
+        }
+
+        return;
+    }
+
+    if (AnimInstance && AnimInstance->IsAnyMontagePlaying())
+        return;
+
+    bIsAttacking = true;
+
+    OngoingCombo = SelectComboBasedOnState(attackTypeInput, isMoving, isFalling);
+    if (!OngoingCombo)
+    {
+        bIsAttacking = false;
+        return;
+    }
+
+    UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
+    if (!nextAnimAttack)
+    {
+        bIsAttacking = false;
+        return;
+    }
+
+    PlayerOwner->PlayAnimMontage(nextAnimAttack);
+}
+
+TArray<UAnimMontage*>* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling)
+{
+    TArray<UAnimMontage*>* usedCombo{ nullptr };
+    if (isMoving && !isFalling)
+    {
+        switch (attackTypeInput)
+        {
+        case UFSCombatComponent::EAttackType::Light:
+            usedCombo = &RunningLightCombo;
+            break;
+        case UFSCombatComponent::EAttackType::Heavy:
+            usedCombo = &RunningHeavyCombo;
+            break;
+        }
+    }
+
+    else if (!isMoving && !isFalling)
+    {
+        switch (attackTypeInput)
+        {
+        case UFSCombatComponent::EAttackType::Light:
+            usedCombo = &StandingLightCombo;
+            break;
+        case UFSCombatComponent::EAttackType::Heavy:
+            usedCombo = &StandingHeavyCombo;
+            break;
+        }
+    }
+
+    if (usedCombo)
+        MaxComboIndex = usedCombo->Num() - 1;
+
+    return usedCombo;
+}
+
+UAnimMontage* UFSCombatComponent::GetComboNextAttack(TArray<UAnimMontage*> combo)
+{
+    UAnimMontage* attackToPerform{ nullptr };
+    if (ComboIndex >= MaxComboIndex) // Si Combo index est à la dernière attaque du combo
+        attackToPerform = combo.Last(); // Retourne la dernière attaque du combo (dernier élément)
+
+    else if (combo.IsValidIndex(ComboIndex) && combo[ComboIndex])
+        attackToPerform = combo[ComboIndex];
+
+    ++ComboIndex;
+    return attackToPerform;
+}
+
+void UFSCombatComponent::ContinueCombo()
+{
+    if (!bContinueCombo)
+        return;
+
+    bContinueCombo = false;
+
+    if (!OngoingCombo)
+    {
+        UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null - Stopping"));
+        StopCombo();
+        if (AnimInstance)
+            AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
+        return;
+    }
+
+    // FULL COMBO DETECTION: If combo array has only 1 montage, it's a FullCombo
+    // For FullCombo, we don't switch montages - we just let the current one continue playing
+    if (OngoingCombo->Num() == 1)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("FullCombo detected - Letting animation continue naturally"));
+        // Don't call PlayAnimMontage - just let the current montage keep playing
+        // Increment ComboIndex to mark progress through the combo windows
+        ++ComboIndex;
+        return;
+    }
+
+    // MODULAR COMBO: Multiple montages - switch to next attack montage
+    UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
+    if (!nextAnimAttack)
+    {
+        UE_LOG(LogTemp, Error, TEXT("nextAnimAttack is null - Stopping"));
+        StopCombo();
+        if (AnimInstance)
+            AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
+        return;
+    }
+
+    // Successfully continuing the modular combo - play next attack animation
+    UE_LOG(LogTemp, Warning, TEXT("Continuing modular combo - Playing next attack"));
+    PlayerOwner->PlayAnimMontage(nextAnimAttack);
+}
+
+void UFSCombatComponent::StopCombo()
+{
+    ComboIndex = 0;
+    MaxComboIndex = 0;
+    bIsAttacking = false;
+
+    UE_LOG(LogTemp, Error, TEXT("COMBO RESET !"));
+}
+
+void UFSCombatComponent::HandleModularComboWindowOpened()
+{
+    bComboWindowOpened = true;
+    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window OPENED (via delegate)!"));
+}
+
+void UFSCombatComponent::HandleModularComboWindowClosed()
+{
+    bComboWindowOpened = false;
+    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window CLOSED (via delegate)!"));
+
+    // If we've exceeded the max combo index, we're at the end of the combo chain
+    // Reset and let the animation finish naturally (no Montage_Stop)
+    if (ComboIndex > MaxComboIndex)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
+        StopCombo();
+        return;
+    }
+
+    // If player didn't buffer a continue input, stop the combo early
+    if (!bContinueCombo && AnimInstance)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue combo - Stopping"));
+        StopCombo();
+        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
+        return;
+    }
+
+    ContinueCombo();
+}
+
+void UFSCombatComponent::HandleFullComboWindowOpened()
+{
+    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window OPENED (via delegate)!"));
+    bComboWindowOpened = true;
+}
+
+void UFSCombatComponent::HandleFullComboWindowClosed()
+{
+    bComboWindowOpened = false;
+    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window CLOSED (via delegate)!"));
+
+    // If player didn't buffer a continue input, stop the combo early
+    if (!bContinueCombo && AnimInstance)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue combo - Stopping"));
+        StopCombo();
+        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
+        return;
+    }
+
+    ContinueCombo();
+}
+
+void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+    if (Montage == OngoingCombo->Last() || bInterrupted)
+        StopCombo();
+}
+
+
+////////////////////////////////////////////////
+/*
+* Below are all methods related to OnHitLanded
+* VFX, SFX, Hitstop, CameraShake, etc ...
+*/
+////////////////////////////////////////////////
 void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocation)
 {
     if (!hitActor)
@@ -76,11 +314,11 @@ void UFSCombatComponent::SpawnHitVFX(const FVector& location)
             GetWorld(),
             hitParticulesSystem,
             location,
-            FRotator::ZeroRotator,  
-            FVector(1.0f),         
-            true,         
-            true,               
-            ENCPoolMethod::None   
+            FRotator::ZeroRotator,
+            FVector(1.0f),
+            true,
+            true,
+            ENCPoolMethod::None
         );
     }
 }
@@ -107,196 +345,6 @@ void UFSCombatComponent::ApplyCameraShake()
     }
 }
 
-bool UFSCombatComponent::InitializeAndAttachWeapon()
-{
-    if (!weaponClass)
-    {
-        UE_LOG(LogTemp, Error, TEXT("LOADING EQUIPPED WEAPON FAILED"));
-        return false;
-    }
-
-    FActorSpawnParameters spawnParams;
-    spawnParams.Owner = PlayerOwner;
-    equippedWeapon = GetWorld()->SpawnActor<AFSWeapon>(weaponClass, spawnParams);
-    if (!equippedWeapon || !equippedWeapon->AttachToComponent(PlayerOwner->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket")))
-    {
-        UE_LOG(LogTemp, Error, TEXT("LOADING EQUIPPED WEAPON FAILED"));
-        return false;
-    }
-
-    return true;
-}
-
-TArray<UAnimMontage*>* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling)
-{
-    TArray<UAnimMontage*>* usedCombo{ nullptr };
-    if (isMoving && !isFalling)
-    {
-        switch (attackTypeInput)
-        {
-        case UFSCombatComponent::EAttackType::Light:
-            usedCombo = &RunningLightCombo;
-            break;
-        case UFSCombatComponent::EAttackType::Heavy:
-            usedCombo = &RunningHeavyCombo;
-            break;
-        }
-    }
-
-    else if (!isMoving && !isFalling)
-    {
-        switch (attackTypeInput)
-        {
-        case UFSCombatComponent::EAttackType::Light:
-            usedCombo = &StandingLightCombo;
-            break;
-        case UFSCombatComponent::EAttackType::Heavy:
-            usedCombo = &StandingHeavyCombo;
-            break;
-        }
-    }
-
-    if (usedCombo)
-        MaxComboIndex = usedCombo->Num() - 1;
-
-    return usedCombo;
-}
-
-UAnimMontage* UFSCombatComponent::GetComboNextAttack(TArray<UAnimMontage*> combo)
-{
-    UAnimMontage* attackToPerform{ nullptr };
-    if (ComboIndex >= MaxComboIndex) // Si Combo index est � la derni�re attaque du combo
-    {
-        attackToPerform = combo.Last(); // Retourne la derni�re attaque du combo (dernier �l�ment)
-        ContinueCombo(); // Increment to block further inputs (ComboIndex > MaxComboIndex)
-    }
-
-    else if (combo.IsValidIndex(ComboIndex) && combo[ComboIndex])
-    {
-        attackToPerform = combo[ComboIndex];
-        ContinueCombo();
-    }
-
-    return attackToPerform;
-}
-
-void UFSCombatComponent::ContinueCombo()
-{
-    ++ComboIndex;
-    UE_LOG(LogTemp, Error, TEXT("Combo Index incremented : %d"), ComboIndex);
-}
-
-void UFSCombatComponent::ResetCombo()
-{
-    ComboIndex = 0;
-    MaxComboIndex = 0;
-    bIsAttacking = false;
-
-    UE_LOG(LogTemp, Error, TEXT("COMBO RESET !"));
-}
-
-void UFSCombatComponent::AnimNotify_ComboWindow(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload)
-{
-    UE_LOG(LogTemp, Error, TEXT("Combo Window OPENED !"));
-
-    bComboWindowOpened = true;
-}
-
-void UFSCombatComponent::AnimNotify_AttackEnd(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload)
-{
-    bComboWindowOpened = false;
-    UE_LOG(LogTemp, Error, TEXT("Combo Window CLOSED !"));
-
-    // Si on a dépassé le dernier index, on est à la fin du combo
-    // On reset mais on laisse l'animation se terminer naturellement (pas de Montage_Stop)
-    if (ComboIndex > MaxComboIndex)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
-        ResetCombo();
-        return;
-    }
-
-    // Si le joueur n'a pas demandé de continuer le combo, on arrête
-    if (!bContinueCombo && AnimInstance)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue combo - Stopping"));
-        ResetCombo();
-        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
-        return;
-    }
-
-    // Le joueur veut continuer le combo
-    if (bContinueCombo)
-    {
-        bContinueCombo = false;
-
-        if (!OngoingCombo)
-        {
-            UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null - Stopping"));
-            ResetCombo();
-            if (AnimInstance)
-                AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
-            return;
-        }
-
-        UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
-        if (!nextAnimAttack)
-        {
-            UE_LOG(LogTemp, Error, TEXT("nextAnimAttack is null - Stopping"));
-            ResetCombo();
-            if (AnimInstance)
-                AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
-            return;
-        }
-
-        UE_LOG(LogTemp, Warning, TEXT("Continuing combo - Playing next attack"));
-        PlayerOwner->PlayAnimMontage(nextAnimAttack);
-    }
-}
-
-void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling)
-{
-    if (bIsAttacking && !bComboWindowOpened)
-        return;
-
-    else if (bIsAttacking && bComboWindowOpened)
-    {
-        // Block input if we've gone past the last attack
-        if (ComboIndex > MaxComboIndex)
-            return;
-
-        bComboWindowOpened = false;
-        bContinueCombo = true;
-        return;
-    }
-
-    if (AnimInstance && AnimInstance->IsAnyMontagePlaying())
-        return;
-
-    bIsAttacking = true;
-
-    OngoingCombo = SelectComboBasedOnState(attackTypeInput, isMoving, isFalling);
-    if (!OngoingCombo)
-    {
-        bIsAttacking = false;
-        return;
-    }
-
-    UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
-    if (!nextAnimAttack)
-    {
-        bIsAttacking = false;
-        return;
-    }
-
-    PlayerOwner->PlayAnimMontage(nextAnimAttack);
-}
-
-void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
-{
-
-}
-
 void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
 {
     if (!hitActor)
@@ -309,7 +357,7 @@ void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
     TArray<UMaterialInterface*> ogMats;
     for (int32 i{}; i < enemyMesh->GetNumMaterials(); i++)
     {
-        ogMats.Add(enemyMesh->GetMaterials()[i]); 
+        ogMats.Add(enemyMesh->GetMaterials()[i]);
         enemyMesh->SetMaterial(i, HitFlashMaterial);
     }
 

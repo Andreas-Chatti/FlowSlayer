@@ -51,6 +51,9 @@ void AFlowSlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	AnimInstance = GetMesh()->GetAnimInstance();
+	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
+
 	/** Tag used when other classes trying to avoid direct dependance to this class */
 	Tags.Add("Player");
 }
@@ -251,7 +254,7 @@ void AFlowSlayerCharacter::Jump()
 
 void AFlowSlayerCharacter::OnAttackTriggered(const FInputActionInstance& Value)
 {
-	if (!CombatComponent->isAttacking())
+	if (!CombatComponent->isAttacking() && !AnimInstance->IsAnyMontagePlaying())
 		RotatePlayerToCameraDirection();
 
 	UFSCombatComponent::EAttackType attackTypeInput{ Value.GetSourceAction() == LightAttackAction ? UFSCombatComponent::EAttackType::Light : UFSCombatComponent::EAttackType::Heavy };

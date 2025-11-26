@@ -21,6 +21,14 @@ class UCameraShakeBase;
 DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
 DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
 
+/** Delegates for Modular combo window management - broadcasted by AnimNotifyState_ModularCombo */
+DECLARE_MULTICAST_DELEGATE(FOnModularComboWindowOpened);
+DECLARE_MULTICAST_DELEGATE(FOnModularComboWindowClosed);
+
+/** Delegates for Full combo window management - broadcasted by AnimNotifyState_FullCombo */
+DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowOpened);
+DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowClosed);
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FLOWSLAYER_API UFSCombatComponent : public UActorComponent
 {
@@ -41,6 +49,18 @@ public:
     */
     FOnHitboxActivated OnHitboxActivated;
     FOnHitboxDeactivated OnHitboxDeactivated;
+
+    /** MODULAR Combo window delegates
+    * Broadcasted by AnimNotifyState_ModularCombo to notify combo window open/close events
+    */
+    FOnModularComboWindowClosed OnModularComboWindowClosed;
+    FOnModularComboWindowOpened OnModularComboWindowOpened;
+
+    /** FULL Combo window delegates
+    * Broadcasted by AnimNotifyState_FullCombo to notify combo window open/close events
+    */
+    FOnFullComboWindowOpened OnFullComboWindowOpened;
+    FOnFullComboWindowClosed OnFullComboWindowClosed;
 
     /** Called for attacking input */
     void Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling);
@@ -178,15 +198,19 @@ private:
     void ContinueCombo();
 
     /** Resets all combo state variables to their default values */
-    void ResetCombo();
+    void StopCombo();
 
-    // === ANIM NOTIFIES ===
+    // === COMBO WINDOW HANDLERS (Bound to delegates in BeginPlay) ===
 
-    /** Called by animation notify to open the combo input window */
-    UFUNCTION()
-    void AnimNotify_ComboWindow(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);
+    /** Called when MODULAR combo window opens via delegate broadcast */
+    void HandleModularComboWindowOpened();
 
-    /** Called by animation notify when the attack animation ends */
-    UFUNCTION()
-    void AnimNotify_AttackEnd(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);
+    /** Called when MODULAR combo window closes via delegate broadcast */
+    void HandleModularComboWindowClosed();
+
+    /** Called when FULL combo window opens via delegate broadcast */
+    void HandleFullComboWindowOpened();
+
+    /** Called when FULL combo window closes via delegate broadcast */
+    void HandleFullComboWindowClosed();
 };
