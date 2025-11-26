@@ -160,7 +160,8 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Dash);
 
 		// Attacking
-		EnhancedInputComponent->BindAction(AttackAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::OnAttackTriggered);
+		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
+		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
 	}
 
 	else
@@ -218,7 +219,6 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 	bCanDash = false;
 	FVector launchVelocity{ GetCharacterMovement()->GetLastInputVector().GetSafeNormal() * dashDistance };
 	LaunchCharacter(launchVelocity, false, false);
-
 	FLatentActionInfo LatentInfo;
 	LatentInfo.CallbackTarget = this;
 	FTimerHandle dashCooldownTimerHandle;
@@ -249,11 +249,11 @@ void AFlowSlayerCharacter::Jump()
 		PlayAnimMontage(ForwardJumpMontage);
 }
 
-void AFlowSlayerCharacter::OnAttackTriggered(const FInputActionValue& Value)
+void AFlowSlayerCharacter::OnAttackTriggered(const FInputActionInstance& Value)
 {
-	if (CombatComponent && !CombatComponent->isAttacking())
-	{
+	if (!CombatComponent->isAttacking())
 		RotatePlayerToCameraDirection();
-		CombatComponent->Attack(IsMoving(), GetCharacterMovement()->IsFalling());
-	}
+
+	UFSCombatComponent::EAttackType attackTypeInput{ Value.GetSourceAction() == LightAttackAction ? UFSCombatComponent::EAttackType::Light : UFSCombatComponent::EAttackType::Heavy };
+	CombatComponent->Attack(attackTypeInput, IsMoving(), GetCharacterMovement()->IsFalling());
 }
