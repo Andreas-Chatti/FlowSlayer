@@ -146,6 +146,55 @@ UAnimMontage* UFSCombatComponent::GetComboNextAttack(TArray<UAnimMontage*> combo
     return attackToPerform;
 }
 
+void UFSCombatComponent::HandleModularComboWindowOpened()
+{
+    bComboWindowOpened = true;
+    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window OPENED (via delegate)!"));
+}
+
+void UFSCombatComponent::HandleModularComboWindowClosed()
+{
+    bComboWindowOpened = false;
+    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window CLOSED (via delegate)!"));
+
+    // If we've exceeded the max combo index, we're at the end of the combo chain
+    // Reset and let the animation finish naturally (no Montage_Stop)
+    if (ComboIndex > MaxComboIndex)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
+        return;
+    }
+
+    // If player didn't buffer a continue input, stop the combo early
+    if (!bContinueCombo && AnimInstance)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue MODULAR combo - Letting animation stops"));
+        return;
+    }
+    ContinueCombo();
+}
+
+void UFSCombatComponent::HandleFullComboWindowOpened()
+{
+    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window OPENED (via delegate)!"));
+    bComboWindowOpened = true;
+}
+
+void UFSCombatComponent::HandleFullComboWindowClosed()
+{
+    bComboWindowOpened = false;
+    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window CLOSED (via delegate)!"));
+
+    // If player didn't buffer a continue input, stop the combo early
+    if (!bContinueCombo && AnimInstance)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue FULL combo - Stopping"));
+        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
+        return;
+    }
+    ContinueCombo();
+}
+
 void UFSCombatComponent::ContinueCombo()
 {
     if (!bContinueCombo)
@@ -156,9 +205,7 @@ void UFSCombatComponent::ContinueCombo()
     if (!OngoingCombo)
     {
         UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null - Stopping"));
-        StopCombo();
-        if (AnimInstance)
-            AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
+        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
     }
 
@@ -178,9 +225,7 @@ void UFSCombatComponent::ContinueCombo()
     if (!nextAnimAttack)
     {
         UE_LOG(LogTemp, Error, TEXT("nextAnimAttack is null - Stopping"));
-        StopCombo();
-        if (AnimInstance)
-            AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
+        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
     }
 
@@ -198,64 +243,12 @@ void UFSCombatComponent::StopCombo()
     UE_LOG(LogTemp, Error, TEXT("COMBO RESET !"));
 }
 
-void UFSCombatComponent::HandleModularComboWindowOpened()
-{
-    bComboWindowOpened = true;
-    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window OPENED (via delegate)!"));
-}
-
-void UFSCombatComponent::HandleModularComboWindowClosed()
-{
-    bComboWindowOpened = false;
-    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window CLOSED (via delegate)!"));
-
-    // If we've exceeded the max combo index, we're at the end of the combo chain
-    // Reset and let the animation finish naturally (no Montage_Stop)
-    if (ComboIndex > MaxComboIndex)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
-        StopCombo();
-        return;
-    }
-
-    // If player didn't buffer a continue input, stop the combo early
-    if (!bContinueCombo && AnimInstance)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue combo - Stopping"));
-        StopCombo();
-        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
-        return;
-    }
-
-    ContinueCombo();
-}
-
-void UFSCombatComponent::HandleFullComboWindowOpened()
-{
-    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window OPENED (via delegate)!"));
-    bComboWindowOpened = true;
-}
-
-void UFSCombatComponent::HandleFullComboWindowClosed()
-{
-    bComboWindowOpened = false;
-    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window CLOSED (via delegate)!"));
-
-    // If player didn't buffer a continue input, stop the combo early
-    if (!bContinueCombo && AnimInstance)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue combo - Stopping"));
-        StopCombo();
-        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
-        return;
-    }
-
-    ContinueCombo();
-}
-
 void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-    if (Montage == OngoingCombo->Last() || bInterrupted)
+    if (Montage == OngoingCombo->Last() || (OngoingCombo->Num() == 1 && bInterrupted))
+        StopCombo();
+
+    else if (OngoingCombo->Num() > 1 && !bInterrupted)
         StopCombo();
 }
 
