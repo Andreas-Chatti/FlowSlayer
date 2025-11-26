@@ -86,6 +86,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* ForwardJumpMontage;
 
+	/** Cached AnimInstance reference */
+	UPROPERTY()
+	UAnimInstance* AnimInstance;
+
 public:
 
 	AFlowSlayerCharacter();
