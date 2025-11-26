@@ -54,11 +54,8 @@ void AFSWeapon::ActivateHitbox()
     SetActorTickEnabled(true);
     previousHitboxLocation = hitbox->GetComponentLocation();
 
-    // Active le trail
     if (SwordTrailComponent)
         SwordTrailComponent->Activate();
-
-    //UE_LOG(LogTemp, Warning, TEXT("⚔️ Hitbox ACTIVATED - Continuous tracing started"));
 }
 
 void AFSWeapon::DeactivateHitbox()
@@ -67,11 +64,8 @@ void AFSWeapon::DeactivateHitbox()
     SetActorTickEnabled(false);
     actorsHitThisAttack.Empty();
 
-    // Désactive le trail
     if (SwordTrailComponent)
         SwordTrailComponent->Deactivate();
-
-    //UE_LOG(LogTemp, Warning, TEXT("⚔️ Hitbox DEACTIVATED - %d enemies hit total"), numHit);
 }
 
 void AFSWeapon::UpdateDamageHitbox()

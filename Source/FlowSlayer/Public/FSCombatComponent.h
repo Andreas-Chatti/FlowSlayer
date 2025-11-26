@@ -28,6 +28,12 @@ class FLOWSLAYER_API UFSCombatComponent : public UActorComponent
 
 public:
 
+    enum class EAttackType
+    {
+        Light,
+        Heavy
+    };
+
     UFSCombatComponent();
 
     /** Event delegates notify
@@ -37,7 +43,7 @@ public:
     FOnHitboxDeactivated OnHitboxDeactivated;
 
     /** Called for attacking input */
-    void Attack(bool isMoving, bool isFalling);
+    void Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling);
 
     bool isAttacking() const { return bIsAttacking; }
 
@@ -59,14 +65,14 @@ public:
 
     // === HIT REACTION ===
 
-    // Appelée quand on HIT quelque chose
+    // Appelï¿½e quand on HIT quelque chose
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void OnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
     // === HITSTOP ===
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopDuration{ 0.1f }; // Durée du freeze
+    float hitstopDuration{ 0.1f }; // Durï¿½e du freeze
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
     float hitstopTimeDilation{ 0.05f }; // Ralentissement (0 = freeze total)
@@ -105,24 +111,82 @@ private:
     UPROPERTY()
     ACharacter* PlayerOwner;
 
+    /** Cached AnimInstance reference */
+    UPROPERTY()
+    UAnimInstance* AnimInstance;
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats", meta = (AllowPrivateAccess = "true"))
     float Damage{ 50.f };
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-    UAnimMontage* RunningAttackMontage;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-    UAnimMontage* IdleAttackMontage;
 
     UPROPERTY()
     FTimerHandle hitstopTimerHandle;
 
     UFUNCTION()
-    void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
+    void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
     void ResetTimeDilation();
 
     bool InitializeAndAttachWeapon();
 
+    // === COMBAT - COMBO SYSTEM ===
+
+    /** Animation montage containing all combo attack sections */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    TArray<UAnimMontage*> StandingLightCombo{ nullptr };
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    TArray<UAnimMontage*> StandingHeavyCombo{ nullptr };
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    TArray<UAnimMontage*> RunningLightCombo{ nullptr };
+
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    TArray<UAnimMontage*> RunningHeavyCombo{ nullptr };
+
+    /** Character ongoing combo */
+    TArray<UAnimMontage*>* OngoingCombo{ nullptr };
+
+    /** Is the character currently performing an attack? */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
     bool bIsAttacking{ false };
+
+    /** Can the player input continue the combo? Set by AnimNotify_ComboWindow */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    bool bComboWindowOpened{ false };
+
+    /** Can the player input continue the combo? Set by AnimNotify_ComboWindow */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    bool bContinueCombo{ false };
+
+    /** Current attack index in the combo chain (0 = first attack, 1 = second, etc.) */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    int32 ComboIndex{ 0 };
+
+    /** Maximum number of attacks in this combo chain */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    int32 MaxComboIndex{ 0 };
+
+    // === FUNCTIONS ===
+
+    /** Select the correct Combo Array based on the current player's state */
+    TArray<UAnimMontage*>* SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling);
+
+    /** Start a combo */
+    UAnimMontage* GetComboNextAttack(TArray<UAnimMontage*> combo);
+
+    /** Advances to the next attack in the combo sequence */
+    void ContinueCombo();
+
+    /** Resets all combo state variables to their default values */
+    void ResetCombo();
+
+    // === ANIM NOTIFIES ===
+
+    /** Called by animation notify to open the combo input window */
+    UFUNCTION()
+    void AnimNotify_ComboWindow(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);
+
+    /** Called by animation notify when the attack animation ends */
+    UFUNCTION()
+    void AnimNotify_AttackEnd(FName NotifyName, const FBranchingPointNotifyPayload& BranchingPointPayload);
 };

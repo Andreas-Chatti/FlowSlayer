@@ -63,9 +63,19 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* DashAction;
 
-	/** Attack Input Action */
+	/*
+	* LEFT CLICK
+	* LIGHT Attack Input Action 
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* AttackAction;
+	UInputAction* LightAttackAction;
+
+	/*
+	* RIGHT CLICK
+	* HEAVY Attack Input Action 
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* HeavyAttackAction;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* deathMontage;
@@ -113,7 +123,8 @@ protected:
 	/** Called for dashing input */
 	void Dash(const FInputActionValue& Value);
 
-	void OnAttackTriggered(const FInputActionValue& Value);
+	/* Called for attack input (RIGHT or LEFT click) */
+	void OnAttackTriggered(const FInputActionInstance& Value);
 
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -128,7 +139,7 @@ private:
 	bool bCanDash{ true };
 	bool bIsDead{ false };
 
-	float CurrentHealth;
+	float CurrentHealth{};
 
 	/** Minimum velocity required in order to use Dash */
 	static constexpr float MIN_DASH_VELOCITY{ 10.0f };
