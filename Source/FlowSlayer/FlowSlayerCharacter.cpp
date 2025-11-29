@@ -6,13 +6,22 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
+
+	USkeletalMeshComponent* mesh = GetMesh();
+	if (mesh)
+	{
+		mesh->SetRelativeLocation(FVector(0.f, 0.f, -96.f)); // Offset capsule
+		mesh->SetRelativeRotation(FRotator(0.f, -90.f, 0.f)); // Face forward
+		mesh->SetUsingAbsoluteLocation(false);
+		mesh->SetUsingAbsoluteRotation(false);
+	}
 		
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = true;	
+	GetCharacterMovement()->bOrientRotationToMovement = false;	
 	GetCharacterMovement()->RotationRate = FRotator{ 0.f, 500.f, 0.f };
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
@@ -58,6 +67,10 @@ void AFlowSlayerCharacter::BeginPlay()
 	Tags.Add("Player");
 }
 
+void AFlowSlayerCharacter::Tick(float DeltaTime)
+{
+}
+
 void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
 {
 	if (bIsDead)
@@ -75,7 +88,7 @@ bool AFlowSlayerCharacter::CanJumpInternal_Implementation() const
 {
 	if (CombatComponent->isAttacking())
 		return false;
-
+	
 	return Super::CanJumpInternal_Implementation();
 }
 
@@ -84,29 +97,6 @@ void AFlowSlayerCharacter::Die()
 	bIsDead = true;
 
 	DisableAllInputs();
-	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
-	if (deathMontage)
-	{
-		PlayAnimMontage(deathMontage);
-
-		float MontageLength{ deathMontage->GetPlayLength() };
-		float BlendOutTime{ deathMontage->BlendOut.GetBlendTime() };
-		float TimerDelay{ MontageLength - BlendOutTime };  
-
-		FTimerHandle DeathTimerHandle;
-		GetWorld()->GetTimerManager().SetTimer(
-			DeathTimerHandle,
-			[this]()
-			{
-				USkeletalMeshComponent* Mesh{ GetMesh() };
-				if (Mesh && Mesh->GetAnimInstance())
-					Mesh->bPauseAnims = true;
-			},
-			TimerDelay,
-			false
-		);
-	}
 }
 
 void AFlowSlayerCharacter::Ragdoll()
@@ -129,13 +119,12 @@ void AFlowSlayerCharacter::DisableAllInputs()
 	APlayerController* PlayerController{ Cast<APlayerController>(GetController()) };
 	if (PlayerController)
 	{
-		UEnhancedInputLocalPlayerSubsystem* Subsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) };
+		UEnhancedInputLocalPlayerSubsystem* Subsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer())};
 		if (Subsystem && DefaultMappingContext)
 			Subsystem->RemoveMappingContext(DefaultMappingContext);
-
+			
 		DisableInput(PlayerController);
 	}
-	GetCharacterMovement()->DisableMovement();
 }
 
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -155,6 +144,7 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 		// Moving
 		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Move);
+		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &AFlowSlayerCharacter::StopMoving);
 
 		// Looking
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Look);
@@ -180,6 +170,9 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 	FVector2D MovementVector{ Value.Get<FVector2D>() };
 	if (Controller != nullptr)
 	{
+		// Track input pour ABP
+		bHasMovementInput = MovementVector.SquaredLength() > 0.01f;
+
 		// find out which way is forward
 		const FRotator Rotation{ Controller->GetControlRotation() };
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
@@ -193,7 +186,31 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 		// add movement 
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
+
+		PlayerCurrentSpeed = static_cast<float>(GetCharacterMovement()->GetLastUpdateVelocity().Length());
+		MoveInputAxis = Value.Get<float>();
+
+		float currentYaw = GetActorRotation().Yaw;
+
+		float targetYaw = currentYaw + (MoveInputAxis * 90.0f);
+
+		float angleDelta = FMath::Abs(FRotator::NormalizeAxis(targetYaw - currentYaw));
+
+		const float MIN_TURN_ANGLE = 45.0f;
+		const float MAX_TURN_ANGLE = 135.0f;
+
+		bool shouldTurn90 = (PlayerCurrentSpeed >= 400.0f) && (angleDelta >= MIN_TURN_ANGLE && angleDelta <= MAX_TURN_ANGLE);
+
+		if (shouldTurn90)
+		{
+			
+		}
 	}
+}
+
+void AFlowSlayerCharacter::StopMoving(const FInputActionValue& Value)
+{
+	bHasMovementInput = false;
 }
 
 void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
@@ -211,7 +228,7 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 
 void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 {
-	if (CombatComponent->isAttacking())
+	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling())
 		return;
 
 	double charVelocity{ GetCharacterMovement()->Velocity.Length() };
@@ -220,12 +237,13 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 		return;
 
 	bCanDash = false;
+	bIsDashing = true;
 	FVector launchVelocity{ GetCharacterMovement()->GetLastInputVector().GetSafeNormal() * dashDistance };
 	LaunchCharacter(launchVelocity, false, false);
 	FLatentActionInfo LatentInfo;
 	LatentInfo.CallbackTarget = this;
 	FTimerHandle dashCooldownTimerHandle;
-	GetWorldTimerManager().SetTimer(dashCooldownTimerHandle, [this]() { bCanDash = true; }, dashCooldown, false);
+	GetWorldTimerManager().SetTimer(dashCooldownTimerHandle, [this]() { bCanDash = true; bIsDashing = false; }, dashCooldown, false);
 }
 
 void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
@@ -243,13 +261,19 @@ void AFlowSlayerCharacter::Jump()
 	if (!CanJumpInternal_Implementation())
 		return;
 
+	bHasPressedJump = true;
+
 	Super::Jump();
+}
 
-	if (IdleJumpMontage && !IsMoving())
-		PlayAnimMontage(IdleJumpMontage);
+void AFlowSlayerCharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode)
+{
+}
 
-	else if (ForwardJumpMontage && IsMoving())
-		PlayAnimMontage(ForwardJumpMontage);
+void AFlowSlayerCharacter::Falling()
+{
+	bWasJumpFall = bHasPressedJump;
+	bHasPressedJump = false;
 }
 
 void AFlowSlayerCharacter::OnAttackTriggered(const FInputActionInstance& Value)

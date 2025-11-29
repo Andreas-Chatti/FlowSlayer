@@ -77,15 +77,6 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* HeavyAttackAction;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* deathMontage;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* IdleJumpMontage;
-
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* ForwardJumpMontage;
-
 	/** Cached AnimInstance reference */
 	UPROPERTY()
 	UAnimInstance* AnimInstance;
@@ -103,11 +94,23 @@ public:
 
 	virtual bool CanJumpInternal_Implementation() const override;
 
+	UFUNCTION(BlueprintCallable)
 	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
+
+	UFUNCTION(BlueprintCallable)
+	bool HasMovementInput() const { return bHasMovementInput; }
 
 	const UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
 
 protected:
+
+	/** Is player currently giving movement input? (for ABP) */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bHasMovementInput{ false };
+
+	/* If the last fall was cause by a jump */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bWasJumpFall{ false };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
 	float dashDistance{ 1250.0f };
@@ -118,8 +121,30 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
 	float MaxHealth{ 100.f };
 
+	/** Can Player use Dash ? */
+	UPROPERTY(BlueprintReadOnly)
+	bool bCanDash{ true };
+
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsDashing{ false };
+
+	/** Is Player Dead ?*/
+	UPROPERTY(BlueprintReadOnly)
+	bool bIsDead{ false };
+
+	/** Player velocity */
+	UPROPERTY(BlueprintReadOnly)
+	float PlayerCurrentSpeed{ 0.f };
+
+	/* */
+	UPROPERTY(BlueprintReadOnly)
+	float MoveInputAxis{ 0.f };
+
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
+
+	/** Called when movement input is released */
+	void StopMoving(const FInputActionValue& Value);
 
 	/** Called for looking input */
 	void Look(const FInputActionValue& Value);
@@ -135,13 +160,12 @@ protected:
 	
 	virtual void BeginPlay() override;
 
+	virtual void Tick(float DeltaTime) override;
+
 	void Ragdoll();
 	void DisableAllInputs();
 
 private:
-
-	bool bCanDash{ true };
-	bool bIsDead{ false };
 
 	float CurrentHealth{};
 
@@ -151,6 +175,14 @@ private:
 	void Die();
 
 	virtual void Jump() override;
+
+	bool bHasPressedJump{ false };
+
+	UFUNCTION()
+	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
+
+	UFUNCTION()
+	virtual void Falling() override;
 
 	/** Rotate the player character in the direction of the player camera view */
 	void RotatePlayerToCameraDirection();

@@ -67,7 +67,8 @@ void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool
 
     else if (bIsAttacking && bComboWindowOpened)
     {
-        if (OngoingCombo->Num() == 1 || ComboIndex <= MaxComboIndex)
+        // Allow combo continuation if it's a full combo OR we haven't reached the end yet
+        if (OngoingCombo->IsFullCombo() || ComboIndex <= OngoingCombo->GetMaxComboIndex())
         {
             bComboWindowOpened = false;
             bContinueCombo = true;
@@ -82,7 +83,7 @@ void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool
     bIsAttacking = true;
 
     OngoingCombo = SelectComboBasedOnState(attackTypeInput, isMoving, isFalling);
-    if (!OngoingCombo)
+    if (!OngoingCombo || !OngoingCombo->IsValid())
     {
         bIsAttacking = false;
         return;
@@ -98,18 +99,18 @@ void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool
     PlayerOwner->PlayAnimMontage(nextAnimAttack);
 }
 
-TArray<UAnimMontage*>* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling)
+FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling)
 {
-    TArray<UAnimMontage*>* usedCombo{ nullptr };
+    FCombo* selectedCombo{ nullptr };
     if (isMoving && !isFalling)
     {
         switch (attackTypeInput)
         {
-        case UFSCombatComponent::EAttackType::Light:
-            usedCombo = &RunningLightCombo;
+        case EAttackType::Light:
+            selectedCombo = &RunningLightCombo;
             break;
-        case UFSCombatComponent::EAttackType::Heavy:
-            usedCombo = &RunningHeavyCombo;
+        case EAttackType::Heavy:
+            selectedCombo = &RunningHeavyCombo;
             break;
         }
     }
@@ -118,31 +119,30 @@ TArray<UAnimMontage*>* UFSCombatComponent::SelectComboBasedOnState(EAttackType a
     {
         switch (attackTypeInput)
         {
-        case UFSCombatComponent::EAttackType::Light:
-            usedCombo = &StandingLightCombo;
+        case EAttackType::Light:
+            selectedCombo = &StandingLightCombo;
             break;
-        case UFSCombatComponent::EAttackType::Heavy:
-            usedCombo = &StandingHeavyCombo;
+        case EAttackType::Heavy:
+            selectedCombo = &StandingHeavyCombo;
             break;
         }
     }
 
-    if (usedCombo)
-        MaxComboIndex = usedCombo->Num() - 1;
-
-    return usedCombo;
+    return selectedCombo;
 }
 
-UAnimMontage* UFSCombatComponent::GetComboNextAttack(TArray<UAnimMontage*> combo)
+UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
 {
     UAnimMontage* attackToPerform{ nullptr };
-    if (ComboIndex >= MaxComboIndex) // Si Combo index est à la dernière attaque du combo
-        attackToPerform = combo.Last(); // Retourne la dernière attaque du combo (dernier élément)
 
-    else if (combo.IsValidIndex(ComboIndex) && combo[ComboIndex])
-        attackToPerform = combo[ComboIndex];
+    if (ComboIndex >= combo.GetMaxComboIndex())
+        attackToPerform = combo.GetLastAttack();
+
+    else
+        attackToPerform = combo.GetAttackAt(ComboIndex);
 
     ++ComboIndex;
+
     return attackToPerform;
 }
 
@@ -159,18 +159,18 @@ void UFSCombatComponent::HandleModularComboWindowClosed()
 
     // If we've exceeded the max combo index, we're at the end of the combo chain
     // Reset and let the animation finish naturally (no Montage_Stop)
-    if (ComboIndex > MaxComboIndex)
+    if (ComboIndex > OngoingCombo->GetMaxComboIndex())
     {
         UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
         return;
     }
 
-    // If player didn't buffer a continue input, stop the combo early
-    if (!bContinueCombo && AnimInstance)
+    else if (!bContinueCombo && AnimInstance)
     {
         UE_LOG(LogTemp, Warning, TEXT("Player didn't continue MODULAR combo - Letting animation stops"));
         return;
     }
+
     ContinueCombo();
 }
 
@@ -202,25 +202,22 @@ void UFSCombatComponent::ContinueCombo()
 
     bContinueCombo = false;
 
-    if (!OngoingCombo)
+    if (!OngoingCombo || !OngoingCombo->IsValid())
     {
-        UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null - Stopping"));
+        UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null or invalid - Stopping"));
         AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
     }
 
-    // FULL COMBO DETECTION: If combo array has only 1 montage, it's a FullCombo
-    // For FullCombo, we don't switch montages - we just let the current one continue playing
-    if (OngoingCombo->Num() == 1)
+    if (OngoingCombo->IsFullCombo())
     {
         UE_LOG(LogTemp, Warning, TEXT("FullCombo detected - Letting animation continue naturally"));
-        // Don't call PlayAnimMontage - just let the current montage keep playing
-        // Increment ComboIndex to mark progress through the combo windows
+        // Increment ComboIndex to track progress through combo windows
         ++ComboIndex;
         return;
     }
 
-    // MODULAR COMBO: Multiple montages - switch to next attack montage
+    // MODULAR COMBO: Multiple separate montages - switch to next attack montage
     UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
     if (!nextAnimAttack)
     {
@@ -237,18 +234,24 @@ void UFSCombatComponent::ContinueCombo()
 void UFSCombatComponent::StopCombo()
 {
     ComboIndex = 0;
-    MaxComboIndex = 0;
     bIsAttacking = false;
-
+    //OngoingCombo = nullptr;
+    
     UE_LOG(LogTemp, Error, TEXT("COMBO RESET !"));
 }
 
 void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-    if (Montage == OngoingCombo->Last() || (OngoingCombo->Num() == 1 && bInterrupted))
+    // Safety check: ensure we have a valid ongoing combo
+    if (!OngoingCombo || !OngoingCombo->IsValid())
+        return;
+
+    // If the montage that ended is the last attack OR if a full combo was interrupted
+    if (Montage == OngoingCombo->GetLastAttack() || (OngoingCombo->IsFullCombo() && bInterrupted))
         StopCombo();
 
-    else if (OngoingCombo->Num() > 1 && !bInterrupted)
+    // If it's a modular combo and it finished naturally (not interrupted)
+    else if (OngoingCombo->IsModularCombo() && !bInterrupted)
         StopCombo();
 }
 

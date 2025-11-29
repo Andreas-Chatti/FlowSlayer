@@ -29,6 +29,53 @@ DECLARE_MULTICAST_DELEGATE(FOnModularComboWindowClosed);
 DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowOpened);
 DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowClosed);
 
+/**
+ * Combo data structure
+ *
+ * Encapsulates all data related to a single combo chain.
+ * Supports both MODULAR combos (multiple montages) and FULL combos (single montage).
+ */
+USTRUCT(BlueprintType)
+struct FCombo
+{
+    GENERATED_BODY()
+
+    /** Array of attack animations for this combo
+     * - MODULAR combo: Multiple montages (e.g., [Attack1, Attack2, Attack3])
+     * - FULL combo: Single montage containing entire combo sequence
+     */
+    UPROPERTY(EditDefaultsOnly, Category = "Combo")
+    TArray<UAnimMontage*> Attacks;
+
+    /** Combo name for debugging purposes */
+    UPROPERTY(EditDefaultsOnly, Category = "Combo")
+    FName ComboName = NAME_None;
+
+    /** Returns the maximum combo index (last attack index in the array) */
+    int32 GetMaxComboIndex() const { return FMath::Max(0, Attacks.Num() - 1); }
+
+    /** Returns true if this is a FULL combo (single montage with entire sequence) */
+    bool IsFullCombo() const { return Attacks.Num() == 1; }
+
+    /** Returns true if this is a MODULAR combo (multiple separate montages) */
+    bool IsModularCombo() const { return Attacks.Num() > 1; }
+
+    /** Checks if this combo data is valid and ready to use */
+    bool IsValid() const { return !Attacks.IsEmpty() && Attacks[0] != nullptr; }
+
+    /** Gets an attack montage at the specified index (returns nullptr if invalid) */
+    UAnimMontage* GetAttackAt(int32 Index) const
+    {
+        return Attacks.IsValidIndex(Index) ? Attacks[Index] : nullptr;
+    }
+
+    /** Gets the last attack montage in the combo */
+    UAnimMontage* GetLastAttack() const
+    {
+        return !Attacks.IsEmpty() ? Attacks.Last() : nullptr;
+    }
+};
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FLOWSLAYER_API UFSCombatComponent : public UActorComponent
 {
@@ -150,21 +197,24 @@ private:
 
     // === COMBAT - COMBO SYSTEM ===
 
-    /** Animation montage containing all combo attack sections */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
-    TArray<UAnimMontage*> StandingLightCombo{ nullptr };
+    /** Standing light attack combo */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo StandingLightCombo;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
-    TArray<UAnimMontage*> StandingHeavyCombo{ nullptr };
+    /** Standing heavy attack combo */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo StandingHeavyCombo;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
-    TArray<UAnimMontage*> RunningLightCombo{ nullptr };
+    /** Running light attack combo */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo RunningLightCombo;
 
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
-    TArray<UAnimMontage*> RunningHeavyCombo{ nullptr };
+    /** Running heavy attack combo */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo RunningHeavyCombo;
 
-    /** Character ongoing combo */
-    TArray<UAnimMontage*>* OngoingCombo{ nullptr };
+    /** Currently active combo (pointer to one of the above combos) */
+    FCombo* OngoingCombo{ nullptr };
 
     /** Is the character currently performing an attack? */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
@@ -182,17 +232,13 @@ private:
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
     int32 ComboIndex{ 0 };
 
-    /** Maximum number of attacks in this combo chain */
-    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
-    int32 MaxComboIndex{ 0 };
-
     // === FUNCTIONS ===
 
-    /** Select the correct Combo Array based on the current player's state */
-    TArray<UAnimMontage*>* SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling);
+    /** Select the correct Combo based on the current player's state (moving, falling, attack type) */
+    FCombo* SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling);
 
-    /** Start a combo */
-    UAnimMontage* GetComboNextAttack(TArray<UAnimMontage*> combo);
+    /** Get the next attack montage in the combo sequence */
+    UAnimMontage* GetComboNextAttack(const FCombo& combo);
 
     /** Advances to the next attack in the combo sequence */
     void ContinueCombo();
