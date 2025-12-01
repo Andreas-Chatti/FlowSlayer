@@ -21,7 +21,7 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = false;	
+	GetCharacterMovement()->bOrientRotationToMovement = true;	
 	GetCharacterMovement()->RotationRate = FRotator{ 0.f, 500.f, 0.f };
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
@@ -127,6 +127,23 @@ void AFlowSlayerCharacter::DisableAllInputs()
 	}
 }
 
+void AFlowSlayerCharacter::SwitchMovementMode(const FInputActionInstance& Value)
+{
+	bCombatMovements = !bCombatMovements ? true : false;
+
+	if (bCombatMovements)
+	{
+		GetCharacterMovement()->bOrientRotationToMovement = false;
+		//GetCharacterMovement()->bUseControllerDesiredRotation = true;
+	}
+
+	else
+	{
+		GetCharacterMovement()->bOrientRotationToMovement = true;
+		GetCharacterMovement()->bUseControllerDesiredRotation = false;
+	}
+}
+
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	APlayerController* PlayerController{ Cast<APlayerController>(GetController()) };
@@ -155,6 +172,9 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		// Attacking
 		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
 		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
+
+		// Switch Movement mode
+		EnhancedInputComponent->BindAction(SwitchMovementModeAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::SwitchMovementMode);
 	}
 
 	else
@@ -173,6 +193,11 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 		// Track input pour ABP
 		bHasMovementInput = MovementVector.SquaredLength() > 0.01f;
 
+		if (bIsTurning)
+			ClearTurnInPlace(MovementVector.SquaredLength());
+
+		GetCharacterMovement()->bUseControllerDesiredRotation = true;
+
 		// find out which way is forward
 		const FRotator Rotation{ Controller->GetControlRotation() };
 		const FRotator YawRotation(0, Rotation.Yaw, 0);
@@ -188,29 +213,15 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 		AddMovementInput(RightDirection, MovementVector.X);
 
 		PlayerCurrentSpeed = static_cast<float>(GetCharacterMovement()->GetLastUpdateVelocity().Length());
-		MoveInputAxis = Value.Get<float>();
-
-		float currentYaw = GetActorRotation().Yaw;
-
-		float targetYaw = currentYaw + (MoveInputAxis * 90.0f);
-
-		float angleDelta = FMath::Abs(FRotator::NormalizeAxis(targetYaw - currentYaw));
-
-		const float MIN_TURN_ANGLE = 45.0f;
-		const float MAX_TURN_ANGLE = 135.0f;
-
-		bool shouldTurn90 = (PlayerCurrentSpeed >= 400.0f) && (angleDelta >= MIN_TURN_ANGLE && angleDelta <= MAX_TURN_ANGLE);
-
-		if (shouldTurn90)
-		{
-			
-		}
+		MoveInputAxis = MovementVector;
 	}
 }
 
 void AFlowSlayerCharacter::StopMoving(const FInputActionValue& Value)
 {
 	bHasMovementInput = false;
+
+	GetCharacterMovement()->bUseControllerDesiredRotation = false;
 }
 
 void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
@@ -222,6 +233,8 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 	{
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
+		TurnInPlace();
+
 		AddControllerPitchInput(LookAxisVector.Y);
 	}
 }
@@ -256,12 +269,66 @@ void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
 	SetActorRotation(NewRotation);
 }
 
+void AFlowSlayerCharacter::TurnInPlace()
+{
+	if (!bCombatMovements)
+		return;
+
+	bool bIsFalling{ GetCharacterMovement()->IsFalling() };
+	double CharacterVelocity{ UKismetMathLibrary::VSizeXY(GetCharacterMovement()->GetLastUpdateVelocity()) };
+	if (bIsFalling || CharacterVelocity > 0 || bIsDashing)
+		return;
+
+	FRotator location{ GetActorRotation() };
+	FRotator baseAimRotation{ GetBaseAimRotation() };
+	double yawDeltaRotation{ UKismetMathLibrary::NormalizedDeltaRotator(location, baseAimRotation).Yaw * -1.0 };
+	if (!(yawDeltaRotation > 45.0) && !(yawDeltaRotation < -45.0))
+		return;
+
+	if (yawDeltaRotation > 135.0)
+		PlayTurn(IdleTurnInPlace180Montage, 1.5f, 0.5f);
+
+	else if (yawDeltaRotation < -135.0)
+		PlayTurn(IdleTurnInPlace180Montage, 1.5f, 0.5f);
+
+	else if (yawDeltaRotation > 45.0)
+		PlayTurn(IdleTurnInPlace90RightMontage, 1.7f, 0.6f);
+
+	else if (yawDeltaRotation < -45.0)
+		PlayTurn(IdleTurnInPlace90LeftMontage, 1.7f, 0.6f);
+}
+
+void AFlowSlayerCharacter::PlayTurn(UAnimMontage* montageToPlay, float playRate, float duration)
+{
+	if (bIsTurning)
+		return;
+
+	bIsTurning = true;
+	PlayAnimMontage(montageToPlay, playRate);
+	GetCharacterMovement()->bUseControllerDesiredRotation = true;
+
+	FTimerHandle turnTimer;
+	GetWorld()->GetTimerManager().SetTimer(
+		turnTimer,
+		[this]() { bIsTurning = false; GetCharacterMovement()->bUseControllerDesiredRotation = false; },
+		duration,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::ClearTurnInPlace(float force)
+{
+	if (force != 0 && IsPlayingRootMotion())
+		StopAnimMontage(GetCurrentMontage());
+}
+
 void AFlowSlayerCharacter::Jump()
 {
 	if (!CanJumpInternal_Implementation())
 		return;
 
 	bHasPressedJump = true;
+	ClearTurnInPlace(1.0);
 
 	Super::Jump();
 }
