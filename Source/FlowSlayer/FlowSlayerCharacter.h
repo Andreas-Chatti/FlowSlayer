@@ -9,6 +9,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/Controller.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "FSWeapon.h"
@@ -77,6 +78,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* HeavyAttackAction;
 
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SwitchMovementModeAction;
+
 	/** Cached AnimInstance reference */
 	UPROPERTY()
 	UAnimInstance* AnimInstance;
@@ -102,15 +107,37 @@ public:
 
 	const UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
 
+	bool IsTurningInPlace() const { return bIsTurning; }
+
 protected:
+
+	/** Turn in-place 180° idle animation */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
+	UAnimMontage* IdleTurnInPlace180Montage;
+
+	/** Turn in-place 90° left idle animation */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
+	UAnimMontage* IdleTurnInPlace90LeftMontage;
+
+	/** Turn in-place 90° right idle animation */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
+	UAnimMontage* IdleTurnInPlace90RightMontage;
+
+	/** Is Player in combat mode ? */
+	UPROPERTY(BlueprintReadOnly, Category = "Movement")
+	bool bCombatMovements{ false };
 
 	/** Is player currently giving movement input? (for ABP) */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bHasMovementInput{ false };
 
-	/* If the last fall was cause by a jump */
+	/** If the last fall was cause by a jump */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bWasJumpFall{ false };
+
+	/** Is Character currently turning ? */
+	UPROPERTY(BlueprintReadWrite, Category = "Movement")
+	bool bIsTurning{ false };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
 	float dashDistance{ 1250.0f };
@@ -136,9 +163,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	float PlayerCurrentSpeed{ 0.f };
 
-	/* */
+	/** Used to know Player Input to determine the direction the character should go */
 	UPROPERTY(BlueprintReadOnly)
-	float MoveInputAxis{ 0.f };
+	FVector2D MoveInputAxis{ 0.0, 0.0 };
 
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
@@ -154,6 +181,12 @@ protected:
 
 	/* Called for attack input (RIGHT or LEFT click) */
 	void OnAttackTriggered(const FInputActionInstance& Value);
+
+	/** Switch Player's movement mode 
+	* Normal mode : Character is rotating directly on move direction input
+	* Combat mode : Character is focused on wherever the player's camera is looking at
+	*/
+	void SwitchMovementMode(const FInputActionInstance& Value);
 
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -186,5 +219,22 @@ private:
 
 	/** Rotate the player character in the direction of the player camera view */
 	void RotatePlayerToCameraDirection();
+
+	/* If possible, make the player turn in-place
+	* Check whether the player can turn in-place 
+	* If TRUE play the correct animations depending on the player's rotation delta
+	* Else does nothing
+	*/
+	void TurnInPlace();
+
+	/** Play inplace turn idle animations 
+	* @param duration : Time during the turn-in-place animation cannot be played again
+	*/
+	void PlayTurn(UAnimMontage* montageToPlay, float playRate, float duration);
+
+	/** Clear rootmotion and stop turnInPlace animation to allow the player to keep moving 
+	* @param force : Axis value from move inputs
+	*/
+	void ClearTurnInPlace(float force);
 };
 
