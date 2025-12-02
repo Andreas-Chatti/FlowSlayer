@@ -111,6 +111,10 @@ public:
 
 protected:
 
+	/** Dash SFX */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sounds")
+	USoundBase* DashSound{ nullptr };
+
 	/** Turn in-place 180° idle animation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
 	UAnimMontage* IdleTurnInPlace180Montage;
@@ -158,6 +162,22 @@ protected:
 	/** Player velocity */
 	UPROPERTY(BlueprintReadOnly)
 	float PlayerCurrentSpeed{ 0.f };
+
+	/** Max speed until player change into run state */
+	UPROPERTY(BlueprintReadOnly)
+	float WalkSpeedThreshold{ 300.f };
+
+	/** Max speed until player change into sprint state 
+	* Above this speed, the player will sprint until capped max speed value GetCharacterMovement()->MaxWalkSpeed
+	*/
+	UPROPERTY(BlueprintReadOnly)
+	float RunSpeedThreshold{ 600.f };
+
+	/* Max speed of the player 
+	* Cannot go faster then this
+	*/
+	UPROPERTY(BlueprintReadOnly)
+	float SprintSpeedThreshold{ 900.f };
 
 	/** Used to know Player Input to determine the direction the character should go */
 	UPROPERTY(BlueprintReadOnly)
