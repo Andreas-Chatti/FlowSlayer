@@ -107,7 +107,7 @@ public:
 
 	const UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
 
-	bool IsTurningInPlace() const { return bIsTurning; }
+	bool IsTurningInPlace() const { return bIsTurningInPlace; }
 
 protected:
 
@@ -123,10 +123,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
 	UAnimMontage* IdleTurnInPlace90RightMontage;
 
-	/** Is Player in combat mode ? */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	bool bCombatMovements{ false };
-
 	/** Is player currently giving movement input? (for ABP) */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bHasMovementInput{ false };
@@ -137,7 +133,7 @@ protected:
 
 	/** Is Character currently turning ? */
 	UPROPERTY(BlueprintReadWrite, Category = "Movement")
-	bool bIsTurning{ false };
+	bool bIsTurningInPlace{ false };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
 	float dashDistance{ 1250.0f };
@@ -186,7 +182,7 @@ protected:
 	* Normal mode : Character is rotating directly on move direction input
 	* Combat mode : Character is focused on wherever the player's camera is looking at
 	*/
-	void SwitchMovementMode(const FInputActionInstance& Value);
+	void ToggleLockOn(const FInputActionInstance& Value);
 
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
@@ -210,9 +206,6 @@ private:
 	virtual void Jump() override;
 
 	bool bHasPressedJump{ false };
-
-	UFUNCTION()
-	virtual void OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 PreviousCustomMode = 0) override;
 
 	UFUNCTION()
 	virtual void Falling() override;

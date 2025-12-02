@@ -6,6 +6,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "FSDamageable.h"
+#include "FSFocusable.h"
 #include "Components/BoxComponent.h"
 #include "FSEnemy.generated.h"
 
@@ -14,7 +15,7 @@ DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated)
 DECLARE_MULTICAST_DELEGATE(FOnProjectileSpawned)
 
 UCLASS(Abstract)
-class FLOWSLAYER_API AFSEnemy : public ACharacter, public IFSDamageable
+class FLOWSLAYER_API AFSEnemy : public ACharacter, public IFSDamageable, public IFSFocusable
 {
     GENERATED_BODY()
 
