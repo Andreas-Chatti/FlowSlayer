@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Components/ActorComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Particles/ParticleSystem.h"
@@ -8,9 +9,12 @@
 #include "Camera/CameraShakeBase.h"
 #include "Logging/LogMacros.h"
 #include "FSWeapon.h"
+#include "FSFocusable.h"
 #include "EnhancedInputLibrary.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
+#include "Camera/CameraComponent.h"
 #include "FSCombatComponent.generated.h"
 
 class USoundBase;
@@ -117,6 +121,8 @@ public:
 protected:
 
     virtual void BeginPlay() override;
+
+    virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     TSubclassOf<AFSWeapon> weaponClass;
@@ -231,6 +237,75 @@ private:
     /** Current attack index in the combo chain (0 = first attack, 1 = second, etc.) */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
     int32 ComboIndex{ 0 };
+
+    /** List of valid targets currently in lock-on detection radius 
+    * Only the nearest target is locked-on
+    */
+    UPROPERTY()
+    TSet<AActor*> TargetsInLockOnRadius{};
+
+    /** Current locked-on target nearest to the player */
+    UPROPERTY()
+    AActor* CurrentLockedOnTarget{ nullptr };
+
+    /** Radius where focusable targets can be detected and locked-on */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+    float LockOnDetectionRadius{ 750.f };
+
+    /** TRUE if player is locked-on to a target */
+    bool bIsLockedOnEngaged{ false };
+
+    /** Disable the lock-on if the target is outside the detection radius 
+    * Is call every LockOnDistanceCheckDelay in EngageLockOn()
+    * If distance between player and locked-on target is > LockOnDetectionRadius
+    * Calls DisengageLockOn() which deactivate the LockOnDistanceCheckTimer to stop this method running every 
+    */
+    void LockOnDistanceCheck();
+
+public:
+    /** Delay in which the player can switch lock-on in-between targets */
+    const float targetSwitchDelay{ 0.65f };
+
+    /** Sensibility on the X axis LEFT and RIGHT when the Player moves the mouse to switch lock-on target */
+    const double XAxisSwitchSensibility{ 1.0 };
+
+private:
+    /** Timer responsible for the lock-on delay in-between targets */
+    UPROPERTY()
+    FTimerHandle delaySwitchLockOnTimer;
+
+    UPROPERTY()
+    FTimerHandle LockOnDistanceCheckTimer;
+
+    /** Delay in-between each distance checks */
+    float LockOnDistanceCheckDelay{ 0.5f };
+
+public:
+    /** Whether the player is currently locked on a valid target */
+    UFUNCTION(BlueprintCallable)
+    bool IsLockedOnTarget() const { return bIsLockedOnEngaged; }
+
+    /** @return Current locked-on target or nullptr if there's none */
+    const AActor* GetCurrentLockedOnTarget() const { return CurrentLockedOnTarget; }
+
+    /** Lock-on the nearest target in a specific sphere radius the character being the center
+    * @return FALSE if no valid target is found
+    * @return TRUE if a valid target is found
+    */
+    bool EngageLockOn();
+
+    /** Switch lock-on target based on camera look direction
+    * @param followCamera Camera component used to determine direction
+    * @param axisValueX Mouse/controller X axis input (negative = left, positive = right)
+    * @return TRUE if successfully switched to new target, FALSE otherwise
+    */
+    UFUNCTION(BlueprintCallable)
+    bool SwitchLockOnTarget(UCameraComponent* followCamera, float axisValueX);
+
+    /** Stop the lock-on */
+    void DisengageLockOn();
+
+private:
 
     // === FUNCTIONS ===
 
