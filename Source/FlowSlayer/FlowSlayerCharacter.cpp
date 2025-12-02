@@ -26,12 +26,15 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 
 	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
 	// instead of recompiling to adjust them
-	GetCharacterMovement()->JumpZVelocity = 700.0f;
-	GetCharacterMovement()->AirControl = 0.35f;
+	GetCharacterMovement()->JumpZVelocity = 900.0f;
+	GetCharacterMovement()->AirControl = 0.8f;
+	GetCharacterMovement()->BrakingDecelerationFalling = 5000.f;
+	GetCharacterMovement()->GravityScale = 2.5f;
+
 	GetCharacterMovement()->MaxWalkSpeed = 600.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.0f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.0f;
-	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
+
 
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
@@ -53,6 +56,7 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
 	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
 
+	JumpMaxCount = 2;
 	CurrentHealth = MaxHealth;
 }
 
@@ -134,6 +138,8 @@ void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
 
 	else if (CombatComponent->IsLockedOnTarget())
 		CombatComponent->DisengageLockOn();
+
+	GetCharacterMovement()->MaxWalkSpeed = CombatComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
 }
 
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -159,7 +165,7 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Look);
 
 		// Dashing
-		EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Triggered, this, &AFlowSlayerCharacter::Dash);
+		EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::Dash);
 
 		// Attacking
 		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
@@ -230,15 +236,16 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 		// Switch lock-on target si mouvement de souris suffisant
 		if (FMath::Abs(LookAxisVector.X) > CombatComponent->XAxisSwitchSensibility && CombatComponent->GetCurrentLockedOnTarget())
 			CombatComponent->SwitchLockOnTarget(FollowCamera, LookAxisVector.X);
-
-		UE_LOG(LogTemp, Warning, TEXT("%f"), LookAxisVector.X);
 	}
 }
 
 void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 {
-	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling())
+	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling() || !bCanDash || bIsDashing)
 		return;
+
+	if (DashSound)
+		UGameplayStatics::PlaySoundAtLocation(GetWorld(), DashSound, GetActorLocation());
 
 	double charVelocity{ GetCharacterMovement()->Velocity.Length() };
 	bool hasEnoughVelocity{ charVelocity > MIN_DASH_VELOCITY };
