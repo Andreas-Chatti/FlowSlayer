@@ -73,6 +73,12 @@ void AFlowSlayerCharacter::BeginPlay()
 
 void AFlowSlayerCharacter::Tick(float DeltaTime)
 {
+	Super::Tick(DeltaTime);
+
+	FVector lastUpdateVelocity{ GetCharacterMovement()->GetLastUpdateVelocity() };
+	float direction{ UKismetAnimationLibrary::CalculateDirection(lastUpdateVelocity, GetActorRotation()) };
+	//if (direction != 0)
+		//UE_LOG(LogTemp, Warning, TEXT("%f"), direction);
 }
 
 void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
@@ -139,6 +145,7 @@ void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
 	else if (CombatComponent->IsLockedOnTarget())
 		CombatComponent->DisengageLockOn();
 
+	// Does not work properly when player leaves the lock-on zone, this does not trigger !
 	GetCharacterMovement()->MaxWalkSpeed = CombatComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
 }
 
@@ -172,7 +179,7 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
 
 		// Switch Movement mode
-		EnhancedInputComponent->BindAction(SwitchMovementModeAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::ToggleLockOn);
+		EnhancedInputComponent->BindAction(ToggleLockOnAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::ToggleLockOn);
 	}
 
 	else
@@ -208,7 +215,6 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 		AddMovementInput(ForwardDirection, MovementVector.Y);
 		AddMovementInput(RightDirection, MovementVector.X);
 
-		PlayerCurrentSpeed = static_cast<float>(GetCharacterMovement()->GetLastUpdateVelocity().Length());
 		MoveInputAxis = MovementVector;
 	}
 }
@@ -216,6 +222,7 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 void AFlowSlayerCharacter::StopMoving(const FInputActionValue& Value)
 {
 	bHasMovementInput = false;
+	MoveInputAxis = FVector2D::ZeroVector;
 }
 
 void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
@@ -288,9 +295,9 @@ void AFlowSlayerCharacter::TurnInPlace()
 	if (bIsFalling || CharacterVelocity > 0 || bIsDashing)
 		return;
 
-	FRotator location{ GetActorRotation() };
+	FRotator rotation{ GetActorRotation() };
 	FRotator baseAimRotation{ GetBaseAimRotation() };
-	double yawDeltaRotation{ UKismetMathLibrary::NormalizedDeltaRotator(location, baseAimRotation).Yaw * -1.0 };
+	double yawDeltaRotation{ UKismetMathLibrary::NormalizedDeltaRotator(rotation, baseAimRotation).Yaw * -1.0 };
 	if (!(yawDeltaRotation > 45.0) && !(yawDeltaRotation < -45.0))
 		return;
 
