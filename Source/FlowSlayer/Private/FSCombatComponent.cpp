@@ -30,6 +30,10 @@ void UFSCombatComponent::BeginPlay()
     OnFullComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleFullComboWindowOpened);
     OnFullComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleFullComboWindowClosed);
 
+    // Bind Air stall delegates for air combos (broadcasted by AirStallNotify)
+    OnAirStallStarted.AddUObject(this, &UFSCombatComponent::HandleAirStallStarted);
+    OnAirStallFinished.AddUObject(this, &UFSCombatComponent::HandleAirStallFinished);
+
     AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
 }
 
@@ -141,6 +145,19 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput,
         }
     }
 
+    else if (isFalling)
+    {
+        switch (attackTypeInput)
+        {
+        case UFSCombatComponent::EAttackType::Light:
+            selectedCombo = &AirCombo;
+            break;
+        case UFSCombatComponent::EAttackType::Heavy:
+            selectedCombo = &AirCombo;
+            break;
+        }
+    }
+
     return selectedCombo;
 }
 
@@ -206,6 +223,16 @@ void UFSCombatComponent::HandleFullComboWindowClosed()
         return;
     }
     ContinueCombo();
+}
+
+void UFSCombatComponent::HandleAirStallStarted()
+{
+    PlayerOwner->GetCharacterMovement()->GravityScale = AirStallGravity;
+}
+
+void UFSCombatComponent::HandleAirStallFinished(float gravityScale)
+{
+    PlayerOwner->GetCharacterMovement()->GravityScale = gravityScale;
 }
 
 void UFSCombatComponent::ContinueCombo()

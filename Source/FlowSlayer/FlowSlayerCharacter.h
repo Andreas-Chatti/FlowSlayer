@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "KismetAnimationLibrary.h"
 #include "Logging/LogMacros.h"
 #include "InputActionValue.h"
 #include "Engine/LocalPlayer.h"
@@ -78,9 +79,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* HeavyAttackAction;
 
-
+	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* SwitchMovementModeAction;
+	UInputAction* ToggleLockOnAction;
 
 	/** Cached AnimInstance reference */
 	UPROPERTY()
@@ -158,10 +159,6 @@ protected:
 	/** Is Player Dead ?*/
 	UPROPERTY(BlueprintReadOnly)
 	bool bIsDead{ false };
-
-	/** Player velocity */
-	UPROPERTY(BlueprintReadOnly)
-	float PlayerCurrentSpeed{ 0.f };
 
 	/** Max speed until player change into run state */
 	UPROPERTY(BlueprintReadOnly)

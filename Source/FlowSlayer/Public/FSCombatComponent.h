@@ -33,6 +33,10 @@ DECLARE_MULTICAST_DELEGATE(FOnModularComboWindowClosed);
 DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowOpened);
 DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowClosed);
 
+/** Delegates for AirCombo air stall - broadcasted by AirStallNotify */
+DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
+
 /**
  * Combo data structure
  *
@@ -102,16 +106,23 @@ public:
     FOnHitboxDeactivated OnHitboxDeactivated;
 
     /** MODULAR Combo window delegates
-    * Broadcasted by AnimNotifyState_ModularCombo to notify combo window open/close events
+    * Broadcasted by AnimNotifyState_ModularCombo to notify modular combo window open/close events
     */
     FOnModularComboWindowClosed OnModularComboWindowClosed;
     FOnModularComboWindowOpened OnModularComboWindowOpened;
 
     /** FULL Combo window delegates
-    * Broadcasted by AnimNotifyState_FullCombo to notify combo window open/close events
+    * Broadcasted by AnimNotifyState_FullCombo to notify full (1 full animation) combo window open/close events
     */
     FOnFullComboWindowOpened OnFullComboWindowOpened;
     FOnFullComboWindowClosed OnFullComboWindowClosed;
+
+    /** Air stall for air combos 
+    * Broadcasted by AirStallNotify to start an air stall for an air combo
+    * Stop the air stall at the end
+    */
+    FOnAirStallStarted OnAirStallStarted;
+    FOnAirStallFinished OnAirStallFinished;
 
     /** Called for attacking input */
     void Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling);
@@ -218,6 +229,10 @@ private:
     /** Running heavy attack combo */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo RunningHeavyCombo;
+
+    /** Running heavy attack combo */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo AirCombo;
 
     /** Currently active combo (pointer to one of the above combos) */
     FCombo* OngoingCombo{ nullptr };
@@ -334,4 +349,20 @@ private:
 
     /** Called when FULL combo window closes via delegate broadcast */
     void HandleFullComboWindowClosed();
+
+    /** Called to start an air stall
+    * Used for air combos
+    */
+    void HandleAirStallStarted();
+
+    /** Called to stop an air stall
+    * Used for air combos
+    */
+    void HandleAirStallFinished(float gravityScale);
+
+    /** GravityScale during air stall
+    * Lower value means less gravity = player staying in the air longer
+    */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+    float AirStallGravity{ 0.3f };
 };
