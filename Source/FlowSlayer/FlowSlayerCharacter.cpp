@@ -64,6 +64,8 @@ void AFlowSlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	CombatComponent->OnLockOnStopped.AddUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStopped);
+
 	AnimInstance = GetMesh()->GetAnimInstance();
 	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
 
@@ -146,6 +148,11 @@ void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
 		CombatComponent->DisengageLockOn();
 
 	// Does not work properly when player leaves the lock-on zone, this does not trigger !
+	GetCharacterMovement()->MaxWalkSpeed = CombatComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
+}
+
+void AFlowSlayerCharacter::HandleOnLockOnStopped()
+{
 	GetCharacterMovement()->MaxWalkSpeed = CombatComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
 }
 

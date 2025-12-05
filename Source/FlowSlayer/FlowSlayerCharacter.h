@@ -83,6 +83,8 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* ToggleLockOnAction;
 
+	void HandleOnLockOnStopped();
+
 	/** Cached AnimInstance reference */
 	UPROPERTY()
 	UAnimInstance* AnimInstance;

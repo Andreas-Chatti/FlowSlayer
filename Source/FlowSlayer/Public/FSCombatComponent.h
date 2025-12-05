@@ -10,6 +10,7 @@
 #include "Logging/LogMacros.h"
 #include "FSWeapon.h"
 #include "FSFocusable.h"
+#include "FSDamageable.h"
 #include "EnhancedInputLibrary.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -36,6 +37,9 @@ DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowClosed);
 /** Delegates for AirCombo air stall - broadcasted by AirStallNotify */
 DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
+
+/** Delegate when lock-on is stopped */
+DECLARE_MULTICAST_DELEGATE(FOnLockOnStopped);
 
 /**
  * Combo data structure
@@ -123,6 +127,9 @@ public:
     */
     FOnAirStallStarted OnAirStallStarted;
     FOnAirStallFinished OnAirStallFinished;
+
+    /** Broadcasted when the lock-on is stopped or interrupted by distance or target's death */
+    FOnLockOnStopped OnLockOnStopped;
 
     /** Called for attacking input */
     void Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling);
@@ -263,6 +270,11 @@ private:
     UPROPERTY()
     AActor* CurrentLockedOnTarget{ nullptr };
 
+    /** IFSDamageable version of the current locked-on target
+    * Mainly to access IsDead() method to disengage lock-on when target dies
+    */
+    IFSDamageable* CachedDamageableLockOnTarget{ nullptr };
+
     /** Radius where focusable targets can be detected and locked-on */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
     float LockOnDetectionRadius{ 750.f };
@@ -272,10 +284,11 @@ private:
 
     /** Disable the lock-on if the target is outside the detection radius 
     * Is call every LockOnDistanceCheckDelay in EngageLockOn()
-    * If distance between player and locked-on target is > LockOnDetectionRadius
-    * Calls DisengageLockOn() which deactivate the LockOnDistanceCheckTimer to stop this method running every 
+    * If distance between player and locked-on target is >= LockOnDetectionRadius
+    * OR target is dead
+    * Calls DisengageLockOn() which deactivate the LockOnValidCheckTimer to stop this method running every 
     */
-    void LockOnDistanceCheck();
+    void LockOnValidCheck();
 
 public:
     /** Delay in which the player can switch lock-on in-between targets */
@@ -290,7 +303,7 @@ private:
     FTimerHandle delaySwitchLockOnTimer;
 
     UPROPERTY()
-    FTimerHandle LockOnDistanceCheckTimer;
+    FTimerHandle LockOnValidCheckTimer;
 
     /** Delay in-between each distance checks */
     float LockOnDistanceCheckDelay{ 0.5f };

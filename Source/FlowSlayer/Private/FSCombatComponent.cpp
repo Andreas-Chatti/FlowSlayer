@@ -128,6 +128,7 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput,
             break;
         case EAttackType::Heavy:
             selectedCombo = &RunningHeavyCombo;
+            PlayerOwner->SetActorRotation(PlayerOwner->GetActorRotation() + FRotator{ 0.0, 90.0, 0.0 });
             break;
         }
     }
@@ -179,25 +180,25 @@ UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
 void UFSCombatComponent::HandleModularComboWindowOpened()
 {
     bComboWindowOpened = true;
-    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window OPENED (via delegate)!"));
+    //UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window OPENED (via delegate)!"));
 }
 
 void UFSCombatComponent::HandleModularComboWindowClosed()
 {
     bComboWindowOpened = false;
-    UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window CLOSED (via delegate)!"));
+    //UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window CLOSED (via delegate)!"));
 
     // If we've exceeded the max combo index, we're at the end of the combo chain
     // Reset and let the animation finish naturally (no Montage_Stop)
     if (ComboIndex > OngoingCombo->GetMaxComboIndex())
     {
-        UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
+        //UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
         return;
     }
 
     else if (!bContinueCombo && AnimInstance)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue MODULAR combo - Letting animation stops"));
+        //UE_LOG(LogTemp, Warning, TEXT("Player didn't continue MODULAR combo - Letting animation stops"));
         return;
     }
 
@@ -206,19 +207,19 @@ void UFSCombatComponent::HandleModularComboWindowClosed()
 
 void UFSCombatComponent::HandleFullComboWindowOpened()
 {
-    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window OPENED (via delegate)!"));
+    //UE_LOG(LogTemp, Error, TEXT("FULL Combo Window OPENED (via delegate)!"));
     bComboWindowOpened = true;
 }
 
 void UFSCombatComponent::HandleFullComboWindowClosed()
 {
     bComboWindowOpened = false;
-    UE_LOG(LogTemp, Error, TEXT("FULL Combo Window CLOSED (via delegate)!"));
+    //UE_LOG(LogTemp, Error, TEXT("FULL Combo Window CLOSED (via delegate)!"));
 
     // If player didn't buffer a continue input, stop the combo early
     if (!bContinueCombo && AnimInstance)
     {
-        UE_LOG(LogTemp, Warning, TEXT("Player didn't continue FULL combo - Stopping"));
+        //UE_LOG(LogTemp, Warning, TEXT("Player didn't continue FULL combo - Stopping"));
         AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
     }
@@ -244,14 +245,14 @@ void UFSCombatComponent::ContinueCombo()
 
     if (!OngoingCombo || !OngoingCombo->IsValid())
     {
-        UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null or invalid - Stopping"));
+        //UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null or invalid - Stopping"));
         AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
     }
 
     if (OngoingCombo->IsFullCombo())
     {
-        UE_LOG(LogTemp, Warning, TEXT("FullCombo detected - Letting animation continue naturally"));
+        //UE_LOG(LogTemp, Warning, TEXT("FullCombo detected - Letting animation continue naturally"));
         // Increment ComboIndex to track progress through combo windows
         ++ComboIndex;
         return;
@@ -261,13 +262,13 @@ void UFSCombatComponent::ContinueCombo()
     UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
     if (!nextAnimAttack)
     {
-        UE_LOG(LogTemp, Error, TEXT("nextAnimAttack is null - Stopping"));
+        //UE_LOG(LogTemp, Error, TEXT("nextAnimAttack is null - Stopping"));
         AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
     }
 
     // Successfully continuing the modular combo - play next attack animation
-    UE_LOG(LogTemp, Warning, TEXT("Continuing modular combo - Playing next attack"));
+    //UE_LOG(LogTemp, Warning, TEXT("Continuing modular combo - Playing next attack"));
     PlayerOwner->PlayAnimMontage(nextAnimAttack);
 }
 
@@ -277,7 +278,7 @@ void UFSCombatComponent::StopCombo()
     bIsAttacking = false;
     //OngoingCombo = nullptr;
     
-    UE_LOG(LogTemp, Error, TEXT("COMBO RESET !"));
+    //UE_LOG(LogTemp, Error, TEXT("COMBO RESET !"));
 }
 
 void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -418,21 +419,24 @@ void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
 * 
 */
 ////////////////////////////////////////////////
-void UFSCombatComponent::LockOnDistanceCheck()
+void UFSCombatComponent::LockOnValidCheck()
 {
-    if (!CurrentLockedOnTarget)
+    if (!CurrentLockedOnTarget || !CachedDamageableLockOnTarget)
         return;
 
     FVector targetLocation{ CurrentLockedOnTarget->GetActorLocation() };
     FVector playerLocation{ PlayerOwner->GetActorLocation() };
 
-    double distance{ UKismetMathLibrary::Vector_Distance(playerLocation, targetLocation) };
-    if (distance >= LockOnDetectionRadius)
+    double distanceSq{ FVector::DistSquared(playerLocation, targetLocation) };
+    if (distanceSq >= FMath::Square(LockOnDetectionRadius) || CachedDamageableLockOnTarget->IsDead())
         DisengageLockOn();
 }
 
-bool UFSCombatComponent::EngageLockOn()
+bool UFSCombatComponent::EngageLockOn() 
 {
+    if (!PlayerOwner)
+        return false;
+
     FVector Start{ PlayerOwner->GetActorLocation() };
     FVector End{ Start };
 
@@ -451,7 +455,7 @@ bool UFSCombatComponent::EngageLockOn()
         ObjectTypes,
         false,              // Trace Complex
         ActorsToIgnore,     // Actors to Ignore
-        EDrawDebugTrace::ForDuration,  // Draw Debug Type
+        EDrawDebugTrace::None,  // Draw Debug Type
         outHits,            // Out Hits
         true                // Ignore Self
     ) };
@@ -467,8 +471,12 @@ bool UFSCombatComponent::EngageLockOn()
             continue;
 
         uniqueHitActors.Add(HitActor);
-        if (HitActor->Implements<UFSFocusable>() && !TargetsInLockOnRadius.Contains(HitActor))
-            TargetsInLockOnRadius.Add(HitActor);
+        if (HitActor->Implements<UFSFocusable>() && !TargetsInLockOnRadius.Contains(HitActor) && HitActor->Implements<UFSDamageable>())
+        {
+            IFSDamageable* damageableTarget{ Cast<IFSDamageable>(HitActor) };
+            if (damageableTarget && !damageableTarget->IsDead())
+                TargetsInLockOnRadius.Add(HitActor);
+        }
     }
 
     if (TargetsInLockOnRadius.IsEmpty())
@@ -485,6 +493,7 @@ bool UFSCombatComponent::EngageLockOn()
         {
             distance = newDistance;
             CurrentLockedOnTarget = target;
+            CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
         }
     }
 
@@ -498,8 +507,8 @@ bool UFSCombatComponent::EngageLockOn()
     PrimaryComponentTick.SetTickFunctionEnable(true);
 
     GetWorld()->GetTimerManager().SetTimer(
-        LockOnDistanceCheckTimer, 
-        this, &UFSCombatComponent::LockOnDistanceCheck, 
+        LockOnValidCheckTimer,
+        this, &UFSCombatComponent::LockOnValidCheck,
         LockOnDistanceCheckDelay, 
         true
     );
@@ -511,8 +520,6 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
 {
     if (!CurrentLockedOnTarget || !followCamera || GetWorld()->GetTimerManager().IsTimerActive(delaySwitchLockOnTimer))
         return false;
-
-    bool bLookingRight{ (axisValueX > 0) };
 
     FVector Start{ PlayerOwner->GetActorLocation() };
     FVector End{ Start };
@@ -532,7 +539,7 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
         ObjectTypes,
         false,
         ActorsToIgnore,
-        EDrawDebugTrace::ForDuration,
+        EDrawDebugTrace::None,
         outHits,
         true
     ) };
@@ -555,7 +562,7 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
     {
         AActor* HitActor{ hit.GetActor() };
 
-        if (ProcessedActors.Contains(HitActor) || !HitActor->Implements<UFSFocusable>() || HitActor == CurrentLockedOnTarget)
+        if (ProcessedActors.Contains(HitActor) || !HitActor->Implements<UFSFocusable>() || HitActor == CurrentLockedOnTarget || !HitActor->Implements<UFSDamageable>())
             continue;
 
         ProcessedActors.Add(HitActor);
@@ -568,9 +575,11 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
         if (DirectionToTarget.IsNearlyZero())
             continue;
 
-        DirectionToTarget.Normalize();
+        DirectionToTarget.GetSafeNormal();
 
         double DotRight{ FVector::DotProduct(DirectionToTarget, CameraRight) };
+
+        bool bLookingRight{ (axisValueX > 0) };
 
         if (bLookingRight && DotRight <= 0)
             continue;
@@ -593,6 +602,7 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
         return false;
 
     CurrentLockedOnTarget = BestTarget;
+    CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
 
     GetWorld()->GetTimerManager().SetTimer(delaySwitchLockOnTimer, targetSwitchDelay, false);
 
@@ -603,6 +613,7 @@ void UFSCombatComponent::DisengageLockOn()
 {
     TargetsInLockOnRadius.Empty();
     CurrentLockedOnTarget = nullptr;
+    CachedDamageableLockOnTarget = nullptr;
 
     bIsLockedOnEngaged = false;
 
@@ -612,5 +623,6 @@ void UFSCombatComponent::DisengageLockOn()
     PlayerOwner->GetCharacterMovement()->bOrientRotationToMovement = true;
     PlayerOwner->GetCharacterMovement()->bUseControllerDesiredRotation = false;
 
-    LockOnDistanceCheckTimer.Invalidate();
+    LockOnValidCheckTimer.Invalidate();
+    OnLockOnStopped.Broadcast();
 }
