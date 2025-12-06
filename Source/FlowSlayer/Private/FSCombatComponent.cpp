@@ -42,11 +42,7 @@ void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
     if (bIsLockedOnEngaged && CurrentLockedOnTarget)
-    {
-        FVector playerLocation{ PlayerOwner->GetActorLocation() };
-        FVector currentLockedOnTargetLocation{ CurrentLockedOnTarget->GetActorLocation() };
-        PlayerOwner->GetController()->SetControlRotation(UKismetMathLibrary::FindLookAtRotation(playerLocation, currentLockedOnTargetLocation));
-    }
+        UpdateLockOnCamera(DeltaTime);
 }
 
 bool UFSCombatComponent::InitializeAndAttachWeapon()
@@ -128,7 +124,6 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput,
             break;
         case EAttackType::Heavy:
             selectedCombo = &RunningHeavyCombo;
-            PlayerOwner->SetActorRotation(PlayerOwner->GetActorRotation() + FRotator{ 0.0, 90.0, 0.0 });
             break;
         }
     }
@@ -308,6 +303,19 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     if (!hitActor)
         return;
 
+    // TEST KNOCKBACK - Appliquer AVANT le hitstop pour que l'effet soit visible
+    ACharacter* HitCharacter = Cast<ACharacter>(hitActor);
+    if (HitCharacter)
+    {
+        FVector PlayerLocation = PlayerOwner->GetActorLocation();
+        FVector EnemyLocation = hitActor->GetActorLocation();
+        FVector KnockbackDirection = (EnemyLocation - PlayerLocation).GetSafeNormal();
+        FVector KnockbackVelocity = KnockbackDirection * 800.f + FVector(0.f, 0.f, 300.f);
+
+        HitCharacter->LaunchCharacter(KnockbackVelocity, true, true);
+        UE_LOG(LogTemp, Warning, TEXT("Knockback applied: %s"), *KnockbackVelocity.ToString());
+    }
+
     ApplyHitstop();
     SpawnHitVFX(hitLocation);
     PlayHitSound(hitLocation);
@@ -432,93 +440,41 @@ void UFSCombatComponent::LockOnValidCheck()
         DisengageLockOn();
 }
 
+void UFSCombatComponent::UpdateLockOnCamera(float deltaTime)
+{
+    FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
+    FVector TargetLocation{ CurrentLockedOnTarget->GetActorLocation() };
+    FRotator PlayerLookAtRotation{ UKismetMathLibrary::FindLookAtRotation(PlayerLocation, TargetLocation) };
+    PlayerLookAtRotation.Pitch = 0.0f;
+
+    FRotator CurrentPlayerRotation{ PlayerOwner->GetActorRotation() };
+    FRotator SmoothedPlayerRotation{ FMath::RInterpTo(CurrentPlayerRotation, PlayerLookAtRotation, deltaTime, CameraRotationInterpSpeed) };
+    PlayerOwner->SetActorRotation(SmoothedPlayerRotation);
+
+    FRotator CameraLookAtRotation{ UKismetMathLibrary::FindLookAtRotation(PlayerLocation, TargetLocation) };
+    FVector DirectionToTarget{ (TargetLocation - PlayerLocation).GetSafeNormal() };
+    FVector PlayerRight{ PlayerOwner->GetActorRightVector() };
+    float DotRight{ static_cast<float>(FVector::DotProduct(DirectionToTarget, PlayerRight)) };
+
+    double Distance{ FVector::Dist(PlayerLocation, TargetLocation) };
+    double maxClampDistance{ LockOnDetectionRadius / 2 };
+    double DistanceRatio{ FMath::Clamp(Distance / maxClampDistance, 0.0, 1.0) };
+    double CurrentYawOffset{ FMath::Lerp(CloseCameraYawOffset, FarCameraYawOffset, DistanceRatio) };
+
+    double CurrentPitchOffset{ FMath::Lerp(CloseCameraPitchOffset, FarCameraPitchOffset, DistanceRatio) };
+
+    CameraLookAtRotation.Yaw += DotRight > 0.0f ? -CurrentYawOffset : CurrentYawOffset;
+    CameraLookAtRotation.Pitch += CurrentPitchOffset;
+
+    FRotator CurrentCameraRotation{ PlayerOwner->GetController()->GetControlRotation() };
+    FRotator SmoothedCameraRotation{ FMath::RInterpTo(CurrentCameraRotation, CameraLookAtRotation, deltaTime, CameraRotationInterpSpeed) };
+
+    PlayerOwner->GetController()->SetControlRotation(SmoothedCameraRotation);
+}
+
 bool UFSCombatComponent::EngageLockOn() 
 {
     if (!PlayerOwner)
-        return false;
-
-    FVector Start{ PlayerOwner->GetActorLocation() };
-    FVector End{ Start };
-
-    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-    ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-    TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(GetOwner());
-
-    TArray<FHitResult> outHits;
-    bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(
-        GetWorld(),
-        Start,
-        End,
-        LockOnDetectionRadius,
-        ObjectTypes,
-        false,              // Trace Complex
-        ActorsToIgnore,     // Actors to Ignore
-        EDrawDebugTrace::None,  // Draw Debug Type
-        outHits,            // Out Hits
-        true                // Ignore Self
-    ) };
-
-    if (!bHit)
-        return false;
-
-    TSet<AActor*> uniqueHitActors;
-    for (const FHitResult& hit : outHits)
-    {
-        AActor* HitActor{ hit.GetActor() };
-        if (uniqueHitActors.Contains(HitActor))
-            continue;
-
-        uniqueHitActors.Add(HitActor);
-        if (HitActor->Implements<UFSFocusable>() && !TargetsInLockOnRadius.Contains(HitActor) && HitActor->Implements<UFSDamageable>())
-        {
-            IFSDamageable* damageableTarget{ Cast<IFSDamageable>(HitActor) };
-            if (damageableTarget && !damageableTarget->IsDead())
-                TargetsInLockOnRadius.Add(HitActor);
-        }
-    }
-
-    if (TargetsInLockOnRadius.IsEmpty())
-        return false;
-
-    float distance{ LockOnDetectionRadius };
-    for (AActor* target : TargetsInLockOnRadius)
-    {
-        FVector targetLocation{ target->GetActorLocation() };
-        FVector playerLocation{ PlayerOwner->GetActorLocation() };
-        double newDistance{ UKismetMathLibrary::Vector_Distance(playerLocation, targetLocation) };
-
-        if (newDistance < distance)
-        {
-            distance = newDistance;
-            CurrentLockedOnTarget = target;
-            CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
-        }
-    }
-
-    if (!CurrentLockedOnTarget)
-        return false;
-
-    bIsLockedOnEngaged = true;
-    PlayerOwner->GetController()->SetIgnoreLookInput(true);
-    PlayerOwner->GetCharacterMovement()->bOrientRotationToMovement = false;
-    PlayerOwner->GetCharacterMovement()->bUseControllerDesiredRotation = true;
-    PrimaryComponentTick.SetTickFunctionEnable(true);
-
-    GetWorld()->GetTimerManager().SetTimer(
-        LockOnValidCheckTimer,
-        this, &UFSCombatComponent::LockOnValidCheck,
-        LockOnDistanceCheckDelay, 
-        true
-    );
-
-    return true;
-}
-
-bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, float axisValueX)
-{
-    if (!CurrentLockedOnTarget || !followCamera || GetWorld()->GetTimerManager().IsTimerActive(delaySwitchLockOnTimer))
         return false;
 
     FVector Start{ PlayerOwner->GetActorLocation() };
@@ -547,25 +503,32 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
     if (!bHit)
         return false;
 
-    FVector CameraForward{ followCamera->GetForwardVector() };
-    FVector CameraRight{ followCamera->GetRightVector() };
+    AController* Controller{ PlayerOwner->GetController() };
+    if (!Controller)
+        return false;
+
+    FRotator ControlRotation{ Controller->GetControlRotation() };
+    FVector CameraForward{ ControlRotation.Vector() };
     CameraForward.Z = 0;
-    CameraRight.Z = 0;
     CameraForward.Normalize();
-    CameraRight.Normalize();
 
-    AActor* BestTarget{ nullptr };
-    float SmallestAngle{ FLT_MAX };
-
-    TSet<AActor*> ProcessedActors;
+    TSet<AActor*> uniqueHitActors;
     for (const FHitResult& hit : outHits)
     {
         AActor* HitActor{ hit.GetActor() };
-
-        if (ProcessedActors.Contains(HitActor) || !HitActor->Implements<UFSFocusable>() || HitActor == CurrentLockedOnTarget || !HitActor->Implements<UFSDamageable>())
+        if (uniqueHitActors.Contains(HitActor))
             continue;
 
-        ProcessedActors.Add(HitActor);
+        uniqueHitActors.Add(HitActor);
+
+        if (!HitActor->Implements<UFSFocusable>() ||
+            TargetsInLockOnRadius.Contains(HitActor) ||
+            !HitActor->Implements<UFSDamageable>())
+            continue;
+
+        IFSDamageable* damageableTarget = Cast<IFSDamageable>(HitActor);
+        if (!damageableTarget || damageableTarget->IsDead())
+            continue;
 
         FVector TargetLocation{ HitActor->GetActorLocation() };
         FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
@@ -575,11 +538,129 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
         if (DirectionToTarget.IsNearlyZero())
             continue;
 
-        DirectionToTarget.GetSafeNormal();
+        DirectionToTarget.Normalize();
+
+        double DotForward{ FVector::DotProduct(DirectionToTarget, CameraForward) };
+
+        if (DotForward > 0.0) // 120°
+            TargetsInLockOnRadius.Add(HitActor);
+    }
+
+    if (TargetsInLockOnRadius.IsEmpty())
+        return false;
+
+    float distance{ LockOnDetectionRadius };
+    for (AActor* target : TargetsInLockOnRadius)
+    {
+        FVector targetLocation{ target->GetActorLocation() };
+        FVector playerLocation{ PlayerOwner->GetActorLocation() };
+        double newDistance{ UKismetMathLibrary::Vector_Distance(playerLocation, targetLocation) };
+
+        if (newDistance < distance)
+        {
+            distance = newDistance;
+            CurrentLockedOnTarget = target;
+            CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
+        }
+    }
+
+    if (!CurrentLockedOnTarget)
+        return false;
+
+    bIsLockedOnEngaged = true;
+    PlayerOwner->GetController()->SetIgnoreLookInput(true);
+    PlayerOwner->GetCharacterMovement()->bOrientRotationToMovement = false;
+    PlayerOwner->GetCharacterMovement()->bUseControllerDesiredRotation = false; // remettre à TRUE après
+    PrimaryComponentTick.SetTickFunctionEnable(true);
+    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(true);
+
+    GetWorld()->GetTimerManager().SetTimer(
+        LockOnValidCheckTimer,
+        this, &UFSCombatComponent::LockOnValidCheck,
+        LockOnDistanceCheckDelay, 
+        true
+    );
+
+    return true;
+}
+
+bool UFSCombatComponent::SwitchLockOnTarget(float axisValueX)
+{
+    if (!CurrentLockedOnTarget || GetWorld()->GetTimerManager().IsTimerActive(delaySwitchLockOnTimer))
+        return false;
+
+    FVector Start{ PlayerOwner->GetActorLocation() };
+    FVector End{ Start };
+
+    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
+    ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
+
+    TArray<AActor*> ActorsToIgnore;
+    ActorsToIgnore.Add(GetOwner());
+
+    TArray<FHitResult> outHits;
+    bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(
+        GetWorld(),
+        Start,
+        End,
+        LockOnDetectionRadius,
+        ObjectTypes,
+        false,
+        ActorsToIgnore,
+        EDrawDebugTrace::None,
+        outHits,
+        true
+    ) };
+
+    if (!bHit)
+        return false;
+
+    FRotator ControlRotation{ PlayerOwner->GetController()->GetControlRotation() };
+    FVector CameraForward{ ControlRotation.Vector() };
+    CameraForward.Z = 0;
+    CameraForward.Normalize();
+
+    FVector CameraRight{ FRotationMatrix(ControlRotation).GetScaledAxis(EAxis::Y) };
+    CameraRight.Z = 0;
+    CameraRight.Normalize();
+
+    FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
+    bool bLookingRight{ axisValueX > 0 };
+
+    AActor* BestTarget{ nullptr };
+    float SmallestAngle{ FLT_MAX };
+
+    TSet<AActor*> ProcessedActors;
+    for (const FHitResult& hit : outHits)
+    {
+        AActor* HitActor{ hit.GetActor() };
+
+        if (ProcessedActors.Contains(HitActor) ||
+            !HitActor->Implements<UFSFocusable>() ||
+            HitActor == CurrentLockedOnTarget ||
+            !HitActor->Implements<UFSDamageable>())
+            continue;
+
+        IFSDamageable* damageableTarget = Cast<IFSDamageable>(HitActor);
+        if (!damageableTarget || damageableTarget->IsDead())
+            continue;
+
+        ProcessedActors.Add(HitActor);
+
+        FVector TargetLocation{ HitActor->GetActorLocation() };
+        FVector DirectionToTarget{ TargetLocation - PlayerLocation };
+        DirectionToTarget.Z = 0;
+
+        if (DirectionToTarget.IsNearlyZero())
+            continue;
+
+        DirectionToTarget.Normalize();
+
+        double DotForward{ FVector::DotProduct(DirectionToTarget, CameraForward) };
+        if (DotForward < 0.f) // FOV de 180°
+            continue;
 
         double DotRight{ FVector::DotProduct(DirectionToTarget, CameraRight) };
-
-        bool bLookingRight{ (axisValueX > 0) };
 
         if (bLookingRight && DotRight <= 0)
             continue;
@@ -587,7 +668,7 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
         else if (!bLookingRight && DotRight >= 0)
             continue;
 
-        double AngleRadians{ FMath::Atan2(DotRight, FVector::DotProduct(DirectionToTarget, CameraForward)) };
+        double AngleRadians{ FMath::Atan2(DotRight, DotForward) };
         double AngleDegrees{ FMath::RadiansToDegrees(AngleRadians) };
         double AbsAngle{ FMath::Abs(AngleDegrees) };
 
@@ -601,8 +682,12 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
     if (!BestTarget)
         return false;
 
+    // Remove UI Lock-on from previous target
+    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(false);
+
     CurrentLockedOnTarget = BestTarget;
     CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
+    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(true);
 
     GetWorld()->GetTimerManager().SetTimer(delaySwitchLockOnTimer, targetSwitchDelay, false);
 
@@ -612,6 +697,7 @@ bool UFSCombatComponent::SwitchLockOnTarget(UCameraComponent* followCamera, floa
 void UFSCombatComponent::DisengageLockOn()
 {
     TargetsInLockOnRadius.Empty();
+    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(false);
     CurrentLockedOnTarget = nullptr;
     CachedDamageableLockOnTarget = nullptr;
 

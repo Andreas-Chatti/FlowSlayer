@@ -277,7 +277,7 @@ private:
 
     /** Radius where focusable targets can be detected and locked-on */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-    float LockOnDetectionRadius{ 750.f };
+    float LockOnDetectionRadius{ 2000.f };
 
     /** TRUE if player is locked-on to a target */
     bool bIsLockedOnEngaged{ false };
@@ -289,6 +289,34 @@ private:
     * Calls DisengageLockOn() which deactivate the LockOnValidCheckTimer to stop this method running every 
     */
     void LockOnValidCheck();
+
+    /** Update Pitch and Yaw rotation of the camera every frame (called in Tick) based on the locked-on target distance from the player 
+    * Yaw and pitch values will be interpolated based on LockOnDetectionRadius / 2
+    * At minimum distance yaw and pitch offset will be equal to CloseCameraPitchOffset and CloseCameraYawOffset
+    * At maximum distance (LockOnDetectionRadius / 2), yaw and pitch offset will be equal to FarCameraPitchOffset and FarCameraYawOffset
+    * Check whether the target is on the right or left side of the screen and adjust dynamically the yaw (negative or positive) based on the target's position
+    */
+    void UpdateLockOnCamera(float deltaTime);
+
+    /** Min pitch offset when locked-on FAR from target */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+    float FarCameraPitchOffset{ -10.0f };
+
+    /** Max pitch offset when locked-on CLOSE to target */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+    float CloseCameraPitchOffset{ -5.0f };
+
+    /** Max yaw offset when locked-on CLOSE an enemy */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+    float CloseCameraYawOffset{ 30.0f };
+
+    /** Min yaw offset when locked-on FAR an enemy */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+    float FarCameraYawOffset{ 0.0f };
+
+    /** Camera rotation interp speed */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+    float CameraRotationInterpSpeed{ 8.0f };
 
 public:
     /** Delay in which the player can switch lock-on in-between targets */
@@ -328,7 +356,7 @@ public:
     * @return TRUE if successfully switched to new target, FALSE otherwise
     */
     UFUNCTION(BlueprintCallable)
-    bool SwitchLockOnTarget(UCameraComponent* followCamera, float axisValueX);
+    bool SwitchLockOnTarget(float axisValueX);
 
     /** Stop the lock-on */
     void DisengageLockOn();

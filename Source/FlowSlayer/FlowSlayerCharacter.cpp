@@ -39,13 +39,13 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->SetRelativeLocation(FVector{ 0, 0, 60 });
+	CameraBoom->SetRelativeLocation(FVector{ 0, 0, 80 });
 	CameraBoom->bEnableCameraLag = true;
 	CameraBoom->CameraLagSpeed = 8.f;
 	CameraBoom->bEnableCameraRotationLag = true;
 	CameraBoom->CameraRotationLagSpeed = 10.f;
-	CameraBoom->TargetArmLength = 400.0f; // The camera follows at this distance behind the character	
-	CameraBoom->SocketOffset = FVector{ 0, 40, 60 };
+	CameraBoom->TargetArmLength = 550.0f; // The camera follows at this distance behind the character	
+	CameraBoom->SocketOffset = FVector{ 0, 40, 70 };
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
 	// Create a follow camera
@@ -198,32 +198,40 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 	if (CombatComponent->isAttacking())
 		return;
 
-	// input is a Vector2D
-	FVector2D MovementVector{ Value.Get<FVector2D>() };
-	if (Controller != nullptr)
+	FVector2D MovementVector = Value.Get<FVector2D>();
+	bHasMovementInput = MovementVector.SquaredLength() > 0.01f;
+
+	if (!Controller)
+		return;
+
+	//if (bIsTurningInPlace)
+	//ClearTurnInPlace(MovementVector.SquaredLength());
+
+	// === MODE LOCK-ON ===
+	if (CombatComponent->IsLockedOnTarget()) // ou bIsLockedOnEngaged selon ton nom
 	{
-		// Track input pour ABP
-		bHasMovementInput = MovementVector.SquaredLength() > 0.01f;
+		// Ignore la caméra
+		const FVector Forward = GetActorForwardVector();
+		const FVector Right = GetActorRightVector();
 
-		if (bIsTurningInPlace)
-			ClearTurnInPlace(MovementVector.SquaredLength());
-
-		// find out which way is forward
-		const FRotator Rotation{ Controller->GetControlRotation() };
-		const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-		// get forward vector
-		const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	
-		// get right vector 
-		const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-		// add movement 
-		AddMovementInput(ForwardDirection, MovementVector.Y);
-		AddMovementInput(RightDirection, MovementVector.X);
+		AddMovementInput(Forward, MovementVector.Y);
+		AddMovementInput(Right, MovementVector.X);
 
 		MoveInputAxis = MovementVector;
+		return;
 	}
+
+	// === MODE LIBRE (hors lock-on) ===
+	const FRotator ControlRot = Controller->GetControlRotation();
+	const FRotator YawRotation(0, ControlRot.Yaw, 0);
+
+	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
+	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
+
+	AddMovementInput(ForwardDirection, MovementVector.Y);
+	AddMovementInput(RightDirection, MovementVector.X);
+
+	MoveInputAxis = MovementVector;
 }
 
 void AFlowSlayerCharacter::StopMoving(const FInputActionValue& Value)
@@ -242,14 +250,14 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
 
-		if (CombatComponent->IsLockedOnTarget())
-			TurnInPlace();
+		//if (CombatComponent->IsLockedOnTarget())
+			//TurnInPlace();
 
 		AddControllerPitchInput(LookAxisVector.Y);
 
 		// Switch lock-on target si mouvement de souris suffisant
 		if (FMath::Abs(LookAxisVector.X) > CombatComponent->XAxisSwitchSensibility && CombatComponent->GetCurrentLockedOnTarget())
-			CombatComponent->SwitchLockOnTarget(FollowCamera, LookAxisVector.X);
+			CombatComponent->SwitchLockOnTarget(LookAxisVector.X);
 	}
 }
 
