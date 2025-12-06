@@ -1,6 +1,4 @@
 #include "../Public/FSEnemy.h"
-#include "Kismet/GameplayStatics.h"
-#include "Animation/AnimInstance.h"
 
 AFSEnemy::AFSEnemy()
 {
@@ -9,6 +7,13 @@ AFSEnemy::AFSEnemy()
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+
+    // Lock On UI setup
+    LockOnWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("LockOnWidget"));
+    LockOnWidget->SetupAttachment(GetMesh());
+    LockOnWidget->SetWidgetSpace(EWidgetSpace::Screen);
+    LockOnWidget->SetDrawSize(FVector2D(40.0f, 40.0f));
+    LockOnWidget->SetVisibility(false);
 }
 
 void AFSEnemy::BeginPlay()
@@ -119,4 +124,9 @@ void AFSEnemy::PlayDeathMontage()
         TimerDelay,
         false
     );
+}
+
+void AFSEnemy::DisplayLockedOnWidget(bool bShowWidget)
+{
+    LockOnWidget->SetVisibility(bShowWidget);
 }

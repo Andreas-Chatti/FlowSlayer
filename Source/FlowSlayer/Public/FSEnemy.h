@@ -8,6 +8,9 @@
 #include "FSDamageable.h"
 #include "FSFocusable.h"
 #include "Components/BoxComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "Animation/AnimInstance.h"
+#include "Components/WidgetComponent.h"
 #include "FSEnemy.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated)
@@ -29,6 +32,8 @@ public:
 
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat")
     void Attack();
+
+    virtual void DisplayLockedOnWidget(bool bShowWidget) override;
 
     float getAttackRange() const { return AttackRange; }
     bool IsAttacking() const { return bIsAttacking; }
@@ -85,6 +90,9 @@ protected:
     /** Player Reference */
     UPROPERTY()
     APawn* Player;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+    UWidgetComponent* LockOnWidget{ nullptr };
 
 private:
 
