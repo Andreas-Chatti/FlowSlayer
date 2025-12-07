@@ -166,6 +166,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void OnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
+    // === KNOCKBACK ===
+
+    void ApplyKnockback(AActor* target);
+
+    float KnockbackXYForce{ 800.f };
+
+    float KnockbackZForce{ 300.f };
+
     // === HITSTOP ===
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
