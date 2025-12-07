@@ -136,6 +136,12 @@ public:
 
     bool isAttacking() const { return bIsAttacking; }
 
+    /** Enable or disable bIsAttacking flag */
+    void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
+
+    /** Set all combos and combat states back to default and stops the current attack animation */
+    void CancelAttack();
+
 protected:
 
     virtual void BeginPlay() override;

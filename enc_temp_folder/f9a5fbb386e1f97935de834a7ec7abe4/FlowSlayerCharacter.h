@@ -183,23 +183,9 @@ protected:
 
 	void ClearDashInput() { bWantsToDash = false; }
 
-	/** Was jump input pressed recently? (cleared after short delay) */
-	bool bWantsToJump{ false };
-
-	/** Timer to clear bWantsToJump */
-	FTimerHandle JumpInputWindowTimer;
-
-	/** How long Jump input stays "active" for cancel detection */
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	float JumpInputWindowDuration{ 0.2f }; // 200ms
-
-	void ClearJumpInput() { bWantsToJump = false; }
-
 public:
 
 	bool WantsToDash() const { return bWantsToDash; }
-
-	bool WantsToJump() const { return bWantsToJump; }
 
 protected:
 
