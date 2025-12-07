@@ -169,10 +169,10 @@ UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
     UAnimMontage* attackToPerform{ nullptr };
 
     if (ComboIndex >= combo.GetMaxComboIndex())
-        attackToPerform = combo.GetLastAttack();
+        attackToPerform = combo.GetLastAttack()->Montage;
 
     else
-        attackToPerform = combo.GetAttackAt(ComboIndex);
+        attackToPerform = combo.GetAttackAt(ComboIndex)->Montage;
 
     ++ComboIndex;
 
@@ -290,7 +290,7 @@ void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted
         return;
 
     // If the montage that ended is the last attack OR if a full combo was interrupted
-    if (Montage == OngoingCombo->GetLastAttack() || (OngoingCombo->IsFullCombo() && bInterrupted))
+    if (Montage == OngoingCombo->GetLastAttack()->Montage || (OngoingCombo->IsFullCombo() && bInterrupted))
         StopCombo();
 
     // If it's a modular combo and it finished naturally (not interrupted)
@@ -310,7 +310,13 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     if (!hitActor)
         return;
 
-    ApplyKnockback(hitActor);
+    // NOTE: ComboIndex has already been incremented, so actual ComboIndex to this attack here is ComboIndex - 1
+    const FAttackData* currentAttack{ OngoingCombo->GetAttackAt(ComboIndex - 1) };
+    if (!currentAttack)
+        return;
+
+    ApplyDamage(hitActor, equippedWeapon, currentAttack->Damage);
+    ApplyKnockback(hitActor, currentAttack->KnockbackForce, currentAttack->KnockbackUpForce);
     ApplyHitstop();
     SpawnHitVFX(hitLocation);
     PlayHitSound(hitLocation);
@@ -318,7 +324,14 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     ApplyHitFlash(hitActor);
 }
 
-void UFSCombatComponent::ApplyKnockback(AActor* target)
+void UFSCombatComponent::ApplyDamage(AActor* target, AActor* instigator, float damageAmount)
+{
+    IFSDamageable* damageableActor{ Cast<IFSDamageable>(target) };
+    if (damageableActor)
+        damageableActor->ReceiveDamage(damageAmount, instigator);
+}
+
+void UFSCombatComponent::ApplyKnockback(AActor* target, float KnockbackForce, float UpKnockbackForce)
 {
     ACharacter* HitCharacter{ Cast<ACharacter>(target) };
     if (!HitCharacter)
@@ -327,7 +340,7 @@ void UFSCombatComponent::ApplyKnockback(AActor* target)
     FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
     FVector EnemyLocation{ target->GetActorLocation() };
     FVector KnockbackDirection{ (EnemyLocation - PlayerLocation).GetSafeNormal() };
-    FVector KnockbackVelocity{ KnockbackDirection * KnockbackXYForce + FVector(0.f, 0.f, KnockbackZForce) };
+    FVector KnockbackVelocity{ KnockbackDirection * KnockbackForce + FVector(0.f, 0.f, UpKnockbackForce) };
 
     HitCharacter->LaunchCharacter(KnockbackVelocity, true, true);
 }
