@@ -41,6 +41,41 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
 /** Delegate when lock-on is stopped */
 DECLARE_MULTICAST_DELEGATE(FOnLockOnStopped);
 
+
+/** Single attack data within a combo */
+USTRUCT(BlueprintType)
+struct FAttackData
+{
+    GENERATED_BODY()
+
+    /** Animation montage for this attack */
+    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    UAnimMontage* Montage{ nullptr };
+
+    /** Damage dealt by this attack */
+    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    float Damage{ 50.f };
+
+    /** Knockback force applied to enemy (0 = no knockback) */
+    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    float KnockbackForce{ 0.f };
+
+    /** Vertical knockback component (adds upward velocity) */
+    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    float KnockbackUpForce{ 0.f };
+
+    /** Attack name for debugging */
+    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    FName AttackName{ NAME_None };
+
+    // === LATER (Phase 2+) ===
+    // USoundBase* HitSound;
+    // UNiagaraSystem* HitVFX;
+    // float CustomHitstop;
+    // etc.
+};
+
+
 /**
  * Combo data structure
  *
@@ -57,11 +92,11 @@ struct FCombo
      * - FULL combo: Single montage containing entire combo sequence
      */
     UPROPERTY(EditDefaultsOnly, Category = "Combo")
-    TArray<UAnimMontage*> Attacks;
+    TArray<FAttackData> Attacks;
 
     /** Combo name for debugging purposes */
     UPROPERTY(EditDefaultsOnly, Category = "Combo")
-    FName ComboName = NAME_None;
+    FName ComboName{ "NAME_None" };
 
     /** Returns the maximum combo index (last attack index in the array) */
     int32 GetMaxComboIndex() const { return FMath::Max(0, Attacks.Num() - 1); }
@@ -73,18 +108,18 @@ struct FCombo
     bool IsModularCombo() const { return Attacks.Num() > 1; }
 
     /** Checks if this combo data is valid and ready to use */
-    bool IsValid() const { return !Attacks.IsEmpty() && Attacks[0] != nullptr; }
+    bool IsValid() const { return !Attacks.IsEmpty() && Attacks[0].Montage != nullptr; }
 
     /** Gets an attack montage at the specified index (returns nullptr if invalid) */
-    UAnimMontage* GetAttackAt(int32 Index) const
+    const FAttackData* GetAttackAt(int32 Index) const
     {
-        return Attacks.IsValidIndex(Index) ? Attacks[Index] : nullptr;
+        return Attacks.IsValidIndex(Index) ? &Attacks[Index] : nullptr;
     }
 
     /** Gets the last attack montage in the combo */
-    UAnimMontage* GetLastAttack() const
+    const FAttackData* GetLastAttack() const
     {
-        return !Attacks.IsEmpty() ? Attacks.Last() : nullptr;
+        return !Attacks.IsEmpty() ? &Attacks.Last() : nullptr;
     }
 };
 
@@ -162,17 +197,17 @@ public:
 
     // === HIT REACTION ===
 
-    // Appel�e quand on HIT quelque chose
+    // Appeler quand on HIT quelque chose
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void OnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
+    // === DAMAGE ===
+
+    void ApplyDamage(AActor* target, AActor* instigator, float damageAmount);
+
     // === KNOCKBACK ===
 
-    void ApplyKnockback(AActor* target);
-
-    float KnockbackXYForce{ 800.f };
-
-    float KnockbackZForce{ 300.f };
+    void ApplyKnockback(AActor* target, float KnockbackForce = 0.f, float UpKnockbackForce = 0.f);
 
     // === HITSTOP ===
 
