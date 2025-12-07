@@ -310,24 +310,26 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     if (!hitActor)
         return;
 
-    // TEST KNOCKBACK - Appliquer AVANT le hitstop pour que l'effet soit visible
-    ACharacter* HitCharacter = Cast<ACharacter>(hitActor);
-    if (HitCharacter)
-    {
-        FVector PlayerLocation = PlayerOwner->GetActorLocation();
-        FVector EnemyLocation = hitActor->GetActorLocation();
-        FVector KnockbackDirection = (EnemyLocation - PlayerLocation).GetSafeNormal();
-        FVector KnockbackVelocity = KnockbackDirection * 800.f + FVector(0.f, 0.f, 300.f);
-
-        HitCharacter->LaunchCharacter(KnockbackVelocity, true, true);
-        UE_LOG(LogTemp, Warning, TEXT("Knockback applied: %s"), *KnockbackVelocity.ToString());
-    }
-
+    ApplyKnockback(hitActor);
     ApplyHitstop();
     SpawnHitVFX(hitLocation);
     PlayHitSound(hitLocation);
     ApplyCameraShake();
     ApplyHitFlash(hitActor);
+}
+
+void UFSCombatComponent::ApplyKnockback(AActor* target)
+{
+    ACharacter* HitCharacter{ Cast<ACharacter>(target) };
+    if (!HitCharacter)
+        return;
+
+    FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
+    FVector EnemyLocation{ target->GetActorLocation() };
+    FVector KnockbackDirection{ (EnemyLocation - PlayerLocation).GetSafeNormal() };
+    FVector KnockbackVelocity{ KnockbackDirection * KnockbackXYForce + FVector(0.f, 0.f, KnockbackZForce) };
+
+    HitCharacter->LaunchCharacter(KnockbackVelocity, true, true);
 }
 
 void UFSCombatComponent::ApplyHitstop()
