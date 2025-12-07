@@ -1,6 +1,6 @@
 #pragma once
 #include "CoreMinimal.h"
-#include "FSCombatComponent.h"
+#include "../FlowSlayerCharacter.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AnimationCancelWindow.generated.h"
 
@@ -15,7 +15,11 @@ public:
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
-	UPROPERTY()
-	UFSCombatComponent* CombatComp{ nullptr };
+private:
 
+	UPROPERTY()
+	const AFlowSlayerCharacter* FSCharacter{ nullptr };
+
+	UPROPERTY()
+	const UFSCombatComponent* CombatComp{ nullptr };
 };

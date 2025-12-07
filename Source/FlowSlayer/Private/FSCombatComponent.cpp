@@ -112,6 +112,13 @@ void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool
     PlayerOwner->PlayAnimMontage(nextAnimAttack);
 }
 
+void UFSCombatComponent::CancelAttack()
+{
+    AnimInstance->StopAllMontages(0.2f);
+    StopCombo();
+    equippedWeapon->DeactivateHitbox();
+}
+
 FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling)
 {
     FCombo* selectedCombo{ nullptr };
@@ -271,9 +278,9 @@ void UFSCombatComponent::StopCombo()
 {
     ComboIndex = 0;
     bIsAttacking = false;
+    bContinueCombo = false;
+    bComboWindowOpened = false;
     //OngoingCombo = nullptr;
-    
-    //UE_LOG(LogTemp, Error, TEXT("COMBO RESET !"));
 }
 
 void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)

@@ -386,17 +386,6 @@ void AFlowSlayerCharacter::ClearTurnInPlace(float force)
 
 void AFlowSlayerCharacter::Jump()
 {
-	bWantsToJump = true;
-
-	GetWorld()->GetTimerManager().ClearTimer(JumpInputWindowTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		JumpInputWindowTimer,
-		this,
-		&AFlowSlayerCharacter::ClearJumpInput,
-		JumpInputWindowDuration,
-		false
-	);
-
 	if (!CanJumpInternal_Implementation())
 		return;
 
