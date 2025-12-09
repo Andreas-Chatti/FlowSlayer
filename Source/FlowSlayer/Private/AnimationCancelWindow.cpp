@@ -1,5 +1,4 @@
 #include "AnimationCancelWindow.h"
-#include "Logging/LogMacros.h"
 
 void UAnimationCancelWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
@@ -21,7 +20,6 @@ void UAnimationCancelWindow::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimS
 
 	else if (FSCharacter->WantsToJump() || FSCharacter->WantsToDash())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("ANIMATION CANCELED"));
 		FlowSlayerInput::EActionType actionType{ FlowSlayerInput::EActionType::NONE };
 
 		if (FSCharacter->WantsToJump())

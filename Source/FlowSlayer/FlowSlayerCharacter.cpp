@@ -1,4 +1,4 @@
-#include "FlowSlayerCharacter.h"
+﻿#include "FlowSlayerCharacter.h"
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
@@ -135,7 +135,7 @@ void AFlowSlayerCharacter::DisableAllInputs()
 		UEnhancedInputLocalPlayerSubsystem* Subsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer())};
 		if (Subsystem && DefaultMappingContext)
 			Subsystem->RemoveMappingContext(DefaultMappingContext);
-			
+
 		DisableInput(PlayerController);
 	}
 }
@@ -178,7 +178,7 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	UEnhancedInputLocalPlayerSubsystem* Subsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) };
 	if (PlayerController && Subsystem)
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
-	
+
 	// Set up action bindings
 	UEnhancedInputComponent* EnhancedInputComponent{ Cast<UEnhancedInputComponent>(PlayerInputComponent) };
 	if (EnhancedInputComponent)
@@ -197,9 +197,13 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		// Dashing
 		EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::Dash);
 
-		// Attacking
-		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
-		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnAttackTriggered);
+		// LMB - Light attack
+		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnLeftClickStarted);
+		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Completed, this, &AFlowSlayerCharacter::OnLeftClickReleased);
+
+		// RMB - Heavy attack
+		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnRightClickStarted);
+		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Completed, this, &AFlowSlayerCharacter::OnRightClickReleased);
 
 		// Switch Movement mode
 		EnhancedInputComponent->BindAction(ToggleLockOnAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::ToggleLockOn);
@@ -220,15 +224,12 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 	if (!Controller)
 		return;
 
-	//if (bIsTurningInPlace)
-	//ClearTurnInPlace(MovementVector.SquaredLength());
-
 	// === MODE LOCK-ON ===
-	if (CombatComponent->IsLockedOnTarget()) // ou bIsLockedOnEngaged selon ton nom
+	if (CombatComponent->IsLockedOnTarget())
 	{
-		// Ignore la cam�ra
-		const FVector Forward = GetActorForwardVector();
-		const FVector Right = GetActorRightVector();
+		// Ignore la caméra
+		const FVector Forward{ GetActorForwardVector() };
+		const FVector Right{ GetActorRightVector() };
 
 		AddMovementInput(Forward, MovementVector.Y);
 		AddMovementInput(Right, MovementVector.X);
@@ -265,10 +266,6 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 	{
 		// add yaw and pitch input to controller
 		AddControllerYawInput(LookAxisVector.X);
-
-		//if (CombatComponent->IsLockedOnTarget())
-			//TurnInPlace();
-
 		AddControllerPitchInput(LookAxisVector.Y);
 
 		// Switch lock-on target si mouvement de souris suffisant
@@ -325,63 +322,20 @@ void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
 	if (!Controller)
 		return;
 
-	FRotator ControlRotation{ Controller->GetControlRotation() };
-	FRotator NewRotation{ FRotator(0.0f, ControlRotation.Yaw, 0.0f) };
-	SetActorRotation(NewRotation);
-}
-
-void AFlowSlayerCharacter::TurnInPlace()
-{
-	bool bIsFalling{ GetCharacterMovement()->IsFalling() };
-	double CharacterVelocity{ UKismetMathLibrary::VSizeXY(GetCharacterMovement()->GetLastUpdateVelocity()) };
-	if (bIsFalling || CharacterVelocity > 0 || bIsDashing)
-		return;
-
-	FRotator rotation{ GetActorRotation() };
-	FRotator baseAimRotation{ GetBaseAimRotation() };
-	double yawDeltaRotation{ UKismetMathLibrary::NormalizedDeltaRotator(rotation, baseAimRotation).Yaw * -1.0 };
-	if (!(yawDeltaRotation > 45.0) && !(yawDeltaRotation < -45.0))
-		return;
-
-	if (yawDeltaRotation > 135.0)
-		PlayTurn(IdleTurnInPlace180Montage, 1.5f, 0.6f);
-
-	else if (yawDeltaRotation < -135.0)
-		PlayTurn(IdleTurnInPlace180Montage, -1.5f, 0.6f);
-
-	else if (yawDeltaRotation > 45.0)
-		PlayTurn(IdleTurnInPlace90RightMontage, 1.7f, 0.6f);
-
-	else if (yawDeltaRotation < -45.0)
-		PlayTurn(IdleTurnInPlace90LeftMontage, 1.7f, 0.6f);
-}
-
-void AFlowSlayerCharacter::PlayTurn(UAnimMontage* montageToPlay, float playRate, float duration)
-{
-	if (bIsTurningInPlace)
-		return;
-
-	bIsTurningInPlace = true;
-	PlayAnimMontage(montageToPlay, playRate);
+	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->bUseControllerDesiredRotation = true;
-
-	FTimerHandle turnTimer;
+	
+	const float rotationDuration{ 0.3f };
+	FTimerHandle myTimer;
 	GetWorld()->GetTimerManager().SetTimer(
-		turnTimer,
-		[this]() 
-		{ 
-			bIsTurningInPlace = false; 
-			GetCharacterMovement()->bUseControllerDesiredRotation = false; 
+		myTimer,
+		[this]()
+		{
+			GetCharacterMovement()->bUseControllerDesiredRotation = false;
+			GetCharacterMovement()->bOrientRotationToMovement = true;
 		},
-		duration,
-		false
-	);
-}
-
-void AFlowSlayerCharacter::ClearTurnInPlace(float force)
-{
-	if (force != 0 && IsPlayingRootMotion())
-		StopAnimMontage(GetCurrentMontage());
+		rotationDuration,
+		false);
 }
 
 void AFlowSlayerCharacter::Jump()
@@ -401,7 +355,6 @@ void AFlowSlayerCharacter::Jump()
 		return;
 
 	bHasPressedJump = true;
-	ClearTurnInPlace(1.0);
 
 	Super::Jump();
 }
@@ -412,11 +365,49 @@ void AFlowSlayerCharacter::Falling()
 	bHasPressedJump = false;
 }
 
-void AFlowSlayerCharacter::OnAttackTriggered(const FInputActionInstance& Value)
+void AFlowSlayerCharacter::OnAttackTriggered(UInputAction* inputAction)
 {
+	//if (bLeftClickPressed && bRightClickPressed)
+		//attackType = UFSCombatComponent::EAttackType::HeavySpecial;
+
 	if (!CombatComponent->isAttacking() && !AnimInstance->IsAnyMontagePlaying())
 		RotatePlayerToCameraDirection();
 
-	UFSCombatComponent::EAttackType attackTypeInput{ Value.GetSourceAction() == LightAttackAction ? UFSCombatComponent::EAttackType::Light : UFSCombatComponent::EAttackType::Heavy };
-	CombatComponent->Attack(attackTypeInput, IsMoving(), GetCharacterMovement()->IsFalling());
+	CombatComponent->Attack(inputAction, IsMoving(), GetCharacterMovement()->IsFalling());
+}
+
+void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
+{
+	bLeftClickPressed = true;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this]() { OnAttackTriggered(LightAttackAction); },
+		InputBufferDelay,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::OnLeftClickReleased(const FInputActionInstance& Value)
+{
+	bLeftClickPressed = false;
+}
+
+void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value)
+{
+	bRightClickPressed = true;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this]() { OnAttackTriggered(HeavyAttackAction); },
+		InputBufferDelay,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::OnRightClickReleased(const FInputActionInstance& Value)
+{
+	bRightClickPressed = false;
 }

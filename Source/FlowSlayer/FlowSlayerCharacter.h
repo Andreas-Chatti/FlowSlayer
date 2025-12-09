@@ -64,7 +64,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	UFSCombatComponent* CombatComponent;
 
-	/** MappingContext */
+	/** Default MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputMappingContext* DefaultMappingContext;
 
@@ -133,8 +133,6 @@ public:
 
 	const UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
 
-	bool IsTurningInPlace() const { return bIsTurningInPlace; }
-
 protected:
 
 	/** Dash SFX */
@@ -160,10 +158,6 @@ protected:
 	/** If the last fall was cause by a jump */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bWasJumpFall{ false };
-
-	/** Is Character currently turning ? */
-	UPROPERTY(BlueprintReadWrite, Category = "Movement")
-	bool bIsTurningInPlace{ false };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
 	float dashDistance{ 1250.0f };
@@ -255,8 +249,37 @@ protected:
 	/** Called for dashing input */
 	void Dash(const FInputActionValue& Value);
 
-	/* Called for attack input (RIGHT or LEFT click) */
-	void OnAttackTriggered(const FInputActionInstance& Value);
+	/** Called for attack input (RIGHT or LEFT click) */
+	void OnAttackTriggered(UInputAction* inputAction);
+
+	/*
+	* LEFT and RIGHT click input management 
+	*/
+
+	/** Timer input buffer */
+	UPROPERTY()
+	FTimerHandle InputBufferTimer;
+
+	/** Delay before the input trigger the related events */
+	static constexpr float InputBufferDelay{ 0.05f };
+
+	/** Called ONCE, when LEFT click is PRESSED */
+	void OnLeftClickStarted(const FInputActionInstance& Value);
+
+	/** Called ONCE, when LEFT click is RELEASED */
+	void OnLeftClickReleased(const FInputActionInstance& Value);
+
+	/** LEFT click (LMB) clicked state */
+	bool bLeftClickPressed{ false };
+
+	/** Called ONCE, when RIGHT click is PRESSED */
+	void OnRightClickStarted(const FInputActionInstance& Value);
+
+	/** Called ONCE, when RIGHT click is RELEASED */
+	void OnRightClickReleased(const FInputActionInstance& Value);
+
+	/** RIGHT click (RMB) clicked state */
+	bool bRightClickPressed{ false };
 
 	/** Switch Player's movement mode 
 	* Normal mode : Character is rotating directly on move direction input
@@ -290,24 +313,9 @@ private:
 	UFUNCTION()
 	virtual void Falling() override;
 
-	/** Rotate the player character in the direction of the player camera view */
+	/** Simple function helper to rotate the character to where player is looking
+	* Smooth transition during local variable rotationDuration (0.3f default) 
+	*/
 	void RotatePlayerToCameraDirection();
-
-	/* If possible, make the player turn in-place
-	* Check whether the player can turn in-place 
-	* If TRUE play the correct animations depending on the player's rotation delta
-	* Else does nothing
-	*/
-	void TurnInPlace();
-
-	/** Play inplace turn idle animations 
-	* @param duration : Time during the turn-in-place animation cannot be played again
-	*/
-	void PlayTurn(UAnimMontage* montageToPlay, float playRate, float duration);
-
-	/** Clear rootmotion and stop turnInPlace animation to allow the player to keep moving 
-	* @param force : Axis value from move inputs
-	*/
-	void ClearTurnInPlace(float force);
 };
 
