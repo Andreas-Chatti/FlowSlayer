@@ -43,11 +43,6 @@ void AFSWeapon::Tick(float DeltaTime)
         UpdateDamageHitbox();
 }
 
-void AFSWeapon::setDamage(float damage)
-{
-    Damage = damage;
-}
-
 void AFSWeapon::ActivateHitbox()
 {
     bHitboxActive = true;

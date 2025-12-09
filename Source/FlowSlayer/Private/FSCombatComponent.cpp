@@ -20,7 +20,6 @@ void UFSCombatComponent::BeginPlay()
     OnHitboxActivated.AddUObject(equippedWeapon, &AFSWeapon::ActivateHitbox);
     OnHitboxDeactivated.AddUObject(equippedWeapon, &AFSWeapon::DeactivateHitbox);
     equippedWeapon->OnEnemyHit.AddUObject(this, &UFSCombatComponent::OnHitLanded);
-    equippedWeapon->setDamage(Damage);
 
     // Bind MODULAR combo window delegates (broadcasted by AnimNotifyState_ModularCombo)
     OnModularComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleModularComboWindowOpened);
@@ -73,7 +72,7 @@ bool UFSCombatComponent::InitializeAndAttachWeapon()
 * 
 */
 ////////////////////////////////////////////////
-void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling)
+void UFSCombatComponent::Attack(UInputAction* inputAction, bool isMoving, bool isFalling)
 {
     if (bIsAttacking && !bComboWindowOpened)
         return;
@@ -83,8 +82,13 @@ void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool
         // Allow combo continuation if it's a full combo OR we haven't reached the end yet
         if (OngoingCombo->IsFullCombo() || ComboIndex <= OngoingCombo->GetMaxComboIndex())
         {
-            bComboWindowOpened = false;
-            bContinueCombo = true;
+
+            // Verifying if the inputAction for the next attack is the correct one to continue
+            if (OngoingCombo->GetAttackAt(ComboIndex) && OngoingCombo->GetAttackAt(ComboIndex)->RequiredInput == inputAction)
+            {
+                bComboWindowOpened = false;
+                bContinueCombo = true;
+            }
         }
 
         return;
@@ -95,7 +99,7 @@ void UFSCombatComponent::Attack(EAttackType attackTypeInput, bool isMoving, bool
 
     bIsAttacking = true;
 
-    OngoingCombo = SelectComboBasedOnState(attackTypeInput, isMoving, isFalling);
+    OngoingCombo = SelectComboBasedOnState(inputAction, isMoving, isFalling);
     if (!OngoingCombo || !OngoingCombo->IsValid())
     {
         bIsAttacking = false;
@@ -119,12 +123,18 @@ void UFSCombatComponent::CancelAttack()
     equippedWeapon->DeactivateHitbox();
 }
 
-FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling)
+FCombo* UFSCombatComponent::SelectComboBasedOnState(UInputAction* inputAction, bool isMoving, bool isFalling)
 {
     FCombo* selectedCombo{ nullptr };
     if (isMoving && !isFalling)
     {
-        switch (attackTypeInput)
+        if(inputAction == RunningLightCombo.GetAttackAt(0)->RequiredInput)
+            selectedCombo = &RunningLightCombo;
+
+        else if(inputAction == RunningHeavyCombo.GetAttackAt(0)->RequiredInput)
+            selectedCombo = &RunningHeavyCombo;
+
+        /*switch (attackTypeInput)
         {
         case EAttackType::Light:
             selectedCombo = &RunningLightCombo;
@@ -132,12 +142,18 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput,
         case EAttackType::Heavy:
             selectedCombo = &RunningHeavyCombo;
             break;
-        }
+        }*/
     }
 
     else if (!isMoving && !isFalling)
     {
-        switch (attackTypeInput)
+        if (inputAction == StandingLightCombo.GetAttackAt(0)->RequiredInput)
+            selectedCombo = &StandingLightCombo;
+
+        else if (inputAction == StandingHeavyCombo.GetAttackAt(0)->RequiredInput)
+            selectedCombo = &StandingHeavyCombo;
+
+        /*switch (attackTypeInput)
         {
         case EAttackType::Light:
             selectedCombo = &StandingLightCombo;
@@ -145,12 +161,15 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput,
         case EAttackType::Heavy:
             selectedCombo = &StandingHeavyCombo;
             break;
-        }
+        }*/
     }
 
     else if (isFalling)
     {
-        switch (attackTypeInput)
+        if (inputAction == AirCombo.GetAttackAt(0)->RequiredInput)
+            selectedCombo = &AirCombo;
+
+        /*switch (attackTypeInput)
         {
         case UFSCombatComponent::EAttackType::Light:
             selectedCombo = &AirCombo;
@@ -158,7 +177,7 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackTypeInput,
         case UFSCombatComponent::EAttackType::Heavy:
             selectedCombo = &AirCombo;
             break;
-        }
+        }*/
     }
 
     return selectedCombo;

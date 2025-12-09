@@ -68,6 +68,10 @@ struct FAttackData
     UPROPERTY(EditDefaultsOnly, Category = "Attack")
     FName AttackName{ NAME_None };
 
+    /** Input list to trigger this attack */
+    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    UInputAction* RequiredInput;
+
     // === LATER (Phase 2+) ===
     // USoundBase* HitSound;
     // UNiagaraSystem* HitVFX;
@@ -133,7 +137,8 @@ public:
     enum class EAttackType
     {
         Light,
-        Heavy
+        Heavy,
+        HeavySpecial,
     };
 
     UFSCombatComponent();
@@ -167,7 +172,7 @@ public:
     FOnLockOnStopped OnLockOnStopped;
 
     /** Called for attacking input */
-    void Attack(EAttackType attackTypeInput, bool isMoving, bool isFalling);
+    void Attack(UInputAction* inputAction, bool isMoving, bool isFalling);
 
     bool isAttacking() const { return bIsAttacking; }
 
@@ -415,7 +420,7 @@ private:
     // === FUNCTIONS ===
 
     /** Select the correct Combo based on the current player's state (moving, falling, attack type) */
-    FCombo* SelectComboBasedOnState(EAttackType attackTypeInput, bool isMoving, bool isFalling);
+    FCombo* SelectComboBasedOnState(UInputAction* inputAction, bool isMoving, bool isFalling);
 
     /** Get the next attack montage in the combo sequence */
     UAnimMontage* GetComboNextAttack(const FCombo& combo);

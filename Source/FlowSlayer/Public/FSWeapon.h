@@ -23,9 +23,6 @@ public:
 
     AFSWeapon();
 
-    UFUNCTION(BlueprintCallable)
-    void setDamage(float damage);
-
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ActivateHitbox();
 
@@ -69,6 +66,4 @@ private:
 
     void initializeComponents();
     void UpdateDamageHitbox();
-
-    float Damage;
 };
