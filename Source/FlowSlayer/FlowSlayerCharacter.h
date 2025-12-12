@@ -84,19 +84,41 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* DashAction;
 
-	/*
-	* LEFT CLICK
-	* LIGHT Attack Input Action 
-	*/
+	// ========== ATTACK INPUT ACTIONS ==========
+	// NOTE: Simplified to base actions only - variants detected via LMB/RMB and direction in callbacks
+	// ===========================================
+
+	/** LMB - Light attack */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LightAttackAction;
 
-	/*
-	* RIGHT CLICK
-	* HEAVY Attack Input Action 
-	*/
+	/** RMB - Heavy attack */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* HeavyAttackAction;
+
+	/** SHIFT + LMB/RMB - Dash attacks (Pierce, SpinningSlash, DoubleSlash, BackSlash) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* DashAttackAction;
+
+	/** SPACE + LMB/RMB - Jump attacks (JumpSlam, JumpForwardSlam, JumpUpperSlam) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* JumpAttackAction;
+
+	/** A + LMB/RMB - Launcher attacks (Launcher, PowerLauncher) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* LauncherAttackAction;
+
+	/** E + LMB/RMB - Spin attacks (SpinAttack, HorizontalSweep) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* SpinAttackAction;
+
+	/** Z + LMB/RMB - Forward power attacks (PierceThrust, PowerSlash) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* ForwardPowerAttackAction;
+
+	/** S + LMB/RMB - Backward slam attacks (DiagonalRetourne, GroundSlam) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UInputAction* BackwardSlamAttackAction;
 
 	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -139,15 +161,15 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sounds")
 	USoundBase* DashSound{ nullptr };
 
-	/** Turn in-place 180° idle animation */
+	/** Turn in-place 180ï¿½ idle animation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
 	UAnimMontage* IdleTurnInPlace180Montage;
 
-	/** Turn in-place 90° left idle animation */
+	/** Turn in-place 90ï¿½ left idle animation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
 	UAnimMontage* IdleTurnInPlace90LeftMontage;
 
-	/** Turn in-place 90° right idle animation */
+	/** Turn in-place 90ï¿½ right idle animation */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
 	UAnimMontage* IdleTurnInPlace90RightMontage;
 
@@ -250,7 +272,7 @@ protected:
 	void Dash(const FInputActionValue& Value);
 
 	/** Called for attack input (RIGHT or LEFT click) */
-	void OnAttackTriggered(UInputAction* inputAction);
+	void OnAttackTriggered(EAttackType attackType);
 
 	/*
 	* LEFT and RIGHT click input management 
@@ -263,25 +285,46 @@ protected:
 	/** Delay before the input trigger the related events */
 	static constexpr float InputBufferDelay{ 0.05f };
 
+	/** Helper to query mouse button states (returns pair: {isLMBPressed, isRMBPressed}) */
+	TPair<bool, bool> GetMouseButtonStates() const;
+
 	/** Called ONCE, when LEFT click is PRESSED */
 	void OnLeftClickStarted(const FInputActionInstance& Value);
-
-	/** Called ONCE, when LEFT click is RELEASED */
-	void OnLeftClickReleased(const FInputActionInstance& Value);
-
-	/** LEFT click (LMB) clicked state */
-	bool bLeftClickPressed{ false };
 
 	/** Called ONCE, when RIGHT click is PRESSED */
 	void OnRightClickStarted(const FInputActionInstance& Value);
 
-	/** Called ONCE, when RIGHT click is RELEASED */
-	void OnRightClickReleased(const FInputActionInstance& Value);
+	/** LSHIFT + MoveAction input + LMB / RMB
+	* DashAttackAction clicked state
+	*/
+	void OnDashAttackActionStarted(const FInputActionInstance& Value);
 
-	/** RIGHT click (RMB) clicked state */
-	bool bRightClickPressed{ false };
+	/** SPACE + LMB / RMB
+	* JumpAttackAction clicked state
+	*/
+	void OnJumpAttackActionStarted(const FInputActionInstance& Value);
 
-	/** Switch Player's movement mode 
+	/** A + LMB / RMB
+	* LauncherAction clicked state
+	*/
+	void OnLauncherActionStarted(const FInputActionInstance& Value);
+
+	/** E / E + RMB
+	* SpinAttackAction clicked state
+	*/
+	void OnSpinAttackActionStarted(const FInputActionInstance& Value);
+
+	/** Z + RMB / Z + LMB
+	* ForwardPowerAction clicked state
+	*/
+	void OnForwardPowerActionStarted(const FInputActionInstance& Value);
+
+	/** S + RMB / S + LMB
+	* SlamAction clicked state
+	*/
+	void OnSlamActionStarted(const FInputActionInstance& Value);
+
+	/** Switch Player's movement mode
 	* Normal mode : Character is rotating directly on move direction input
 	* Combat mode : Character is focused on wherever the player's camera is looking at
 	*/

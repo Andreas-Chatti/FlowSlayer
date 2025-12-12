@@ -13,7 +13,7 @@ void UAnimNotifyState_FullCombo::NotifyBegin(USkeletalMeshComponent* MeshComp, U
 	if (!CombatComp)
 		return;
 
-	CombatComp->OnFullComboWindowOpened.Broadcast();
+	//CombatComp->OnFullComboWindowOpened.Broadcast();
 }
 
 void UAnimNotifyState_FullCombo::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
@@ -21,5 +21,5 @@ void UAnimNotifyState_FullCombo::NotifyEnd(USkeletalMeshComponent* MeshComp, UAn
 	if (!CombatComp)
 		return;
 
-	CombatComp->OnFullComboWindowClosed.Broadcast();
+	//CombatComp->OnFullComboWindowClosed.Broadcast();
 }

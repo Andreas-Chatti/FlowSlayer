@@ -21,19 +21,18 @@ void UFSCombatComponent::BeginPlay()
     OnHitboxDeactivated.AddUObject(equippedWeapon, &AFSWeapon::DeactivateHitbox);
     equippedWeapon->OnEnemyHit.AddUObject(this, &UFSCombatComponent::OnHitLanded);
 
-    // Bind MODULAR combo window delegates (broadcasted by AnimNotifyState_ModularCombo)
-    OnModularComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleModularComboWindowOpened);
-    OnModularComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleModularComboWindowClosed);
-
-    // Bind FULL combo window delegates (broadcasted by AnimNotifyState_FullCombo)
-    OnFullComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleFullComboWindowOpened);
-    OnFullComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleFullComboWindowClosed);
+    // Bind combo window delegates (broadcasted by AnimNotifyState_ModularCombo)
+    OnComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleComboWindowOpened);
+    OnComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleComboWindowClosed);
 
     // Bind Air stall delegates for air combos (broadcasted by AirStallNotify)
     OnAirStallStarted.AddUObject(this, &UFSCombatComponent::HandleAirStallStarted);
     OnAirStallFinished.AddUObject(this, &UFSCombatComponent::HandleAirStallFinished);
 
     AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
+
+    // Initialize combo lookup table for fast attack selection
+    InitializeComboLookupTable();
 }
 
 void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -64,6 +63,44 @@ bool UFSCombatComponent::InitializeAndAttachWeapon()
     return true;
 }
 
+void UFSCombatComponent::InitializeComboLookupTable()
+{
+    // Basic attacks (movement-dependent)
+    ComboLookupTable.Add(EAttackType::StandingLight, &StandingLightCombo);
+    ComboLookupTable.Add(EAttackType::StandingHeavy, &StandingHeavyCombo);
+    ComboLookupTable.Add(EAttackType::RunningLight, &RunningLightCombo);
+    ComboLookupTable.Add(EAttackType::RunningHeavy, &RunningHeavyCombo);
+
+    // Dash attacks
+    ComboLookupTable.Add(EAttackType::DashPierce, &DashPierceAttack);
+    ComboLookupTable.Add(EAttackType::DashSpinningSlash, &DashSpinningSlashAttack);
+    ComboLookupTable.Add(EAttackType::DashDoubleSlash, &DashDoubleSlashAttack);
+    ComboLookupTable.Add(EAttackType::DashBackSlash, &DashBackSlashAttack);
+
+    // Jump attacks
+    ComboLookupTable.Add(EAttackType::JumpSlam, &JumpSlamAttack);
+    ComboLookupTable.Add(EAttackType::JumpForwardSlam, &JumpForwardSlamAttack);
+    ComboLookupTable.Add(EAttackType::JumpUpperSlam, &JumpUpperSlamComboAttack);
+    ComboLookupTable.Add(EAttackType::AirCombo, &AirCombo);
+    ComboLookupTable.Add(EAttackType::AerialSlam, &AerialSlamAttack);
+
+    // Launcher attacks
+    ComboLookupTable.Add(EAttackType::Launcher, &LauncherAttack);
+    ComboLookupTable.Add(EAttackType::PowerLauncher, &PowerLauncherAttack);
+
+    // Spin attacks
+    ComboLookupTable.Add(EAttackType::SpinAttack, &SpinAttack);
+    ComboLookupTable.Add(EAttackType::HorizontalSweep, &HorizontalSweepAttack);
+
+    // Power attacks
+    ComboLookupTable.Add(EAttackType::PowerSlash, &PowerSlashAttack);
+    ComboLookupTable.Add(EAttackType::PierceThrust, &PierceThrustAttack);
+
+    // Slam attacks
+    ComboLookupTable.Add(EAttackType::GroundSlam, &GroundSlamAttack);
+    ComboLookupTable.Add(EAttackType::DiagonalRetourne, &DiagonalRetourneAttack);
+}
+
 
 ////////////////////////////////////////////////
 /*
@@ -72,19 +109,18 @@ bool UFSCombatComponent::InitializeAndAttachWeapon()
 * 
 */
 ////////////////////////////////////////////////
-void UFSCombatComponent::Attack(UInputAction* inputAction, bool isMoving, bool isFalling)
+void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFalling)
 {
     if (bIsAttacking && !bComboWindowOpened)
         return;
 
     else if (bIsAttacking && bComboWindowOpened)
     {
-        // Allow combo continuation if it's a full combo OR we haven't reached the end yet
-        if (OngoingCombo->IsFullCombo() || ComboIndex <= OngoingCombo->GetMaxComboIndex())
+        if (ComboIndex <= OngoingCombo->GetMaxComboIndex())
         {
 
             // Verifying if the inputAction for the next attack is the correct one to continue
-            if (OngoingCombo->GetAttackAt(ComboIndex) && OngoingCombo->GetAttackAt(ComboIndex)->RequiredInput == inputAction)
+            if (OngoingCombo->GetAttackAt(ComboIndex) && OngoingCombo->GetAttackAt(ComboIndex)->AttackType == attackType)
             {
                 bComboWindowOpened = false;
                 bContinueCombo = true;
@@ -99,7 +135,7 @@ void UFSCombatComponent::Attack(UInputAction* inputAction, bool isMoving, bool i
 
     bIsAttacking = true;
 
-    OngoingCombo = SelectComboBasedOnState(inputAction, isMoving, isFalling);
+    OngoingCombo = SelectComboBasedOnState(attackType, isMoving, isFalling);
     if (!OngoingCombo || !OngoingCombo->IsValid())
     {
         bIsAttacking = false;
@@ -123,64 +159,56 @@ void UFSCombatComponent::CancelAttack()
     equippedWeapon->DeactivateHitbox();
 }
 
-FCombo* UFSCombatComponent::SelectComboBasedOnState(UInputAction* inputAction, bool isMoving, bool isFalling)
+FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackType, bool isMoving, bool isFalling)
 {
-    FCombo* selectedCombo{ nullptr };
-    if (isMoving && !isFalling)
-    {
-        if(inputAction == RunningLightCombo.GetAttackAt(0)->RequiredInput)
-            selectedCombo = &RunningLightCombo;
+    // Invalid attack type
+    if (attackType == EAttackType::None)
+        return nullptr;
 
-        else if(inputAction == RunningHeavyCombo.GetAttackAt(0)->RequiredInput)
-            selectedCombo = &RunningHeavyCombo;
+    // Lookup combo from table
+    FCombo** foundCombo = ComboLookupTable.Find(attackType);
+    if (!foundCombo)
+        return nullptr;
 
-        /*switch (attackTypeInput)
-        {
-        case EAttackType::Light:
-            selectedCombo = &RunningLightCombo;
-            break;
-        case EAttackType::Heavy:
-            selectedCombo = &RunningHeavyCombo;
-            break;
-        }*/
-    }
+    // Validate airborne restrictions
+    // Air-only attacks: JumpSlam, JumpForwardSlam, JumpUpperSlam, AirCombo, AerialSlam
+    bool isAirOnlyAttack{ (
+        attackType == EAttackType::JumpSlam ||
+        attackType == EAttackType::JumpForwardSlam ||
+        attackType == EAttackType::JumpUpperSlam ||
+        attackType == EAttackType::AirCombo ||
+        attackType == EAttackType::AerialSlam
+    ) };
 
-    else if (!isMoving && !isFalling)
-    {
-        if (inputAction == StandingLightCombo.GetAttackAt(0)->RequiredInput)
-            selectedCombo = &StandingLightCombo;
+    // Ground-only attacks: all Dash, Launcher, Spin, Power, and Slam attacks
+    bool isGroundOnlyAttack{ (
+        attackType == EAttackType::DashPierce ||
+        attackType == EAttackType::DashSpinningSlash ||
+        attackType == EAttackType::DashDoubleSlash ||
+        attackType == EAttackType::DashBackSlash ||
+        attackType == EAttackType::Launcher ||
+        attackType == EAttackType::PowerLauncher ||
+        attackType == EAttackType::SpinAttack ||
+        attackType == EAttackType::HorizontalSweep ||
+        attackType == EAttackType::PowerSlash ||
+        attackType == EAttackType::PierceThrust ||
+        attackType == EAttackType::GroundSlam ||
+        attackType == EAttackType::DiagonalRetourne ||
+        attackType == EAttackType::StandingLight ||
+        attackType == EAttackType::RunningLight ||
+        attackType == EAttackType::StandingHeavy ||
+        attackType == EAttackType::RunningHeavy
+    ) };
 
-        else if (inputAction == StandingHeavyCombo.GetAttackAt(0)->RequiredInput)
-            selectedCombo = &StandingHeavyCombo;
+    // Reject air-only attacks on ground
+    if (isAirOnlyAttack && !isFalling)
+        return nullptr;
 
-        /*switch (attackTypeInput)
-        {
-        case EAttackType::Light:
-            selectedCombo = &StandingLightCombo;
-            break;
-        case EAttackType::Heavy:
-            selectedCombo = &StandingHeavyCombo;
-            break;
-        }*/
-    }
+    // Reject ground-only attacks in air
+    if (isGroundOnlyAttack && isFalling)
+        return nullptr;
 
-    else if (isFalling)
-    {
-        if (inputAction == AirCombo.GetAttackAt(0)->RequiredInput)
-            selectedCombo = &AirCombo;
-
-        /*switch (attackTypeInput)
-        {
-        case UFSCombatComponent::EAttackType::Light:
-            selectedCombo = &AirCombo;
-            break;
-        case UFSCombatComponent::EAttackType::Heavy:
-            selectedCombo = &AirCombo;
-            break;
-        }*/
-    }
-
-    return selectedCombo;
+    return *foundCombo;
 }
 
 UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
@@ -198,52 +226,25 @@ UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
     return attackToPerform;
 }
 
-void UFSCombatComponent::HandleModularComboWindowOpened()
+void UFSCombatComponent::HandleComboWindowOpened()
 {
     bComboWindowOpened = true;
-    //UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window OPENED (via delegate)!"));
 }
 
-void UFSCombatComponent::HandleModularComboWindowClosed()
+void UFSCombatComponent::HandleComboWindowClosed()
 {
     bComboWindowOpened = false;
-    //UE_LOG(LogTemp, Error, TEXT("MODULAR Combo Window CLOSED (via delegate)!"));
 
     // If we've exceeded the max combo index, we're at the end of the combo chain
+    // Or the player didn't continue combo by attacking during the ComboWindow
     // Reset and let the animation finish naturally (no Montage_Stop)
-    if (ComboIndex > OngoingCombo->GetMaxComboIndex())
-    {
-        //UE_LOG(LogTemp, Warning, TEXT("End of combo reached - Resetting"));
+    if (!OngoingCombo)
         return;
-    }
 
-    else if (!bContinueCombo && AnimInstance)
-    {
-        //UE_LOG(LogTemp, Warning, TEXT("Player didn't continue MODULAR combo - Letting animation stops"));
+    bool isComboEnd{ ComboIndex > OngoingCombo->GetMaxComboIndex() };
+    if (isComboEnd || !bContinueCombo)
         return;
-    }
 
-    ContinueCombo();
-}
-
-void UFSCombatComponent::HandleFullComboWindowOpened()
-{
-    //UE_LOG(LogTemp, Error, TEXT("FULL Combo Window OPENED (via delegate)!"));
-    bComboWindowOpened = true;
-}
-
-void UFSCombatComponent::HandleFullComboWindowClosed()
-{
-    bComboWindowOpened = false;
-    //UE_LOG(LogTemp, Error, TEXT("FULL Combo Window CLOSED (via delegate)!"));
-
-    // If player didn't buffer a continue input, stop the combo early
-    if (!bContinueCombo && AnimInstance)
-    {
-        //UE_LOG(LogTemp, Warning, TEXT("Player didn't continue FULL combo - Stopping"));
-        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
-        return;
-    }
     ContinueCombo();
 }
 
@@ -265,31 +266,12 @@ void UFSCombatComponent::ContinueCombo()
     bContinueCombo = false;
 
     if (!OngoingCombo || !OngoingCombo->IsValid())
-    {
-        //UE_LOG(LogTemp, Error, TEXT("OngoingCombo is null or invalid - Stopping"));
-        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
-    }
 
-    if (OngoingCombo->IsFullCombo())
-    {
-        //UE_LOG(LogTemp, Warning, TEXT("FullCombo detected - Letting animation continue naturally"));
-        // Increment ComboIndex to track progress through combo windows
-        ++ComboIndex;
-        return;
-    }
-
-    // MODULAR COMBO: Multiple separate montages - switch to next attack montage
     UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
     if (!nextAnimAttack)
-    {
-        //UE_LOG(LogTemp, Error, TEXT("nextAnimAttack is null - Stopping"));
-        AnimInstance->Montage_Stop(0.6f, AnimInstance->GetCurrentActiveMontage());
         return;
-    }
 
-    // Successfully continuing the modular combo - play next attack animation
-    //UE_LOG(LogTemp, Warning, TEXT("Continuing modular combo - Playing next attack"));
     PlayerOwner->PlayAnimMontage(nextAnimAttack);
 }
 
@@ -299,7 +281,7 @@ void UFSCombatComponent::StopCombo()
     bIsAttacking = false;
     bContinueCombo = false;
     bComboWindowOpened = false;
-    //OngoingCombo = nullptr;
+    OngoingCombo = nullptr;
 }
 
 void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -308,12 +290,11 @@ void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted
     if (!OngoingCombo || !OngoingCombo->IsValid())
         return;
 
-    // If the montage that ended is the last attack OR if a full combo was interrupted
-    if (Montage == OngoingCombo->GetLastAttack()->Montage || (OngoingCombo->IsFullCombo() && bInterrupted))
-        StopCombo();
-
-    // If it's a modular combo and it finished naturally (not interrupted)
-    else if (OngoingCombo->IsModularCombo() && !bInterrupted)
+    /** Reset the whole combo state if :
+    * It's the last attack of the combo
+    * If any attack in the combo is not interrupted
+    */
+    if (Montage == OngoingCombo->GetLastAttack()->Montage || !bInterrupted)
         StopCombo();
 }
 

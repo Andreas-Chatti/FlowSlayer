@@ -22,17 +22,58 @@ class USoundBase;
 class UParticleSystem;
 class UCameraShakeBase;
 
+UENUM(BlueprintType)
+enum class EAttackType : uint8
+{
+    None,
+
+    // Light combos
+    StandingLight,
+    RunningLight,
+
+    // Heavy combos
+    StandingHeavy,
+    RunningHeavy,
+
+    // Dash attacks
+    DashPierce,           // SHIFT + Z + LMB
+    DashSpinningSlash,    // SHIFT + Q/D + LMB
+    DashDoubleSlash,      // SHIFT + Z + RMB
+    DashBackSlash,        // SHIFT + S + RMB
+
+    // Jump attacks
+    JumpSlam,             // SPACE + LMB (no direction)
+    JumpForwardSlam,      // SPACE + Z + LMB
+    JumpUpperSlam,        // SPACE + RMB
+
+    // Launcher attacks
+    Launcher,             // A + LMB
+    PowerLauncher,        // A + RMB
+
+    // Spin attacks
+    SpinAttack,           // E
+    HorizontalSweep,      // E + RMB
+
+    // Forward power attacks
+    PowerSlash,           // Z + Hold RMB
+    PierceThrust,         // Z + LMB (double tap)
+
+    // Slam attacks
+    GroundSlam,           // S + RMB
+    DiagonalRetourne,     // S + LMB
+
+    // Air attacks
+    AirCombo,             // LMB (airborne)
+    AerialSlam            // RMB (airborne after launcher)
+};
+
 /** Delegates Used to activate or deactivate equippedWeapon hitbox */
 DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
 DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
 
 /** Delegates for Modular combo window management - broadcasted by AnimNotifyState_ModularCombo */
-DECLARE_MULTICAST_DELEGATE(FOnModularComboWindowOpened);
-DECLARE_MULTICAST_DELEGATE(FOnModularComboWindowClosed);
-
-/** Delegates for Full combo window management - broadcasted by AnimNotifyState_FullCombo */
-DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowOpened);
-DECLARE_MULTICAST_DELEGATE(FOnFullComboWindowClosed);
+DECLARE_MULTICAST_DELEGATE(FOnComboWindowOpened);
+DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
 
 /** Delegates for AirCombo air stall - broadcasted by AirStallNotify */
 DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
@@ -68,9 +109,11 @@ struct FAttackData
     UPROPERTY(EditDefaultsOnly, Category = "Attack")
     FName AttackName{ NAME_None };
 
-    /** Input list to trigger this attack */
+    /** Attack type needed to launch this attack 
+    * This data is based from the inputs actions in AFlowSlayerCharacter class
+    */
     UPROPERTY(EditDefaultsOnly, Category = "Attack")
-    UInputAction* RequiredInput;
+    EAttackType AttackType{ EAttackType::None };
 
     // === LATER (Phase 2+) ===
     // USoundBase* HitSound;
@@ -92,8 +135,7 @@ struct FCombo
     GENERATED_BODY()
 
     /** Array of attack animations for this combo
-     * - MODULAR combo: Multiple montages (e.g., [Attack1, Attack2, Attack3])
-     * - FULL combo: Single montage containing entire combo sequence
+     * Multiple montages (e.g., [Attack1, Attack2, Attack3])
      */
     UPROPERTY(EditDefaultsOnly, Category = "Combo")
     TArray<FAttackData> Attacks;
@@ -104,12 +146,6 @@ struct FCombo
 
     /** Returns the maximum combo index (last attack index in the array) */
     int32 GetMaxComboIndex() const { return FMath::Max(0, Attacks.Num() - 1); }
-
-    /** Returns true if this is a FULL combo (single montage with entire sequence) */
-    bool IsFullCombo() const { return Attacks.Num() == 1; }
-
-    /** Returns true if this is a MODULAR combo (multiple separate montages) */
-    bool IsModularCombo() const { return Attacks.Num() > 1; }
 
     /** Checks if this combo data is valid and ready to use */
     bool IsValid() const { return !Attacks.IsEmpty() && Attacks[0].Montage != nullptr; }
@@ -134,13 +170,6 @@ class FLOWSLAYER_API UFSCombatComponent : public UActorComponent
 
 public:
 
-    enum class EAttackType
-    {
-        Light,
-        Heavy,
-        HeavySpecial,
-    };
-
     UFSCombatComponent();
 
     /** Event delegates notify
@@ -149,17 +178,11 @@ public:
     FOnHitboxActivated OnHitboxActivated;
     FOnHitboxDeactivated OnHitboxDeactivated;
 
-    /** MODULAR Combo window delegates
-    * Broadcasted by AnimNotifyState_ModularCombo to notify modular combo window open/close events
+    /** Combo window delegates
+    * Broadcasted by AnimNotifyState_ModularCombo to notify combo window open/close events
     */
-    FOnModularComboWindowClosed OnModularComboWindowClosed;
-    FOnModularComboWindowOpened OnModularComboWindowOpened;
-
-    /** FULL Combo window delegates
-    * Broadcasted by AnimNotifyState_FullCombo to notify full (1 full animation) combo window open/close events
-    */
-    FOnFullComboWindowOpened OnFullComboWindowOpened;
-    FOnFullComboWindowClosed OnFullComboWindowClosed;
+    FOnComboWindowClosed OnComboWindowClosed;
+    FOnComboWindowOpened OnComboWindowOpened;
 
     /** Air stall for air combos 
     * Broadcasted by AirStallNotify to start an air stall for an air combo
@@ -172,7 +195,7 @@ public:
     FOnLockOnStopped OnLockOnStopped;
 
     /** Called for attacking input */
-    void Attack(UInputAction* inputAction, bool isMoving, bool isFalling);
+    void Attack(EAttackType attackType, bool isMoving, bool isFalling);
 
     bool isAttacking() const { return bIsAttacking; }
 
@@ -291,12 +314,84 @@ private:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo RunningHeavyCombo;
 
-    /** Running heavy attack combo */
+    /** Dash Pierce attack */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo DashPierceAttack;
+
+    /** Dash Spinning slash attack */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo DashSpinningSlashAttack;
+
+    /** Dash Double slash attack */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo DashDoubleSlashAttack;
+
+    /** Dash back slash attack */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo DashBackSlashAttack;
+
+    /** LMB Air attack combo */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
 
+    /** SPACE + LMB air attack */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo JumpSlamAttack;
+
+    /** SPACE + Z + LMB jump forward slam */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo JumpForwardSlamAttack;
+
+    /** SPACE + RMB jump upper + slam combo */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo JumpUpperSlamComboAttack;
+
+    /** A + LMB clean launcher */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo LauncherAttack;
+
+    /** A + RMB power launcher */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo PowerLauncherAttack;
+
+    /** E multi-hit spin attack */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo SpinAttack;
+
+    /** E + RMB horizontal sweep */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo HorizontalSweepAttack;
+
+    /** Z + Hold RMB power slash */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo PowerSlashAttack;
+
+    /** Z + LMB (double tap) pierce thrust */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo PierceThrustAttack;
+
+    /** S + RMB ground slam */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo GroundSlamAttack;
+
+    /** S + LMB diagonal retourné */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo DiagonalRetourneAttack;
+
+    /** RMB (airborne) aerial slam follow-up */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    FCombo AerialSlamAttack;
+
     /** Currently active combo (pointer to one of the above combos) */
     FCombo* OngoingCombo{ nullptr };
+
+    /** Lookup table for fast combo selection based on attack type
+     * Populated in InitializeComboLookupTable() during BeginPlay
+     */
+    TMap<EAttackType, FCombo*> ComboLookupTable;
+
+    /** Initialize the combo lookup table with all available combos */
+    void InitializeComboLookupTable();
 
     /** Is the character currently performing an attack? */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
@@ -420,7 +515,7 @@ private:
     // === FUNCTIONS ===
 
     /** Select the correct Combo based on the current player's state (moving, falling, attack type) */
-    FCombo* SelectComboBasedOnState(UInputAction* inputAction, bool isMoving, bool isFalling);
+    FCombo* SelectComboBasedOnState(EAttackType attackType, bool isMoving, bool isFalling);
 
     /** Get the next attack montage in the combo sequence */
     UAnimMontage* GetComboNextAttack(const FCombo& combo);
@@ -434,16 +529,10 @@ private:
     // === COMBO WINDOW HANDLERS (Bound to delegates in BeginPlay) ===
 
     /** Called when MODULAR combo window opens via delegate broadcast */
-    void HandleModularComboWindowOpened();
+    void HandleComboWindowOpened();
 
     /** Called when MODULAR combo window closes via delegate broadcast */
-    void HandleModularComboWindowClosed();
-
-    /** Called when FULL combo window opens via delegate broadcast */
-    void HandleFullComboWindowOpened();
-
-    /** Called when FULL combo window closes via delegate broadcast */
-    void HandleFullComboWindowClosed();
+    void HandleComboWindowClosed();
 
     /** Called to start an air stall
     * Used for air combos
