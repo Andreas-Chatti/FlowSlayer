@@ -161,18 +161,6 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sounds")
 	USoundBase* DashSound{ nullptr };
 
-	/** Turn in-place 180� idle animation */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
-	UAnimMontage* IdleTurnInPlace180Montage;
-
-	/** Turn in-place 90� left idle animation */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
-	UAnimMontage* IdleTurnInPlace90LeftMontage;
-
-	/** Turn in-place 90� right idle animation */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
-	UAnimMontage* IdleTurnInPlace90RightMontage;
-
 	/** Is player currently giving movement input? (for ABP) */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bHasMovementInput{ false };
