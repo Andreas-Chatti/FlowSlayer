@@ -13,7 +13,7 @@ void UAnimNotifyState_ModularCombo::NotifyBegin(USkeletalMeshComponent* MeshComp
 	if (!CombatComp)
 		return;
 
-	CombatComp->OnModularComboWindowOpened.Broadcast();
+	CombatComp->OnComboWindowOpened.Broadcast();
 }
 
 void UAnimNotifyState_ModularCombo::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
@@ -21,5 +21,5 @@ void UAnimNotifyState_ModularCombo::NotifyEnd(USkeletalMeshComponent* MeshComp, 
 	if (!CombatComp)
 		return;
 
-	CombatComp->OnModularComboWindowClosed.Broadcast();
+	CombatComp->OnComboWindowClosed.Broadcast();
 }

@@ -197,13 +197,29 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 		// Dashing
 		EnhancedInputComponent->BindAction(DashAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::Dash);
 
+		// SHIFT + LMB/RMB - Dash attacks
+		EnhancedInputComponent->BindAction(DashAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnDashAttackActionStarted);
+
+		// SPACE + LMB/RMB - Jump attacks
+		EnhancedInputComponent->BindAction(JumpAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnJumpAttackActionStarted);
+
+		// A + LMB/RMB - Launcher attacks
+		EnhancedInputComponent->BindAction(LauncherAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnLauncherActionStarted);
+
+		// E + LMB/RMB - Spin attacks
+		EnhancedInputComponent->BindAction(SpinAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnSpinAttackActionStarted);
+
+		// Z + LMB/RMB - Forward power attacks
+		EnhancedInputComponent->BindAction(ForwardPowerAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnForwardPowerActionStarted);
+
+		// S + LMB/RMB - Backward slam attacks
+		EnhancedInputComponent->BindAction(BackwardSlamAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnSlamActionStarted);
+
 		// LMB - Light attack
 		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnLeftClickStarted);
-		EnhancedInputComponent->BindAction(LightAttackAction, ETriggerEvent::Completed, this, &AFlowSlayerCharacter::OnLeftClickReleased);
 
 		// RMB - Heavy attack
 		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::OnRightClickStarted);
-		EnhancedInputComponent->BindAction(HeavyAttackAction, ETriggerEvent::Completed, this, &AFlowSlayerCharacter::OnRightClickReleased);
 
 		// Switch Movement mode
 		EnhancedInputComponent->BindAction(ToggleLockOnAction, ETriggerEvent::Started, this, &AFlowSlayerCharacter::ToggleLockOn);
@@ -287,16 +303,11 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 		false
 	);
 
-	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling() || !bCanDash || bIsDashing)
+	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling() || !bCanDash || bIsDashing || MoveInputAxis.IsNearlyZero())
 		return;
 
 	if (DashSound)
 		UGameplayStatics::PlaySoundAtLocation(GetWorld(), DashSound, GetActorLocation());
-
-	double charVelocity{ GetCharacterMovement()->Velocity.Length() };
-	bool hasEnoughVelocity{ charVelocity > MIN_DASH_VELOCITY };
-	if (!hasEnoughVelocity)
-		return;
 
 	bCanDash = false;
 	bIsDashing = true;
@@ -317,6 +328,18 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 	);
 }
 
+TPair<bool, bool> AFlowSlayerCharacter::GetMouseButtonStates() const
+{
+	APlayerController* PC{ Cast<APlayerController>(GetController()) };
+	if (!PC)
+		return TPair<bool, bool>(false, false);
+
+	bool isLMBPressed{ PC->IsInputKeyDown(EKeys::LeftMouseButton) };
+	bool isRMBPressed{ PC->IsInputKeyDown(EKeys::RightMouseButton) };
+
+	return TPair<bool, bool>{ isLMBPressed, isRMBPressed };
+}
+
 void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
 {
 	if (!Controller)
@@ -324,7 +347,7 @@ void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
 
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->bUseControllerDesiredRotation = true;
-	
+
 	const float rotationDuration{ 0.3f };
 	FTimerHandle myTimer;
 	GetWorld()->GetTimerManager().SetTimer(
@@ -365,49 +388,229 @@ void AFlowSlayerCharacter::Falling()
 	bHasPressedJump = false;
 }
 
-void AFlowSlayerCharacter::OnAttackTriggered(UInputAction* inputAction)
+void AFlowSlayerCharacter::OnAttackTriggered(EAttackType attackType)
 {
-	//if (bLeftClickPressed && bRightClickPressed)
-		//attackType = UFSCombatComponent::EAttackType::HeavySpecial;
-
 	if (!CombatComponent->isAttacking() && !AnimInstance->IsAnyMontagePlaying())
 		RotatePlayerToCameraDirection();
 
-	CombatComponent->Attack(inputAction, IsMoving(), GetCharacterMovement()->IsFalling());
+	CombatComponent->Attack(attackType, IsMoving(), GetCharacterMovement()->IsFalling());
 }
 
 void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 {
-	bLeftClickPressed = true;
-
 	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
 	GetWorld()->GetTimerManager().SetTimer(
 		InputBufferTimer,
-		[this]() { OnAttackTriggered(LightAttackAction); },
+		[this]()
+		{
+			EAttackType attackType{ EAttackType::StandingLight };
+
+			if(GetCharacterMovement()->IsFalling())
+				attackType = EAttackType::AirCombo;
+			else if (IsMoving())
+				attackType = EAttackType::RunningLight;
+			else
+				attackType = EAttackType::StandingLight;
+
+			CombatComponent->Attack(attackType, IsMoving(), GetCharacterMovement()->IsFalling());
+		},
 		InputBufferDelay,
 		false
 	);
-}
-
-void AFlowSlayerCharacter::OnLeftClickReleased(const FInputActionInstance& Value)
-{
-	bLeftClickPressed = false;
 }
 
 void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value)
 {
-	bRightClickPressed = true;
-
 	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
 	GetWorld()->GetTimerManager().SetTimer(
 		InputBufferTimer,
-		[this]() { OnAttackTriggered(HeavyAttackAction); },
+		[this]()
+		{
+			EAttackType attackType{ EAttackType::StandingHeavy };
+
+			if (GetCharacterMovement()->IsFalling())
+				attackType = EAttackType::AerialSlam;
+			else if (IsMoving())
+				attackType = EAttackType::RunningHeavy;
+			else
+				attackType = EAttackType::StandingHeavy;
+
+			CombatComponent->Attack(attackType, IsMoving(), GetCharacterMovement()->IsFalling());
+		},
 		InputBufferDelay,
 		false
 	);
 }
 
-void AFlowSlayerCharacter::OnRightClickReleased(const FInputActionInstance& Value)
+void AFlowSlayerCharacter::OnDashAttackActionStarted(const FInputActionInstance& Value)
 {
-	bRightClickPressed = false;
+	EAttackType attackType{ EAttackType::None };
+
+	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
+
+	// LMB: DashPierce (forward) or DashSpinningSlash (sideways)
+	if (isLMBPressed)
+	{
+		if (MoveInputAxis.Y <= 0.1 && (MoveInputAxis.X < -0.1 || MoveInputAxis.X > 0.1))
+			attackType = EAttackType::DashSpinningSlash;
+		else if (MoveInputAxis.Y >= 0.1)
+			attackType = EAttackType::DashPierce;
+	}
+
+	// RMB: DashDoubleSlash (forward) or DashBackSlash (backward)
+	else if (isRMBPressed)
+	{
+		if (MoveInputAxis.Y <= -0.1)
+			attackType = EAttackType::DashBackSlash;
+		else if (MoveInputAxis.Y >= 0.1)
+			attackType = EAttackType::DashDoubleSlash;
+	}
+
+	if (attackType == EAttackType::None)
+		return;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this, attackType]() { OnAttackTriggered(attackType); },
+		InputBufferDelay,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::OnJumpAttackActionStarted(const FInputActionInstance& Value)
+{
+	EAttackType attackType{ EAttackType::None };
+
+	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
+
+	// LMB: JumpSlam (no direction) or JumpForwardSlam (forward)
+	if (isLMBPressed)
+	{
+		if (MoveInputAxis.IsNearlyZero())
+			attackType = EAttackType::JumpSlam;
+		else if (MoveInputAxis.Y >= 0.1)
+			attackType = EAttackType::JumpForwardSlam;
+	}
+
+	// RMB: JumpUpperSlam combo
+	else if (isRMBPressed)
+		attackType = EAttackType::JumpUpperSlam;
+
+	if (attackType == EAttackType::None)
+		return;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this, attackType]() { OnAttackTriggered(attackType); },
+		InputBufferDelay,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::OnLauncherActionStarted(const FInputActionInstance& Value)
+{
+	EAttackType attackType{ EAttackType::None };
+
+	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
+
+	// LMB: Normal Launcher
+	if (isLMBPressed)
+		attackType = EAttackType::Launcher;
+
+	// RMB: Power Launcher
+	else if (isRMBPressed)
+		attackType = EAttackType::PowerLauncher;
+
+	if (attackType == EAttackType::None)
+		return;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this, attackType]() { OnAttackTriggered(attackType); },
+		InputBufferDelay,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance& Value)
+{
+	EAttackType attackType{ EAttackType::None };
+
+	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
+
+	// LMB or no button: SpinAttack
+	if (isLMBPressed || (!isLMBPressed && !isRMBPressed))
+		attackType = EAttackType::SpinAttack;
+
+	// RMB: HorizontalSweep
+	else if (isRMBPressed)
+		attackType = EAttackType::HorizontalSweep;
+
+	if (attackType == EAttackType::None)
+		return;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this, attackType]() { OnAttackTriggered(attackType); },
+		InputBufferDelay,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstance& Value)
+{
+	APlayerController* PC{ Cast<APlayerController>(GetController()) };
+	bool isZPressed{ PC->IsInputKeyDown(EKeys::Z) };
+	bool isSPressed{ PC->IsInputKeyDown(EKeys::S) };
+
+	EAttackType attackType{ EAttackType::None };
+
+	// LMB: PierceThrust
+	if (isZPressed)
+		attackType = EAttackType::PierceThrust;
+
+	// RMB: PowerSlash
+	else if (isSPressed)
+		attackType = EAttackType::PowerSlash;
+
+	if (attackType == EAttackType::None)
+		return;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this, attackType]() { OnAttackTriggered(attackType); },
+		InputBufferDelay,
+		false
+	);
+}
+
+void AFlowSlayerCharacter::OnSlamActionStarted(const FInputActionInstance& Value)
+{
+	EAttackType attackType{ EAttackType::None };
+
+	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
+
+	// LMB: DiagonalRetourne
+	if (isLMBPressed)
+		attackType = EAttackType::DiagonalRetourne;
+
+	// RMB: GroundSlam
+	else if (isRMBPressed)
+		attackType = EAttackType::GroundSlam;
+
+	if (attackType == EAttackType::None)
+		return;
+
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[this, attackType]() { OnAttackTriggered(attackType); },
+		InputBufferDelay,
+		false
+	);
 }

@@ -5,7 +5,7 @@
 #include "AnimNotifyState_ModularCombo.generated.h"
 
 /**
- * AnimNotifyState for MODULAR COMBO system
+ * AnimNotifyState for the COMBO system
  *
  * Use this for combos where each attack is a separate Animation Montage.
  * Example: Array [Attack1.uasset, Attack2.uasset, Attack3.uasset]
