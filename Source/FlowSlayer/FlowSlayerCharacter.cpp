@@ -407,7 +407,7 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 
 			if(GetCharacterMovement()->IsFalling())
 				attackType = EAttackType::AirCombo;
-			else if (IsMoving())
+			else if (MoveInputAxis != FVector2D::ZeroVector)
 				attackType = EAttackType::RunningLight;
 			else
 				attackType = EAttackType::StandingLight;

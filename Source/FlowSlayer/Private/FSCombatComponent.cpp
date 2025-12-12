@@ -118,7 +118,6 @@ void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFa
     {
         if (ComboIndex <= OngoingCombo->GetMaxComboIndex())
         {
-
             // Verifying if the inputAction for the next attack is the correct one to continue
             if (OngoingCombo->GetAttackAt(ComboIndex) && OngoingCombo->GetAttackAt(ComboIndex)->AttackType == attackType)
             {
