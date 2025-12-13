@@ -1,6 +1,11 @@
-#include "AirStallNotify.h"
+#include "AnimNotifyState_AirStall.h"
 
-void UAirStallNotify::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
+UAnimNotifyState_AirStall::UAnimNotifyState_AirStall()
+{
+	NotifyColor = FColor::Cyan;
+}
+
+void UAnimNotifyState_AirStall::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
 	if (!MeshComp)
 		return;
@@ -22,7 +27,7 @@ void UAirStallNotify::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenc
 	CombatComp->OnAirStallStarted.Broadcast();
 }
 
-void UAirStallNotify::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+void UAnimNotifyState_AirStall::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
 	if (!CombatComp)
 		return;

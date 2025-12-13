@@ -11,6 +11,10 @@
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHit, AActor* hitActor, const FVector& hitLocation);
 
+/** Delegates used to activate and deactivate damage hitbox */
+DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
+DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
+
 class UBoxComponent;
 class UStaticMeshComponent;
 
@@ -21,6 +25,12 @@ class FLOWSLAYER_API AFSWeapon : public AActor
 
 public:
 
+    /** Event delegates notify state
+    * Notified during a MELEE attack Animation
+    */
+    FOnHitboxActivated OnHitboxActivated;
+    FOnHitboxDeactivated OnHitboxDeactivated;
+
     AFSWeapon();
 
     UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -29,7 +39,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void DeactivateHitbox();
 
-    /** Delegate called when an enemy is hit inside the sweep hitbox */
+    /** Delegate called by equippedWeapon (AFSWeapon)
+    * When an enemy is hit inside the hitbox
+    */
     FOnEnemyHit OnEnemyHit;
 
 protected:

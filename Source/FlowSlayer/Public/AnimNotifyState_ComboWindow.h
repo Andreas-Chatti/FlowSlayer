@@ -2,7 +2,7 @@
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "FSCombatComponent.h"
-#include "AnimNotifyState_ModularCombo.generated.h"
+#include "AnimNotifyState_ComboWindow.generated.h"
 
 /**
  * AnimNotifyState for the COMBO system
@@ -18,10 +18,12 @@
  * - Start: When you want to allow player input (usually mid-attack)
  * - End: When the input window should close (usually near end of attack)
  */
-UCLASS()
-class FLOWSLAYER_API UAnimNotifyState_ModularCombo : public UAnimNotifyState
+UCLASS(meta = (DisplayName = "Combo Window"))
+class FLOWSLAYER_API UAnimNotifyState_ComboWindow : public UAnimNotifyState
 {
 	GENERATED_BODY()
+
+	UAnimNotifyState_ComboWindow();
 
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;

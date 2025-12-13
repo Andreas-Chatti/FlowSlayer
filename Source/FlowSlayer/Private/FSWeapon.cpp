@@ -31,6 +31,9 @@ void AFSWeapon::BeginPlay()
 {
     Super::BeginPlay();
 
+    OnHitboxActivated.AddUObject(this, &AFSWeapon::ActivateHitbox);
+    OnHitboxDeactivated.AddUObject(this, &AFSWeapon::DeactivateHitbox);
+
     if (SwordTrailSystem && SwordTrailComponent)
         SwordTrailComponent->SetAsset(SwordTrailSystem);
 }

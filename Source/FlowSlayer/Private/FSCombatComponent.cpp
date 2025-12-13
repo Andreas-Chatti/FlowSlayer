@@ -17,8 +17,6 @@ void UFSCombatComponent::BeginPlay()
 
     checkf(PlayerOwner && AnimInstance && equippedWeapon, TEXT("FATAL: One or more Core CombatComponent variables are NULL"));
 
-    OnHitboxActivated.AddUObject(equippedWeapon, &AFSWeapon::ActivateHitbox);
-    OnHitboxDeactivated.AddUObject(equippedWeapon, &AFSWeapon::DeactivateHitbox);
     equippedWeapon->OnEnemyHit.AddUObject(this, &UFSCombatComponent::OnHitLanded);
 
     // Bind combo window delegates (broadcasted by AnimNotifyState_ModularCombo)
