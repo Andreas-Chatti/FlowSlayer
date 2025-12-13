@@ -67,11 +67,7 @@ enum class EAttackType : uint8
     AerialSlam            // RMB (airborne after launcher)
 };
 
-/** Delegates Used to activate or deactivate equippedWeapon hitbox */
-DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
-DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
-
-/** Delegates for Modular combo window management - broadcasted by AnimNotifyState_ModularCombo */
+/** Delegates for combo window management - broadcasted by AnimNotifyState_ComboWindow */
 DECLARE_MULTICAST_DELEGATE(FOnComboWindowOpened);
 DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
 
@@ -172,14 +168,8 @@ public:
 
     UFSCombatComponent();
 
-    /** Event delegates notify
-    * Notified during a MELEE attack Animation
-    */
-    FOnHitboxActivated OnHitboxActivated;
-    FOnHitboxDeactivated OnHitboxDeactivated;
-
     /** Combo window delegates
-    * Broadcasted by AnimNotifyState_ModularCombo to notify combo window open/close events
+    * Broadcasted by ComboWindow notify state class to notify combo window open/close events
     */
     FOnComboWindowClosed OnComboWindowClosed;
     FOnComboWindowOpened OnComboWindowOpened;
@@ -268,6 +258,8 @@ public:
     TSubclassOf<UCameraShakeBase> hitCameraShake;
 
     void ApplyCameraShake();
+
+    const AFSWeapon* GetEquippedWeapon() const { return equippedWeapon; }
 
 private:
 
