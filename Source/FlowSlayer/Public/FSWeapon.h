@@ -64,7 +64,7 @@ protected:
     UNiagaraSystem* SwordTrailSystem;
 
     UPROPERTY()
-    UNiagaraComponent* SwordTrailComponent;
+    UNiagaraComponent* SwordTrailComponent{ nullptr };
 
 private:
 

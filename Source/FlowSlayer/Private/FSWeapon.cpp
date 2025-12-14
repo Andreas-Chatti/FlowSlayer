@@ -23,7 +23,7 @@ void AFSWeapon::initializeComponents()
 
     /** Trail VFX */
     SwordTrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SwordTrail"));
-    SwordTrailComponent->SetupAttachment(weaponMesh, "S_WeaponTip");
+    SwordTrailComponent->SetupAttachment(weaponMesh, "S_WeaponMid");
     SwordTrailComponent->bAutoActivate = false;
 }
 
