@@ -26,8 +26,12 @@ class FLOWSLAYER_API UAnimNotifyState_ComboWindow : public UAnimNotifyState
 	UAnimNotifyState_ComboWindow();
 
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
 	UPROPERTY()
 	UFSCombatComponent* CombatComp{ nullptr };
+
+	/** Has the combo window been closed early due to instant chain? */
+	bool bHasClosedEarly{ false };
 };

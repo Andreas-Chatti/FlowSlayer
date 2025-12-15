@@ -44,19 +44,13 @@ void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FAc
 bool UFSCombatComponent::InitializeAndAttachWeapon()
 {
     if (!weaponClass)
-    {
-        UE_LOG(LogTemp, Error, TEXT("LOADING EQUIPPED WEAPON FAILED"));
         return false;
-    }
 
     FActorSpawnParameters spawnParams;
     spawnParams.Owner = PlayerOwner;
     equippedWeapon = GetWorld()->SpawnActor<AFSWeapon>(weaponClass, spawnParams);
     if (!equippedWeapon || !equippedWeapon->AttachToComponent(PlayerOwner->GetMesh(), FAttachmentTransformRules::SnapToTargetIncludingScale, TEXT("WeaponSocket")))
-    {
-        UE_LOG(LogTemp, Error, TEXT("LOADING EQUIPPED WEAPON FAILED"));
         return false;
-    }
 
     return true;
 }
@@ -114,17 +108,31 @@ void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFa
 
     else if (bIsAttacking && bComboWindowOpened)
     {
-        if (ComboIndex <= OngoingCombo->GetMaxComboIndex())
+        // Continue dans le même combo
+        if ((ComboIndex <= OngoingCombo->GetMaxComboIndex()) &&
+            (OngoingCombo->GetAttackAt(ComboIndex) && OngoingCombo->GetAttackAt(ComboIndex)->AttackType == attackType))
         {
-            // Verifying if the inputAction for the next attack is the correct one to continue
-            if (OngoingCombo->GetAttackAt(ComboIndex) && OngoingCombo->GetAttackAt(ComboIndex)->AttackType == attackType)
+            bComboWindowOpened = false;
+            bContinueCombo = true;
+            return;
+        }
+
+        // Chain vers un nouveau combo depuis la dernière attaque
+        else if ((ComboIndex > OngoingCombo->GetMaxComboIndex()) &&
+            OngoingCombo->GetLastAttack() &&
+            OngoingCombo->GetLastAttack()->ChainableAttacks.Contains(attackType))
+        {
+            // Vérifier si le state permet cette attaque
+            FCombo* nextCombo{ SelectComboBasedOnState(attackType, isMoving, isFalling) };
+            if (nextCombo && nextCombo->IsValid())
             {
                 bComboWindowOpened = false;
                 bContinueCombo = true;
+                bChainingToNewCombo = true;
+                PendingCombo = nextCombo;
+                return;
             }
         }
-
-        return;
     }
 
     if (AnimInstance && AnimInstance->IsAnyMontagePlaying())
@@ -214,7 +222,6 @@ UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
 
     if (ComboIndex >= combo.GetMaxComboIndex())
         attackToPerform = combo.GetLastAttack()->Montage;
-
     else
         attackToPerform = combo.GetAttackAt(ComboIndex)->Montage;
 
@@ -232,17 +239,26 @@ void UFSCombatComponent::HandleComboWindowClosed()
 {
     bComboWindowOpened = false;
 
-    // If we've exceeded the max combo index, we're at the end of the combo chain
-    // Or the player didn't continue combo by attacking during the ComboWindow
-    // Reset and let the animation finish naturally (no Montage_Stop)
     if (!OngoingCombo)
         return;
 
     bool isComboEnd{ ComboIndex > OngoingCombo->GetMaxComboIndex() };
-    if (isComboEnd || !bContinueCombo)
-        return;
 
-    ContinueCombo();
+    // Si fin du combo ET on continue (même combo OU nouveau combo)
+    if (isComboEnd && bContinueCombo)
+    {
+        ContinueCombo();
+        return;
+    }
+
+    // Si pas fin du combo ET on continue (dans le même combo)
+    if (!isComboEnd && bContinueCombo)
+    {
+        ContinueCombo();
+        return;
+    }
+
+    // Sinon on laisse l'animation se terminer naturellement
 }
 
 void UFSCombatComponent::HandleAirStallStarted()
@@ -262,6 +278,28 @@ void UFSCombatComponent::ContinueCombo()
 
     bContinueCombo = false;
 
+    // Si on chain vers un nouveau combo
+    if (bChainingToNewCombo)
+    {
+        bChainingToNewCombo = false;
+        if (!PendingCombo || !PendingCombo->IsValid())
+            return;
+
+        // Démarrer le nouveau combo
+        OngoingCombo = PendingCombo;
+        ComboIndex = 0;
+        PendingCombo = nullptr;
+
+        // Utiliser GetComboNextAttack pour récupérer le montage ET incrémenter ComboIndex
+        UAnimMontage* firstAttack{ GetComboNextAttack(*OngoingCombo) };
+        if (!firstAttack)
+            return;
+
+        PlayerOwner->PlayAnimMontage(firstAttack);
+        return;
+    }
+
+    // Continuer dans le combo actuel
     if (!OngoingCombo || !OngoingCombo->IsValid())
         return;
 
@@ -278,7 +316,9 @@ void UFSCombatComponent::StopCombo()
     bIsAttacking = false;
     bContinueCombo = false;
     bComboWindowOpened = false;
+    bChainingToNewCombo = false;
     OngoingCombo = nullptr;
+    PendingCombo = nullptr;
 }
 
 void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
