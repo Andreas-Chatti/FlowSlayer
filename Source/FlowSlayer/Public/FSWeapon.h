@@ -59,12 +59,12 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UBoxComponent* hitbox;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UNiagaraComponent* SwordTrailComponent{ nullptr };
+
     /** Sword trail VFX */
     UPROPERTY(EditDefaultsOnly, Category = "VFX")
     UNiagaraSystem* SwordTrailSystem;
-
-    UPROPERTY()
-    UNiagaraComponent* SwordTrailComponent{ nullptr };
 
 private:
 

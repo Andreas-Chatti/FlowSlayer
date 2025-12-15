@@ -77,11 +77,6 @@ void AFlowSlayerCharacter::BeginPlay()
 void AFlowSlayerCharacter::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	FVector lastUpdateVelocity{ GetCharacterMovement()->GetLastUpdateVelocity() };
-	float direction{ UKismetAnimationLibrary::CalculateDirection(lastUpdateVelocity, GetActorRotation()) };
-	//if (direction != 0)
-		//UE_LOG(LogTemp, Warning, TEXT("%f"), direction);
 }
 
 void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
@@ -129,15 +124,14 @@ void AFlowSlayerCharacter::Ragdoll()
 
 void AFlowSlayerCharacter::DisableAllInputs()
 {
-	APlayerController* PlayerController{ Cast<APlayerController>(GetController()) };
-	if (PlayerController)
-	{
-		UEnhancedInputLocalPlayerSubsystem* Subsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer())};
-		if (Subsystem && DefaultMappingContext)
-			Subsystem->RemoveMappingContext(DefaultMappingContext);
+	if (!PlayerController)
+		return;
 
-		DisableInput(PlayerController);
-	}
+	UEnhancedInputLocalPlayerSubsystem* Subsystem{ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer())};
+	if (Subsystem && DefaultMappingContext)
+		Subsystem->RemoveMappingContext(DefaultMappingContext);
+
+	DisableInput(PlayerController);
 }
 
 void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
@@ -174,7 +168,7 @@ void AFlowSlayerCharacter::HandleOnLockOnStopped()
 
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	APlayerController* PlayerController{ Cast<APlayerController>(GetController()) };
+	PlayerController = Cast<APlayerController>(GetController());
 	UEnhancedInputLocalPlayerSubsystem* Subsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) };
 	if (PlayerController && Subsystem)
 		Subsystem->AddMappingContext(DefaultMappingContext, 0);
@@ -306,36 +300,40 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling() || !bCanDash || bIsDashing || MoveInputAxis.IsNearlyZero())
 		return;
 
-	if (DashSound)
-		UGameplayStatics::PlaySoundAtLocation(GetWorld(), DashSound, GetActorLocation());
+	if (MoveInputAxis.Y >= 0.1 && FwdDashAnim)
+		AnimInstance->Montage_Play(FwdDashAnim, 1.0f);
+	else if (MoveInputAxis.Y <= -0.1 && BwdDashAnim)
+		AnimInstance->Montage_Play(BwdDashAnim, 1.0f);
 
 	bCanDash = false;
 	bIsDashing = true;
-	FVector launchVelocity{ GetCharacterMovement()->GetLastInputVector().GetSafeNormal() * dashDistance };
-	LaunchCharacter(launchVelocity, false, false);
-	FLatentActionInfo LatentInfo;
-	LatentInfo.CallbackTarget = this;
-	FTimerHandle dashCooldownTimerHandle;
+
+	float dashDuration{ FwdDashAnim->GetPlayLength() };
+	FTimerHandle dashingStateTimer;
 	GetWorldTimerManager().SetTimer(
-		dashCooldownTimerHandle, 
-		[this]() 
-		{ 
-		bCanDash = true; 
-		bIsDashing = false; 
-		}, 
-		dashCooldown, 
+		dashingStateTimer,
+		[this]() { bIsDashing = false; }, 
+		dashDuration,
+		false
+	);
+
+	float totalDashCooldown{ dashDuration + dashCooldown };
+	FTimerHandle dashCooldownTimer;
+	GetWorldTimerManager().SetTimer(
+		dashCooldownTimer,
+		[this]() { bCanDash = true; }, 
+		totalDashCooldown,
 		false
 	);
 }
 
 TPair<bool, bool> AFlowSlayerCharacter::GetMouseButtonStates() const
 {
-	APlayerController* PC{ Cast<APlayerController>(GetController()) };
-	if (!PC)
+	if (!PlayerController)
 		return TPair<bool, bool>(false, false);
 
-	bool isLMBPressed{ PC->IsInputKeyDown(EKeys::LeftMouseButton) };
-	bool isRMBPressed{ PC->IsInputKeyDown(EKeys::RightMouseButton) };
+	bool isLMBPressed{ PlayerController->IsInputKeyDown(EKeys::LeftMouseButton) };
+	bool isRMBPressed{ PlayerController->IsInputKeyDown(EKeys::RightMouseButton) };
 
 	return TPair<bool, bool>{ isLMBPressed, isRMBPressed };
 }
@@ -407,7 +405,7 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 
 			if(GetCharacterMovement()->IsFalling())
 				attackType = EAttackType::AirCombo;
-			else if (IsMoving())
+			else if (IsMoving() || MoveInputAxis.Y >= 0.1)
 				attackType = EAttackType::RunningLight;
 			else
 				attackType = EAttackType::StandingLight;
@@ -430,7 +428,7 @@ void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value
 
 			if (GetCharacterMovement()->IsFalling())
 				attackType = EAttackType::AerialSlam;
-			else if (IsMoving())
+			else if (IsMoving() || MoveInputAxis.Y >= 0.1)
 				attackType = EAttackType::RunningHeavy;
 			else
 				attackType = EAttackType::StandingHeavy;
@@ -563,9 +561,11 @@ void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance&
 
 void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstance& Value)
 {
-	APlayerController* PC{ Cast<APlayerController>(GetController()) };
-	bool isZPressed{ PC->IsInputKeyDown(EKeys::Z) };
-	bool isSPressed{ PC->IsInputKeyDown(EKeys::S) };
+	if (!PlayerController)
+		return;
+
+	bool isZPressed{ PlayerController->IsInputKeyDown(EKeys::Z) };
+	bool isSPressed{ PlayerController->IsInputKeyDown(EKeys::S) };
 
 	EAttackType attackType{ EAttackType::None };
 

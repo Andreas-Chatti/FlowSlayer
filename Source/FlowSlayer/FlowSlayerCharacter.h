@@ -134,6 +134,22 @@ private:
 	UPROPERTY()
 	UAnimInstance* AnimInstance;
 
+	/** Cached PlayerController reference */
+	UPROPERTY()
+	APlayerController* PlayerController{ nullptr };
+
+	/** Dash animation
+	* Forward dash
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* FwdDashAnim{ nullptr };
+
+	/** Dash animation
+	* Backward dash
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
+	UAnimMontage* BwdDashAnim{ nullptr };
+
 public:
 
 	AFlowSlayerCharacter();
@@ -157,10 +173,6 @@ public:
 
 protected:
 
-	/** Dash SFX */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sounds")
-	USoundBase* DashSound{ nullptr };
-
 	/** Is player currently giving movement input? (for ABP) */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bHasMovementInput{ false };
@@ -173,7 +185,7 @@ protected:
 	float dashDistance{ 1250.0f };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
-	float dashCooldown{ 0.75f };
+	float dashCooldown{ 0.3f };
 
 	/** Was dash input pressed recently? (cleared after short delay) */
 	bool bWantsToDash{ false };

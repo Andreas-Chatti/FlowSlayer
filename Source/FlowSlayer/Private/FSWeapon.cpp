@@ -41,7 +41,6 @@ void AFSWeapon::BeginPlay()
 void AFSWeapon::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
-
     if (bHitboxActive)
         UpdateDamageHitbox();
 }
