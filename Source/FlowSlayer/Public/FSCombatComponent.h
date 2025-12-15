@@ -111,6 +111,9 @@ struct FAttackData
     UPROPERTY(EditDefaultsOnly, Category = "Attack")
     EAttackType AttackType{ EAttackType::None };
 
+    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    TSet<EAttackType> ChainableAttacks;
+
     // === LATER (Phase 2+) ===
     // USoundBase* HitSound;
     // UNiagaraSystem* HitVFX;
@@ -191,6 +194,9 @@ public:
 
     /** Enable or disable bIsAttacking flag */
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
+
+    /** Returns whether we're currently chaining to a new combo */
+    bool GetChainingToNewCombo() const { return bChainingToNewCombo; }
 
     /** Set all combos and combat states back to default and stops the current attack animation */
     void CancelAttack();
@@ -397,9 +403,16 @@ private:
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
     bool bContinueCombo{ false };
 
+    /** Are we chaining to a new combo? */
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
+    bool bChainingToNewCombo{ false };
+
     /** Current attack index in the combo chain (0 = first attack, 1 = second, etc.) */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
     int32 ComboIndex{ 0 };
+
+    /** Next combo to chain into */
+    FCombo* PendingCombo{ nullptr };
 
     /** List of valid targets currently in lock-on detection radius 
     * Only the nearest target is locked-on
