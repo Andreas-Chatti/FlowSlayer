@@ -96,14 +96,6 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* HeavyAttackAction;
 
-	/** SHIFT + LMB/RMB - Dash attacks (Pierce, SpinningSlash, DoubleSlash, BackSlash) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* DashAttackAction;
-
-	/** SPACE + LMB/RMB - Jump attacks (JumpSlam, JumpForwardSlam, JumpUpperSlam) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* JumpAttackAction;
-
 	/** A + LMB/RMB - Launcher attacks (Launcher, PowerLauncher) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LauncherAttackAction;
@@ -112,13 +104,9 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* SpinAttackAction;
 
-	/** Z + LMB/RMB - Forward power attacks (PierceThrust, PowerSlash) */
+	/** F input key - Forward power attacks (PierceThrust, PowerSlash) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* ForwardPowerAttackAction;
-
-	/** S + LMB/RMB - Backward slam attacks (DiagonalRetourne, GroundSlam) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* BackwardSlamAttackAction;
 
 	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -288,6 +276,12 @@ protected:
 	/** Helper to query mouse button states (returns pair: {isLMBPressed, isRMBPressed}) */
 	TPair<bool, bool> GetMouseButtonStates() const;
 
+	/** Helper to know if a specific key is PRESSED or was just PRESSED 
+	* @param inputKey we want to know the state
+	* @return TRUE if the specific key has been either pressed or is currently pressed
+	*/
+	bool GetInputKeyState(FKey inputKey) const;
+
 	/** Called ONCE, when LEFT click is PRESSED */
 	void OnLeftClickStarted(const FInputActionInstance& Value);
 
@@ -297,12 +291,12 @@ protected:
 	/** LSHIFT + MoveAction input + LMB / RMB
 	* DashAttackAction clicked state
 	*/
-	void OnDashAttackActionStarted(const FInputActionInstance& Value);
+	void OnDashAttackActionStarted();
 
 	/** SPACE + LMB / RMB
 	* JumpAttackAction clicked state
 	*/
-	void OnJumpAttackActionStarted(const FInputActionInstance& Value);
+	void OnJumpAttackActionStarted();
 
 	/** A + LMB / RMB
 	* LauncherAction clicked state
@@ -322,7 +316,7 @@ protected:
 	/** S + RMB / S + LMB
 	* SlamAction clicked state
 	*/
-	void OnSlamActionStarted(const FInputActionInstance& Value);
+	void OnSlamActionStarted();
 
 	/** Switch Player's movement mode
 	* Normal mode : Character is rotating directly on move direction input
