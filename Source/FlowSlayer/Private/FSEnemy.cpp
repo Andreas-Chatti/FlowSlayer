@@ -40,8 +40,8 @@ void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
         return;
 
     CurrentHealth -= DamageAmount;
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
-        *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
+    //UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
+        //*GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
 
     if (CurrentHealth <= 0.f)
         Die();

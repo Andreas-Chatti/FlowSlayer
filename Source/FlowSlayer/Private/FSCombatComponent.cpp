@@ -177,7 +177,7 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackType, bool
 
     // Validate airborne restrictions
     // Air-only attacks: JumpSlam, JumpForwardSlam, JumpUpperSlam, AirCombo, AerialSlam
-    bool isAirOnlyAttack{ (
+    bool isAirAttack{ (
         attackType == EAttackType::JumpSlam ||
         attackType == EAttackType::JumpForwardSlam ||
         attackType == EAttackType::JumpUpperSlam ||
@@ -185,8 +185,9 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackType, bool
         attackType == EAttackType::AerialSlam
     ) };
 
-    // Ground-only attacks: all Dash, Launcher, Spin, Power, and Slam attacks
-    bool isGroundOnlyAttack{ (
+    // Ground-only attacks: all Dash, Launcher, Spin, Power, Slam attacks and JumpForwardSlam
+    bool isGroundAttack{ (
+        attackType == EAttackType::JumpForwardSlam ||
         attackType == EAttackType::DashPierce ||
         attackType == EAttackType::DashSpinningSlash ||
         attackType == EAttackType::DashDoubleSlash ||
@@ -205,12 +206,15 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackType, bool
         attackType == EAttackType::RunningHeavy
     ) };
 
+    if (isAirAttack && isGroundAttack)
+        return *foundCombo;
+
     // Reject air-only attacks on ground
-    if (isAirOnlyAttack && !isFalling)
+    if (isAirAttack && !isFalling)
         return nullptr;
 
     // Reject ground-only attacks in air
-    if (isGroundOnlyAttack && isFalling)
+    if (isGroundAttack && isFalling)
         return nullptr;
 
     return *foundCombo;
