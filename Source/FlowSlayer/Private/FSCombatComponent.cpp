@@ -29,6 +29,10 @@ void UFSCombatComponent::BeginPlay()
 
     AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
 
+    // Initialize combo attack data (damage, knockback, ChainableAttacks)
+    // Must be called AFTER Blueprint has loaded montages
+    InitializeComboAttackData();
+
     // Initialize combo lookup table for fast attack selection
     InitializeComboLookupTable();
 }
@@ -91,6 +95,425 @@ void UFSCombatComponent::InitializeComboLookupTable()
     // Slam attacks
     ComboLookupTable.Add(EAttackType::GroundSlam, &GroundSlamAttack);
     ComboLookupTable.Add(EAttackType::DiagonalRetourne, &DiagonalRetourneAttack);
+}
+
+void UFSCombatComponent::InitializeComboAttackData()
+{
+    // === STANDING LIGHT COMBO (3 attacks) ===
+    StandingLightCombo.Attacks.SetNum(3);
+
+    // Attack 1
+    StandingLightCombo.Attacks[0].Damage = 50.f;
+    StandingLightCombo.Attacks[0].KnockbackForce = 100.f;
+    StandingLightCombo.Attacks[0].AttackType = EAttackType::StandingLight;
+
+    // Attack 2
+    StandingLightCombo.Attacks[1].Damage = 55.f;
+    StandingLightCombo.Attacks[1].KnockbackForce = 120.f;
+    StandingLightCombo.Attacks[1].AttackType = EAttackType::StandingLight;
+
+    // Attack 3 (final) - Only this one has ChainableAttacks
+    StandingLightCombo.Attacks[2].Damage = 60.f;
+    StandingLightCombo.Attacks[2].KnockbackForce = 150.f;
+    StandingLightCombo.Attacks[2].AttackType = EAttackType::StandingLight;
+    StandingLightCombo.Attacks[2].ChainableAttacks = {
+        EAttackType::StandingLight,
+        EAttackType::StandingHeavy,
+        EAttackType::RunningLight,
+        EAttackType::RunningHeavy,
+        EAttackType::Launcher,
+        EAttackType::PowerLauncher,
+        EAttackType::SpinAttack,
+        EAttackType::DashPierce
+    };
+
+    // === STANDING HEAVY COMBO (4 attacks) ===
+    StandingHeavyCombo.Attacks.SetNum(4);
+
+    // Attack 1
+    StandingHeavyCombo.Attacks[0].Damage = 70.f;
+    StandingHeavyCombo.Attacks[0].KnockbackForce = 250.f;
+    StandingHeavyCombo.Attacks[0].AttackType = EAttackType::StandingHeavy;
+
+    // Attack 2
+    StandingHeavyCombo.Attacks[1].Damage = 75.f;
+    StandingHeavyCombo.Attacks[1].KnockbackForce = 280.f;
+    StandingHeavyCombo.Attacks[1].AttackType = EAttackType::StandingHeavy;
+
+    // Attack 3
+    StandingHeavyCombo.Attacks[2].Damage = 80.f;
+    StandingHeavyCombo.Attacks[2].KnockbackForce = 320.f;
+    StandingHeavyCombo.Attacks[2].AttackType = EAttackType::StandingHeavy;
+
+    // Attack 4 (final) - Only this one has ChainableAttacks
+    StandingHeavyCombo.Attacks[3].Damage = 90.f;
+    StandingHeavyCombo.Attacks[3].KnockbackForce = 400.f;
+    StandingHeavyCombo.Attacks[3].AttackType = EAttackType::StandingHeavy;
+    StandingHeavyCombo.Attacks[3].ChainableAttacks = {
+        EAttackType::StandingHeavy,
+        EAttackType::StandingLight,
+        EAttackType::RunningHeavy,
+        EAttackType::RunningLight,
+        EAttackType::GroundSlam,
+        EAttackType::PowerSlash,
+        EAttackType::Launcher,
+        EAttackType::PowerLauncher
+    };
+
+    // === RUNNING LIGHT COMBO (7 attacks) ===
+    RunningLightCombo.Attacks.SetNum(7);
+    {
+        // Attack 1
+        RunningLightCombo.Attacks[0].Damage = 50.f;
+        RunningLightCombo.Attacks[0].KnockbackForce = 120.f;
+        RunningLightCombo.Attacks[0].AttackType = EAttackType::RunningLight;
+
+        // Attack 2
+        RunningLightCombo.Attacks[1].Damage = 52.f;
+        RunningLightCombo.Attacks[1].KnockbackForce = 130.f;
+        RunningLightCombo.Attacks[1].AttackType = EAttackType::RunningLight;
+
+        // Attack 3
+        RunningLightCombo.Attacks[2].Damage = 55.f;
+        RunningLightCombo.Attacks[2].KnockbackForce = 140.f;
+        RunningLightCombo.Attacks[2].AttackType = EAttackType::RunningLight;
+
+        // Attack 4
+        RunningLightCombo.Attacks[3].Damage = 58.f;
+        RunningLightCombo.Attacks[3].KnockbackForce = 150.f;
+        RunningLightCombo.Attacks[3].AttackType = EAttackType::RunningLight;
+
+        // Attack 5
+        RunningLightCombo.Attacks[4].Damage = 60.f;
+        RunningLightCombo.Attacks[4].KnockbackForce = 160.f;
+        RunningLightCombo.Attacks[4].AttackType = EAttackType::RunningLight;
+
+        // Attack 6
+        RunningLightCombo.Attacks[5].Damage = 65.f;
+        RunningLightCombo.Attacks[5].KnockbackForce = 180.f;
+        RunningLightCombo.Attacks[5].AttackType = EAttackType::RunningLight;
+
+        // Attack 7 (final) - Only this one has ChainableAttacks
+        RunningLightCombo.Attacks[6].Damage = 70.f;
+        RunningLightCombo.Attacks[6].KnockbackForce = 200.f;
+        RunningLightCombo.Attacks[6].AttackType = EAttackType::RunningLight;
+        RunningLightCombo.Attacks[6].ChainableAttacks = {
+            EAttackType::RunningLight,
+            EAttackType::RunningHeavy,
+            EAttackType::StandingHeavy,
+            EAttackType::Launcher,
+            EAttackType::PowerLauncher,
+            EAttackType::PowerSlash,
+            EAttackType::PierceThrust,
+            EAttackType::DashPierce,
+            EAttackType::DashDoubleSlash
+        };
+    }
+
+    // === RUNNING HEAVY COMBO (4 attacks) ===
+    RunningHeavyCombo.Attacks.SetNum(4);
+    {
+        // Attack 1
+        RunningHeavyCombo.Attacks[0].Damage = 75.f;
+        RunningHeavyCombo.Attacks[0].KnockbackForce = 300.f;
+        RunningHeavyCombo.Attacks[0].AttackType = EAttackType::RunningHeavy;
+
+        // Attack 2
+        RunningHeavyCombo.Attacks[1].Damage = 80.f;
+        RunningHeavyCombo.Attacks[1].KnockbackForce = 320.f;
+        RunningHeavyCombo.Attacks[1].AttackType = EAttackType::RunningHeavy;
+
+        // Attack 3
+        RunningHeavyCombo.Attacks[2].Damage = 85.f;
+        RunningHeavyCombo.Attacks[2].KnockbackForce = 350.f;
+        RunningHeavyCombo.Attacks[2].AttackType = EAttackType::RunningHeavy;
+
+        // Attack 4 (final) - Only this one has ChainableAttacks
+        RunningHeavyCombo.Attacks[3].Damage = 95.f;
+        RunningHeavyCombo.Attacks[3].KnockbackForce = 420.f;
+        RunningHeavyCombo.Attacks[3].AttackType = EAttackType::RunningHeavy;
+        RunningHeavyCombo.Attacks[3].ChainableAttacks = {
+            EAttackType::RunningHeavy,
+            EAttackType::StandingHeavy,
+            EAttackType::RunningLight,
+            EAttackType::GroundSlam,
+            EAttackType::PowerSlash,
+            EAttackType::Launcher,
+            EAttackType::PowerLauncher,
+            EAttackType::DashDoubleSlash
+        };
+    }
+
+    // === DASH PIERCE ===
+    DashPierceAttack.Attacks.SetNum(1);
+    {
+        DashPierceAttack.Attacks[0].Damage = 70.f;
+        DashPierceAttack.Attacks[0].KnockbackForce = 200.f;
+        DashPierceAttack.Attacks[0].AttackType = EAttackType::DashPierce;
+        DashPierceAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::RunningLight,
+            EAttackType::StandingLight,
+            EAttackType::Launcher,
+            EAttackType::PowerLauncher,
+            EAttackType::PierceThrust,
+            EAttackType::SpinAttack
+        };
+    }
+
+    // === DASH SPINNING SLASH ===
+    DashSpinningSlashAttack.Attacks.SetNum(1);
+    {
+        DashSpinningSlashAttack.Attacks[0].Damage = 75.f;
+        DashSpinningSlashAttack.Attacks[0].KnockbackForce = 250.f;
+        DashSpinningSlashAttack.Attacks[0].AttackType = EAttackType::DashSpinningSlash;
+        DashSpinningSlashAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::RunningLight,
+            EAttackType::RunningHeavy,
+            EAttackType::StandingLight,
+            EAttackType::StandingHeavy,
+            EAttackType::HorizontalSweep,
+            EAttackType::SpinAttack,
+            EAttackType::PowerSlash,
+            EAttackType::Launcher
+        };
+    }
+
+    // === DASH DOUBLE SLASH ===
+    DashDoubleSlashAttack.Attacks.SetNum(1);
+    {
+        DashDoubleSlashAttack.Attacks[0].Damage = 90.f;
+        DashDoubleSlashAttack.Attacks[0].KnockbackForce = 300.f;
+        DashDoubleSlashAttack.Attacks[0].AttackType = EAttackType::DashDoubleSlash;
+        DashDoubleSlashAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::RunningHeavy,
+            EAttackType::PowerSlash,
+            EAttackType::GroundSlam,
+            EAttackType::Launcher
+        };
+    }
+
+    // === DASH BACK SLASH ===
+    DashBackSlashAttack.Attacks.SetNum(1);
+    {
+        DashBackSlashAttack.Attacks[0].Damage = 80.f;
+        DashBackSlashAttack.Attacks[0].KnockbackForce = 400.f;
+        DashBackSlashAttack.Attacks[0].AttackType = EAttackType::DashBackSlash;
+        DashBackSlashAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingLight,
+            EAttackType::StandingHeavy,
+            EAttackType::DiagonalRetourne,
+            EAttackType::JumpSlam,
+            EAttackType::JumpForwardSlam,
+            EAttackType::SpinAttack
+        };
+    }
+
+    // === JUMP SLAM ===
+    JumpSlamAttack.Attacks.SetNum(1);
+    {
+        JumpSlamAttack.Attacks[0].Damage = 100.f;
+        JumpSlamAttack.Attacks[0].KnockbackForce = 400.f;
+        JumpSlamAttack.Attacks[0].KnockbackUpForce = 200.f;
+        JumpSlamAttack.Attacks[0].AttackType = EAttackType::JumpSlam;
+        JumpSlamAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingLight,
+            EAttackType::RunningLight,
+            EAttackType::StandingHeavy,
+            EAttackType::SpinAttack,
+            EAttackType::Launcher
+        };
+    }
+
+    // === JUMP FORWARD SLAM ===
+    JumpForwardSlamAttack.Attacks.SetNum(1);
+    {
+        JumpForwardSlamAttack.Attacks[0].Damage = 105.f;
+        JumpForwardSlamAttack.Attacks[0].KnockbackForce = 450.f;
+        JumpForwardSlamAttack.Attacks[0].KnockbackUpForce = 250.f;
+        JumpForwardSlamAttack.Attacks[0].AttackType = EAttackType::JumpForwardSlam;
+        JumpForwardSlamAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::RunningLight,
+            EAttackType::RunningHeavy,
+            EAttackType::DashPierce,
+            EAttackType::Launcher,
+            EAttackType::PowerSlash
+        };
+    }
+
+    // === JUMP UPPER SLAM ===
+    JumpUpperSlamComboAttack.Attacks.SetNum(1);
+    {
+        JumpUpperSlamComboAttack.Attacks[0].Damage = 110.f;
+        JumpUpperSlamComboAttack.Attacks[0].KnockbackForce = 500.f;
+        JumpUpperSlamComboAttack.Attacks[0].KnockbackUpForce = 300.f;
+        JumpUpperSlamComboAttack.Attacks[0].AttackType = EAttackType::JumpUpperSlam;
+        JumpUpperSlamComboAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingLight,
+            EAttackType::StandingHeavy,
+            EAttackType::RunningLight,
+            EAttackType::Launcher,
+            EAttackType::GroundSlam,
+            EAttackType::SpinAttack
+        };
+    }
+
+    // === LAUNCHER ===
+    LauncherAttack.Attacks.SetNum(1);
+    {
+        LauncherAttack.Attacks[0].Damage = 60.f;
+        LauncherAttack.Attacks[0].KnockbackForce = 200.f;
+        LauncherAttack.Attacks[0].KnockbackUpForce = 800.f;
+        LauncherAttack.Attacks[0].AttackType = EAttackType::Launcher;
+        LauncherAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::AirCombo,
+            EAttackType::AerialSlam
+        };
+    }
+
+    // === POWER LAUNCHER ===
+    PowerLauncherAttack.Attacks.SetNum(1);
+    {
+        PowerLauncherAttack.Attacks[0].Damage = 80.f;
+        PowerLauncherAttack.Attacks[0].KnockbackForce = 250.f;
+        PowerLauncherAttack.Attacks[0].KnockbackUpForce = 1000.f;
+        PowerLauncherAttack.Attacks[0].AttackType = EAttackType::PowerLauncher;
+        PowerLauncherAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::AirCombo,
+            EAttackType::AerialSlam
+        };
+    }
+
+    // === SPIN ATTACK ===
+    SpinAttack.Attacks.SetNum(1);
+    {
+        SpinAttack.Attacks[0].Damage = 65.f;
+        SpinAttack.Attacks[0].KnockbackForce = 200.f;
+        SpinAttack.Attacks[0].AttackType = EAttackType::SpinAttack;
+        SpinAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingLight,
+            EAttackType::StandingHeavy,
+            EAttackType::HorizontalSweep,
+            EAttackType::GroundSlam,
+            EAttackType::PowerSlash,
+            EAttackType::Launcher
+        };
+    }
+
+    // === HORIZONTAL SWEEP ===
+    HorizontalSweepAttack.Attacks.SetNum(1);
+    {
+        HorizontalSweepAttack.Attacks[0].Damage = 75.f;
+        HorizontalSweepAttack.Attacks[0].KnockbackForce = 250.f;
+        HorizontalSweepAttack.Attacks[0].AttackType = EAttackType::HorizontalSweep;
+        HorizontalSweepAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingHeavy,
+            EAttackType::RunningHeavy,
+            EAttackType::GroundSlam,
+            EAttackType::SpinAttack,
+            EAttackType::Launcher,
+            EAttackType::PowerSlash
+        };
+    }
+
+    // === PIERCE THRUST ===
+    PierceThrustAttack.Attacks.SetNum(1);
+    {
+        PierceThrustAttack.Attacks[0].Damage = 90.f;
+        PierceThrustAttack.Attacks[0].KnockbackForce = 350.f;
+        PierceThrustAttack.Attacks[0].AttackType = EAttackType::PierceThrust;
+        PierceThrustAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingLight,
+            EAttackType::RunningLight,
+            EAttackType::PowerSlash,
+            EAttackType::DashPierce,
+            EAttackType::Launcher,
+            EAttackType::SpinAttack
+        };
+    }
+
+    // === POWER SLASH ===
+    PowerSlashAttack.Attacks.SetNum(1);
+    {
+        PowerSlashAttack.Attacks[0].Damage = 120.f;
+        PowerSlashAttack.Attacks[0].KnockbackForce = 500.f;
+        PowerSlashAttack.Attacks[0].AttackType = EAttackType::PowerSlash;
+        PowerSlashAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::RunningHeavy,
+            EAttackType::GroundSlam,
+            EAttackType::Launcher,
+            EAttackType::DiagonalRetourne
+        };
+    }
+
+    // === DIAGONAL RETOURNE ===
+    DiagonalRetourneAttack.Attacks.SetNum(1);
+    {
+        DiagonalRetourneAttack.Attacks[0].Damage = 85.f;
+        DiagonalRetourneAttack.Attacks[0].KnockbackForce = 400.f;
+        DiagonalRetourneAttack.Attacks[0].AttackType = EAttackType::DiagonalRetourne;
+        DiagonalRetourneAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingLight,
+            EAttackType::StandingHeavy,
+            EAttackType::RunningHeavy,
+            EAttackType::DashBackSlash,
+            EAttackType::SpinAttack,
+            EAttackType::HorizontalSweep,
+            EAttackType::JumpSlam
+        };
+    }
+
+    // === GROUND SLAM ===
+    GroundSlamAttack.Attacks.SetNum(1);
+    {
+        GroundSlamAttack.Attacks[0].Damage = 130.f;
+        GroundSlamAttack.Attacks[0].KnockbackForce = 600.f;
+        GroundSlamAttack.Attacks[0].KnockbackUpForce = 300.f;
+        GroundSlamAttack.Attacks[0].AttackType = EAttackType::GroundSlam;
+        GroundSlamAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingHeavy,
+            EAttackType::Launcher,
+            EAttackType::PowerSlash
+        };
+    }
+
+    // === AIR COMBO (3 attacks) ===
+    AirCombo.Attacks.SetNum(3);
+    {
+        // Attack 1
+        AirCombo.Attacks[0].Damage = 50.f;
+        AirCombo.Attacks[0].KnockbackForce = 80.f;
+        AirCombo.Attacks[0].AttackType = EAttackType::AirCombo;
+
+        // Attack 2
+        AirCombo.Attacks[1].Damage = 55.f;
+        AirCombo.Attacks[1].KnockbackForce = 100.f;
+        AirCombo.Attacks[1].AttackType = EAttackType::AirCombo;
+
+        // Attack 3 (final) - Only this one has ChainableAttacks
+        AirCombo.Attacks[2].Damage = 60.f;
+        AirCombo.Attacks[2].KnockbackForce = 120.f;
+        AirCombo.Attacks[2].AttackType = EAttackType::AirCombo;
+        AirCombo.Attacks[2].ChainableAttacks = {
+            EAttackType::AerialSlam
+        };
+    }
+
+    // === AERIAL SLAM ===
+    AerialSlamAttack.Attacks.SetNum(1);
+    {
+        AerialSlamAttack.Attacks[0].Damage = 110.f;
+        AerialSlamAttack.Attacks[0].KnockbackForce = 500.f;
+        AerialSlamAttack.Attacks[0].KnockbackUpForce = 200.f;
+        AerialSlamAttack.Attacks[0].AttackType = EAttackType::AerialSlam;
+        AerialSlamAttack.Attacks[0].ChainableAttacks = {
+            EAttackType::StandingLight,
+            EAttackType::RunningLight,
+            EAttackType::StandingHeavy,
+            EAttackType::Launcher,
+            EAttackType::GroundSlam,
+            EAttackType::SpinAttack
+        };
+    }
 }
 
 

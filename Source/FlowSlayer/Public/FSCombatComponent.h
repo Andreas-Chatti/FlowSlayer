@@ -28,12 +28,12 @@ enum class EAttackType : uint8
     None,
 
     // Light combos
-    StandingLight,
-    RunningLight,
+    StandingLight, // LMB
+    RunningLight, // Z + LMB
 
     // Heavy combos
-    StandingHeavy,
-    RunningHeavy,
+    StandingHeavy, // RMB
+    RunningHeavy, // Z + RMB
 
     // Dash attacks
     DashPierce,           // SHIFT + Z + LMB
@@ -42,21 +42,21 @@ enum class EAttackType : uint8
     DashBackSlash,        // SHIFT + S + RMB
 
     // Jump attacks
-    JumpSlam,             // SPACE + LMB (no direction)
-    JumpForwardSlam,      // SPACE + Z + LMB
-    JumpUpperSlam,        // SPACE + RMB
+    JumpSlam,             // S + LMB (airborne)
+    JumpForwardSlam,      // Z + LMB (airborne)
+    JumpUpperSlam,        // Z + RMB (airborne)
 
     // Launcher attacks
     Launcher,             // A + LMB
     PowerLauncher,        // A + RMB
 
     // Spin attacks
-    SpinAttack,           // E
+    SpinAttack,           // E + LMB
     HorizontalSweep,      // E + RMB
 
     // Forward power attacks
-    PowerSlash,           // Z + Hold RMB
-    PierceThrust,         // Z + LMB (double tap)
+    PowerSlash,           // F + S
+    PierceThrust,         // F + Z
 
     // Slam attacks
     GroundSlam,           // S + RMB
@@ -89,29 +89,30 @@ struct FAttackData
     UPROPERTY(EditDefaultsOnly, Category = "Attack")
     UAnimMontage* Montage{ nullptr };
 
-    /** Damage dealt by this attack */
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    /** Damage dealt by this attack
+     * Configured via InitializeComboAttackData()
+     */
     float Damage{ 50.f };
 
-    /** Knockback force applied to enemy (0 = no knockback) */
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    /** Knockback force applied to enemy (0 = no knockback)
+     * Configured via InitializeComboAttackData()
+     */
     float KnockbackForce{ 0.f };
 
-    /** Vertical knockback component (adds upward velocity) */
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    /** Vertical knockback component (adds upward velocity)
+     * Configured via InitializeComboAttackData()
+     */
     float KnockbackUpForce{ 0.f };
 
-    /** Attack name for debugging */
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
-    FName AttackName{ NAME_None };
-
-    /** Attack type needed to launch this attack 
-    * This data is based from the inputs actions in AFlowSlayerCharacter class
-    */
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    /** Attack type needed to launch this attack
+     * This data is based from the inputs actions in AFlowSlayerCharacter class
+     * Configured via InitializeComboAttackData()
+     */
     EAttackType AttackType{ EAttackType::None };
 
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    /** Chainable attacks from this attack
+     * Configured via InitializeComboAttackData()
+     */
     TSet<EAttackType> ChainableAttacks;
 
     // === LATER (Phase 2+) ===
@@ -124,9 +125,8 @@ struct FAttackData
 
 /**
  * Combo data structure
- *
  * Encapsulates all data related to a single combo chain.
- * Supports both MODULAR combos (multiple montages) and FULL combos (single montage).
+ * Can contain one or more attacks (FAttackData)
  */
 USTRUCT(BlueprintType)
 struct FCombo
@@ -135,13 +135,10 @@ struct FCombo
 
     /** Array of attack animations for this combo
      * Multiple montages (e.g., [Attack1, Attack2, Attack3])
+     * Size is fixed by C++ - only edit montages, do not add/remove elements
      */
     UPROPERTY(EditDefaultsOnly, Category = "Combo")
     TArray<FAttackData> Attacks;
-
-    /** Combo name for debugging purposes */
-    UPROPERTY(EditDefaultsOnly, Category = "Combo")
-    FName ComboName{ "NAME_None" };
 
     /** Returns the maximum combo index (last attack index in the array) */
     int32 GetMaxComboIndex() const { return FMath::Max(0, Attacks.Num() - 1); }
@@ -221,7 +218,10 @@ public:
 
     // === HIT REACTION ===
 
-    // Appeler quand on HIT quelque chose
+    /** Called by equippedWeapon (Player's weapon actor) 
+    * Called when equippedWeapon's hitbox touches at least one AFSEnemy
+    * Applies damage, hitstop, vfx, sfx and cameraShake
+    */
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void OnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
@@ -235,9 +235,11 @@ public:
 
     // === HITSTOP ===
 
+    /** Freeze duration */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopDuration{ 0.1f }; // Dur�e du freeze
+    float hitstopDuration{ 0.08f };
 
+    /** Slowness (0 = total freeze) */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
     float hitstopTimeDilation{ 0.05f }; // Ralentissement (0 = freeze total)
 
@@ -269,20 +271,19 @@ public:
 
 private:
 
-    /** Player's Weapon */
+    /** Player's Weapon reference */
     UPROPERTY()
     AFSWeapon* equippedWeapon;
 
-    /** Owner of this Component */
+    /** Player owner reference 
+    * Owner of this Component 
+    */
     UPROPERTY()
     ACharacter* PlayerOwner;
 
     /** Cached AnimInstance reference */
     UPROPERTY()
     UAnimInstance* AnimInstance;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats", meta = (AllowPrivateAccess = "true"))
-    float Damage{ 50.f };
 
     UPROPERTY()
     FTimerHandle hitstopTimerHandle;
@@ -390,6 +391,11 @@ private:
 
     /** Initialize the combo lookup table with all available combos */
     void InitializeComboLookupTable();
+
+    /** Initialize all combo attack data (damage, knockback, attack types, chainable attacks)
+     * Called in PostInitProperties() after Blueprint montages are loaded
+     */
+    void InitializeComboAttackData();
 
     /** Is the character currently performing an attack? */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
