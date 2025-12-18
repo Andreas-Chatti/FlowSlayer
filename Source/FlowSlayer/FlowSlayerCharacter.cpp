@@ -24,8 +24,6 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	GetCharacterMovement()->bOrientRotationToMovement = true;	
 	GetCharacterMovement()->RotationRate = FRotator{ 0.f, 500.f, 0.f };
 
-	// Note: For faster iteration times these variables, and many more, can be tweaked in the Character Blueprint
-	// instead of recompiling to adjust them
 	GetCharacterMovement()->JumpZVelocity = 900.0f;
 	GetCharacterMovement()->AirControl = 0.8f;
 	GetCharacterMovement()->BrakingDecelerationFalling = 5000.f;
@@ -35,8 +33,8 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.0f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.0f;
 
+	MotionWarpingComponent = CreateDefaultSubobject<UMotionWarpingComponent>(TEXT("MotionWarping"));
 
-	// Create a camera boom (pulls in towards the player if there is a collision)
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
 	CameraBoom->SetRelativeLocation(FVector{ 0, 0, 80 });
@@ -44,7 +42,7 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	CameraBoom->CameraLagSpeed = 8.f;
 	CameraBoom->bEnableCameraRotationLag = true;
 	CameraBoom->CameraRotationLagSpeed = 10.f;
-	CameraBoom->TargetArmLength = 550.0f; // The camera follows at this distance behind the character	
+	CameraBoom->TargetArmLength = 550.0f;
 	CameraBoom->SocketOffset = FVector{ 0, 40, 70 };
 	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
 
@@ -404,7 +402,7 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 {
 	EAttackType attackType{ EAttackType::StandingLight };
 
-	if (GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar))
+	if (GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar) || GetCharacterMovement()->IsFlying())
 	{
 		OnJumpAttackActionStarted();
 		return;
@@ -436,7 +434,7 @@ void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value
 {
 	EAttackType attackType{ EAttackType::StandingHeavy };
 
-	if (GetCharacterMovement()->IsFalling())
+	if (GetCharacterMovement()->IsFalling() || GetCharacterMovement()->IsFlying())
 	{
 		OnJumpAttackActionStarted();
 		return;
