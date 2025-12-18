@@ -11,6 +11,7 @@
 #include "FSWeapon.h"
 #include "FSFocusable.h"
 #include "FSDamageable.h"
+#include "MotionWarpingComponent.h"
 #include "EnhancedInputLibrary.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -85,6 +86,9 @@ struct FAttackData
 {
     GENERATED_BODY()
 
+    DECLARE_DELEGATE(FOnAttackExecuted);
+    DECLARE_DELEGATE_OneParam(FOnAttackHit, AActor* hitActor);
+
     /** Animation montage for this attack */
     UPROPERTY(EditDefaultsOnly, Category = "Attack")
     UAnimMontage* Montage{ nullptr };
@@ -115,6 +119,18 @@ struct FAttackData
      */
     TSet<EAttackType> ChainableAttacks;
 
+    /* Attack side effect 
+    * An attack can have a specific effect
+    * Called when the attack is executed
+    * Can be empty (no side effect)
+    */
+    FOnAttackExecuted OnAttackExecuted;
+
+    /* Called when attack hit an enemy
+    * Can be empty (no side effect)
+    */
+    FOnAttackHit OnAttackHit;
+
     // === LATER (Phase 2+) ===
     // USoundBase* HitSound;
     // UNiagaraSystem* HitVFX;
@@ -135,7 +151,6 @@ struct FCombo
 
     /** Array of attack animations for this combo
      * Multiple montages (e.g., [Attack1, Attack2, Attack3])
-     * Size is fixed by C++ - only edit montages, do not add/remove elements
      */
     UPROPERTY(EditDefaultsOnly, Category = "Combo")
     TArray<FAttackData> Attacks;
@@ -215,6 +230,8 @@ protected:
     void ApplyHitFlash(AActor* hitActor);
 
 public:
+
+    AActor* GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines = false) const;
 
     // === HIT REACTION ===
 
@@ -333,6 +350,16 @@ private:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
 
+    /** Side effects of the air attack
+    * Motion warping management
+    * @param start Start time of the RootWarping notify State in the animation montage
+    * @param end End time of the RootWarping Notify state in the animation montage
+    */
+    void OnAirAttackExecuted(float start, float end);
+
+    /** Side effects of the launcher attack when an enemy is hit */
+    void OnAirAttackHit(AActor* hitEnemy);
+
     /** SPACE + LMB air attack */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpSlamAttack;
@@ -348,6 +375,14 @@ private:
     /** A + LMB clean launcher */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo LauncherAttack;
+
+    /** Side effects of the launcher attack 
+    * Motion warping management
+    */
+    void OnLauncherAttackExecuted();
+
+    /** Side effects of the launcher attack when an enemy is hit */
+    void OnLauncherAttackHit(AActor* hitEnemy);
 
     /** A + RMB power launcher */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
