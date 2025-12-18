@@ -117,6 +117,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     StandingLightCombo.Attacks[2].KnockbackForce = 150.f;
     StandingLightCombo.Attacks[2].AttackType = EAttackType::StandingLight;
     StandingLightCombo.Attacks[2].ChainableAttacks = {
+        EAttackType::StandingLight,
         EAttackType::StandingHeavy,
         EAttackType::RunningLight,
         EAttackType::RunningHeavy,
@@ -149,6 +150,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     StandingHeavyCombo.Attacks[3].KnockbackForce = 400.f;
     StandingHeavyCombo.Attacks[3].AttackType = EAttackType::StandingHeavy;
     StandingHeavyCombo.Attacks[3].ChainableAttacks = {
+        EAttackType::StandingHeavy,
         EAttackType::StandingLight,
         EAttackType::RunningHeavy,
         EAttackType::RunningLight,
@@ -196,6 +198,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         RunningLightCombo.Attacks[6].KnockbackForce = 200.f;
         RunningLightCombo.Attacks[6].AttackType = EAttackType::RunningLight;
         RunningLightCombo.Attacks[6].ChainableAttacks = {
+            EAttackType::RunningLight,
             EAttackType::RunningHeavy,
             EAttackType::StandingHeavy,
             EAttackType::Launcher,
@@ -230,6 +233,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         RunningHeavyCombo.Attacks[3].KnockbackForce = 420.f;
         RunningHeavyCombo.Attacks[3].AttackType = EAttackType::RunningHeavy;
         RunningHeavyCombo.Attacks[3].ChainableAttacks = {
+            EAttackType::RunningHeavy,
             EAttackType::StandingHeavy,
             EAttackType::RunningLight,
             EAttackType::GroundSlam,
@@ -366,7 +370,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         };
         LauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() { 
             SetupGroundAttackMotionWarp(0.1f, 0.35f, 0.f, 400.f, "DashIn");
-            SetupAirAttackMotionWarp(0.40f, 0.82f, 150.f, 0.f, 400.f); });
+            SetupAirAttackMotionWarp(0.40f, 0.82f, 150.f, 0.f, 250.f); });
         LauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
     }
 
@@ -383,7 +387,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         };
         PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() { 
             SetupGroundAttackMotionWarp(0.3f, 0.42f, 0.f, 400.f, "DashIn");
-            SetupAirAttackMotionWarp(0.47f, 0.86f, 250.f, 0.f, 400.f); });
+            SetupAirAttackMotionWarp(0.47f, 0.86f, 200.f, 0.f, 300.f); });
         PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnPowerLauncherAttackHit);
     }
 
@@ -488,14 +492,12 @@ void UFSCombatComponent::InitializeComboAttackData()
         AirCombo.Attacks[0].KnockbackForce = 80.f;
         AirCombo.Attacks[0].AttackType = EAttackType::AirCombo;
         AirCombo.Attacks[0].OnAttackExecuted.BindLambda([this]() { SetupAirAttackMotionWarp(0.15f, 0.34f, 0.f, 0.f, 250.f);});
-        AirCombo.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
         // Attack 2
         AirCombo.Attacks[1].Damage = 55.f;
         AirCombo.Attacks[1].KnockbackForce = 100.f;
         AirCombo.Attacks[1].AttackType = EAttackType::AirCombo;
         AirCombo.Attacks[1].OnAttackExecuted.BindLambda([this]() { SetupAirAttackMotionWarp(0.33f, 0.52f, 0.f, 0.f, 250.f);});
-        AirCombo.Attacks[1].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
         // Attack 3 (final) - Only this one has ChainableAttacks
         AirCombo.Attacks[2].Damage = 60.f;
@@ -503,7 +505,6 @@ void UFSCombatComponent::InitializeComboAttackData()
         AirCombo.Attacks[2].AttackType = EAttackType::AirCombo;
         AirCombo.Attacks[2].ChainableAttacks = { EAttackType::AerialSlam };
         AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]() { SetupAirAttackMotionWarp(0.14f, 0.28f, 0.f, 0.f, 250.f);});
-        AirCombo.Attacks[2].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
     }
 
     // === AERIAL SLAM ===
@@ -715,20 +716,14 @@ void UFSCombatComponent::SetupAirAttackMotionWarp(float notifyStartTime, float n
             if (!weakEnemy.IsValid() || !weakMotionWarp.IsValid())
                 return;
 
-            FVector playerLocation{ PlayerOwner->GetActorLocation() };
-            FVector enemyLocation{ weakEnemy->GetActorLocation() };
-
-            // Direction de joueur vers ennemi
-            FVector directionToEnemy{ (enemyLocation - playerLocation).GetSafeNormal() };
-
-            // Cible = centre ennemi - 100 unités VERS le joueur (pour ne pas se coller à l'ennemi)
-            FVector targetLocation{ enemyLocation };
+            FVector targetLocation{ weakEnemy->GetActorLocation() };
             targetLocation.Z += zOffset;
-            targetLocation -= directionToEnemy * 0.f;  // Recule de 100 unités depuis le centre de l'ennemi
 
             FVector forwardOffsetVector{ PlayerOwner->GetActorForwardVector() * forwardOffset };
             targetLocation += forwardOffsetVector;
 
+            FVector playerLocation{ PlayerOwner->GetActorLocation() };
+            FVector enemyLocation{ weakEnemy->GetActorLocation() };
             FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
 
             FMotionWarpingTarget target;
@@ -894,13 +889,12 @@ void UFSCombatComponent::OnLauncherAttackHit(AActor* hitEnemy)
     float startZ{ static_cast<float>(hitEnemy->GetActorLocation().Z) };
     const float MAX_HEIGHT_OFFSET{ 400.f }; // Hauteur max au-dessus de la position initiale
 
-    TSharedPtr<bool> bPeakDetected{ MakeShared<bool>(false) };
+    TSharedPtr<bool> bPeakDetected = MakeShared<bool>(false);
 
-
+    FTimerHandle peakDetectionTimer;
     TWeakObjectPtr<AActor> weakEnemy{ hitEnemy };
     TWeakObjectPtr<UCharacterMovementComponent> weakEnemyMovement{ enemyMovement };
 
-    FTimerHandle peakDetectionTimer;
     GetWorld()->GetTimerManager().SetTimer(
         peakDetectionTimer,
         [this, weakEnemy, weakEnemyMovement, bPeakDetected, peakDetectionTimer, startZ, MAX_HEIGHT_OFFSET]() mutable
@@ -1029,30 +1023,6 @@ void UFSCombatComponent::OnPowerLauncherAttackHit(AActor* hitEnemy)
         },
         0.05f, // Check toutes les 50ms
         true   // Loop jusqu'au freeze
-    );
-}
-
-void UFSCombatComponent::OnAirAttackHit(AActor* hitEnemy)
-{
-    PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-    auto* enemyMovementComp{ hitEnemy->GetComponentByClass<UCharacterMovementComponent>() };
-    if (enemyMovementComp)
-        enemyMovementComp->SetMovementMode(EMovementMode::MOVE_Flying);
-
-    TWeakObjectPtr<UCharacterMovementComponent> weakEnemyMovementComp{ enemyMovementComp };
-
-    FTimerHandle flyTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        flyTimer,
-        [this, weakEnemyMovementComp]() 
-        { 
-            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
-
-            if (weakEnemyMovementComp.IsValid())
-                weakEnemyMovementComp->SetMovementMode(EMovementMode::MOVE_Falling);
-        },
-        1.f,
-        false
     );
 }
 
