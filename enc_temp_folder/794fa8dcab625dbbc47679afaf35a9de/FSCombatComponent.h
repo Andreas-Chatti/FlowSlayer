@@ -350,9 +350,6 @@ private:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
 
-    /** Triggered when an air attack hit an enemy */
-    void OnAirAttackHit(AActor* hitEnemy);
-
     /** SPACE + LMB air attack */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpSlamAttack;
