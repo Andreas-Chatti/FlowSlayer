@@ -54,6 +54,9 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
 	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
 
+	LockOnComponent = CreateDefaultSubobject<UFSLockOnComponent>(TEXT("LockOnComponent"));
+	checkf(LockOnComponent, TEXT("FATAL: LockOnComponent is NULL or INVALID !"));
+
 	JumpMaxCount = 2;
 	CurrentHealth = MaxHealth;
 }
@@ -62,7 +65,7 @@ void AFlowSlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
-	CombatComponent->OnLockOnStopped.AddUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStopped);
+	LockOnComponent->OnLockOnStopped.AddUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStopped);
 	OnAnimationCanceled.AddUObject(this, &AFlowSlayerCharacter::HandleOnAnimationCanceled);
 
 	AnimInstance = GetMesh()->GetAnimInstance();
@@ -134,13 +137,13 @@ void AFlowSlayerCharacter::DisableAllInputs()
 
 void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
 {
-	if (!CombatComponent->IsLockedOnTarget())
-		CombatComponent->EngageLockOn();
+	if (!LockOnComponent->IsLockedOnTarget())
+		LockOnComponent->EngageLockOn();
 
-	else if (CombatComponent->IsLockedOnTarget())
-		CombatComponent->DisengageLockOn();
+	else if (LockOnComponent->IsLockedOnTarget())
+		LockOnComponent->DisengageLockOn();
 
-	GetCharacterMovement()->MaxWalkSpeed = CombatComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
+	GetCharacterMovement()->MaxWalkSpeed = LockOnComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
 }
 
 void AFlowSlayerCharacter::HandleOnAnimationCanceled(FlowSlayerInput::EActionType actionType)
@@ -224,7 +227,7 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 		return;
 
 	// === MODE LOCK-ON ===
-	if (CombatComponent->IsLockedOnTarget())
+	if (LockOnComponent->IsLockedOnTarget())
 	{
 		// Ignore la caméra
 		const FVector Forward{ GetActorForwardVector() };
@@ -268,8 +271,8 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 		AddControllerPitchInput(LookAxisVector.Y);
 
 		// Switch lock-on target si mouvement de souris suffisant
-		if (FMath::Abs(LookAxisVector.X) > CombatComponent->XAxisSwitchSensibility && CombatComponent->GetCurrentLockedOnTarget())
-			CombatComponent->SwitchLockOnTarget(LookAxisVector.X);
+		if (FMath::Abs(LookAxisVector.X) > LockOnComponent->XAxisSwitchSensibility && LockOnComponent->GetCurrentLockedOnTarget())
+			LockOnComponent->SwitchLockOnTarget(LookAxisVector.X);
 	}
 }
 

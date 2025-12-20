@@ -40,9 +40,6 @@ void UFSCombatComponent::BeginPlay()
 void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
-
-    if (bIsLockedOnEngaged && CurrentLockedOnTarget)
-        UpdateLockOnCamera(DeltaTime);
 }
 
 bool UFSCombatComponent::InitializeAndAttachWeapon()
@@ -384,7 +381,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() { 
             SetupGroundAttackMotionWarp(0.3f, 0.42f, 0.f, 400.f, "DashIn");
             SetupAirAttackMotionWarp(0.47f, 0.86f, 250.f, 0.f, 400.f); });
-        PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnPowerLauncherAttackHit);
+        PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
     }
 
     // === SPIN ATTACK ===
@@ -594,7 +591,7 @@ void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFa
 void UFSCombatComponent::CancelAttack()
 {
     AnimInstance->StopAllMontages(0.2f);
-    StopCombo();
+    ResetComboState();
     equippedWeapon->DeactivateHitbox();
 }
 
@@ -605,7 +602,7 @@ FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackType, bool
         return nullptr;
 
     // Lookup combo from table
-    FCombo** foundCombo = ComboLookupTable.Find(attackType);
+    FCombo** foundCombo{ ComboLookupTable.Find(attackType) };
     if (!foundCombo)
         return nullptr;
 
@@ -702,7 +699,6 @@ void UFSCombatComponent::SetupAirAttackMotionWarp(float notifyStartTime, float n
     if (!MotionWarpingComp || !nearestEnemy)
         return;
 
-    // Capture SAFE avec weak pointers
     TWeakObjectPtr<AActor> weakEnemy{ nearestEnemy };
     TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MotionWarpingComp };
 
@@ -711,23 +707,17 @@ void UFSCombatComponent::SetupAirAttackMotionWarp(float notifyStartTime, float n
         flyingStartTimer,
         [this, weakEnemy, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName]()
         {
-            // Vérifier si les objets existent toujours
             if (!weakEnemy.IsValid() || !weakMotionWarp.IsValid())
                 return;
 
             FVector playerLocation{ PlayerOwner->GetActorLocation() };
             FVector enemyLocation{ weakEnemy->GetActorLocation() };
 
-            // Direction de joueur vers ennemi
             FVector directionToEnemy{ (enemyLocation - playerLocation).GetSafeNormal() };
 
-            // Cible = centre ennemi - 100 unités VERS le joueur (pour ne pas se coller à l'ennemi)
             FVector targetLocation{ enemyLocation };
             targetLocation.Z += zOffset;
-            targetLocation -= directionToEnemy * 0.f;  // Recule de 100 unités depuis le centre de l'ennemi
-
-            FVector forwardOffsetVector{ PlayerOwner->GetActorForwardVector() * forwardOffset };
-            targetLocation += forwardOffsetVector;
+            targetLocation -= directionToEnemy * forwardOffset; 
 
             FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
 
@@ -743,7 +733,6 @@ void UFSCombatComponent::SetupAirAttackMotionWarp(float notifyStartTime, float n
         false
     );
 
-    // Timer pour désactiver Flying mode
     FTimerHandle flyingEndTimer;
     GetWorld()->GetTimerManager().SetTimer(
         flyingEndTimer,
@@ -804,6 +793,27 @@ void UFSCombatComponent::SetupGroundAttackMotionWarp(float notifyStartTime, floa
     );
 }
 
+void UFSCombatComponent::ChainingToNextCombo()
+{
+    bChainingToNewCombo = false;
+
+    if (!PendingCombo || !PendingCombo->IsValid())
+        return;
+
+    OngoingCombo = PendingCombo;
+    ComboIndex = 0;
+    PendingCombo = nullptr;
+
+    UAnimMontage* firstAttack{ GetComboNextAttack(*OngoingCombo) };
+    if (!firstAttack)
+        return;
+
+    PlayerOwner->PlayAnimMontage(firstAttack);
+
+    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.IsBound())
+        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
+}
+
 void UFSCombatComponent::ContinueCombo()
 {
     if (!bContinueCombo)
@@ -811,32 +821,12 @@ void UFSCombatComponent::ContinueCombo()
 
     bContinueCombo = false;
 
-    // Si on chain vers un nouveau combo
     if (bChainingToNewCombo)
     {
-        bChainingToNewCombo = false;
-        if (!PendingCombo || !PendingCombo->IsValid())
-            return;
-
-        // Démarrer le nouveau combo
-        OngoingCombo = PendingCombo;
-        ComboIndex = 0;
-        PendingCombo = nullptr;
-
-        // Utiliser GetComboNextAttack pour récupérer le montage ET incrémenter ComboIndex
-        UAnimMontage* firstAttack{ GetComboNextAttack(*OngoingCombo) };
-        if (!firstAttack)
-            return;
-
-        PlayerOwner->PlayAnimMontage(firstAttack);
-
-        if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.IsBound())
-            OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
-
+        ChainingToNextCombo();
         return;
     }
 
-    // Continuer dans le combo actuel
     if (!OngoingCombo || !OngoingCombo->IsValid())
         return;
 
@@ -850,7 +840,7 @@ void UFSCombatComponent::ContinueCombo()
         OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
 }
 
-void UFSCombatComponent::StopCombo()
+void UFSCombatComponent::ResetComboState()
 {
     ComboIndex = 0;
     bIsAttacking = false;
@@ -872,7 +862,7 @@ void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted
     * If any attack in the combo is not interrupted
     */
     if (Montage == OngoingCombo->GetLastAttack()->Montage || !bInterrupted)
-        StopCombo();
+        ResetComboState();
 }
 
 ////////////////////////////////////////////////
@@ -886,28 +876,35 @@ void UFSCombatComponent::OnLauncherAttackHit(AActor* hitEnemy)
     if (!hitEnemy)
         return;
 
-    // === DÉTECTION HAUTEUR MAX OU PEAK ===
     UCharacterMovementComponent* enemyMovement{ hitEnemy->GetComponentByClass<UCharacterMovementComponent>() };
     if (!enemyMovement)
         return;
 
-    float startZ{ static_cast<float>(hitEnemy->GetActorLocation().Z) };
-    const float MAX_HEIGHT_OFFSET{ 400.f }; // Hauteur max au-dessus de la position initiale
+    constexpr float maxHeight{ 400.f };
+    constexpr float freezeDuraction{ 1.2f };
+    FreezeEnemyAtTrajectoryPeak(hitEnemy, enemyMovement, maxHeight, freezeDuraction);
+}
 
+void UFSCombatComponent::FreezeEnemyAtTrajectoryPeak(AActor* enemy, UCharacterMovementComponent* enemyMovement, float maxHeight, float freezeDuration)
+{
+    constexpr float checkDelay{ 0.05f };
+    float startZ{ static_cast<float>(enemy->GetActorLocation().Z) };
+
+    // État partagé entre toutes les exécutions du timer (nécessaire car timer en loop)
     TSharedPtr<bool> bPeakDetected{ MakeShared<bool>(false) };
-
-
-    TWeakObjectPtr<AActor> weakEnemy{ hitEnemy };
+    TWeakObjectPtr<AActor> weakEnemy{ enemy };
     TWeakObjectPtr<UCharacterMovementComponent> weakEnemyMovement{ enemyMovement };
 
     FTimerHandle peakDetectionTimer;
     GetWorld()->GetTimerManager().SetTimer(
         peakDetectionTimer,
-        [this, weakEnemy, weakEnemyMovement, bPeakDetected, peakDetectionTimer, startZ, MAX_HEIGHT_OFFSET]() mutable
+        [this, weakEnemy, weakEnemyMovement, bPeakDetected, peakDetectionTimer, startZ, maxHeight, freezeDuration]() mutable
         {
+            // Early exit si déjà détecté (évite re-freeze)
             if (*bPeakDetected)
                 return;
 
+            // Vérifier si les objets existent encore
             if (!weakEnemyMovement.IsValid() || !weakEnemy.IsValid())
             {
                 GetWorld()->GetTimerManager().ClearTimer(peakDetectionTimer);
@@ -916,119 +913,54 @@ void UFSCombatComponent::OnLauncherAttackHit(AActor* hitEnemy)
 
             float currentZ{ static_cast<float>(weakEnemy->GetActorLocation().Z) };
             float heightGained{ currentZ - startZ };
-            float currentVelocityZ{ static_cast<float>(weakEnemyMovement->Velocity.Z) };
+            float velocityZ{ static_cast<float>(weakEnemyMovement->Velocity.Z) };
 
-            // FREEZE si : Peak atteint OU hauteur max dépassée
-            bool bShouldFreeze{ currentVelocityZ <= 0.f || heightGained >= MAX_HEIGHT_OFFSET };
+            // Conditions de freeze : pic atteint (vitesse <= 0) OU hauteur max dépassée
+            bool bReachedPeak{ velocityZ <= 0.f };
+            bool bReachedMaxHeight{ heightGained >= maxHeight };
 
-            if (bShouldFreeze)
+            if (bReachedPeak || bReachedMaxHeight)
             {
-                *bPeakDetected = true;
+                *bPeakDetected = true;  // Marquer comme détecté pour toutes les futures exécutions
                 GetWorld()->GetTimerManager().ClearTimer(peakDetectionTimer);
 
-                UE_LOG(LogTemp, Warning, TEXT("Freezing enemy at Z = %f (gained %f units)"),
-                    currentZ, heightGained);
+                // Freeze immédiat
+                FreezeEnemyInAir(weakEnemyMovement);
 
-                // FREEZE L'ENNEMI AU PEAK
-                weakEnemyMovement->SetMovementMode(EMovementMode::MOVE_Flying);
-                weakEnemyMovement->StopMovementImmediately();
-                weakEnemyMovement->GravityScale = 0.f;
-
-                // UNFREEZE APRÈS LA FENÊTRE DE COMBO AÉRIEN
-                FTimerHandle unfreezeTimer;
-                GetWorld()->GetTimerManager().SetTimer(
-                    unfreezeTimer,
-                    [weakEnemyMovement]()
-                    {
-                        if (weakEnemyMovement.IsValid())
-                        {
-                            weakEnemyMovement->SetMovementMode(EMovementMode::MOVE_Falling);
-                            weakEnemyMovement->GravityScale = 1.f;
-                            UE_LOG(LogTemp, Warning, TEXT("Enemy released from air freeze"));
-                        }
-                    },
-                    1.2f, // Durée de la fenêtre de combo aérien
-                    false
-                );
+                // Unfreeze après fenêtre de combo
+                ScheduleEnemyUnfreeze(weakEnemyMovement, freezeDuration);
             }
         },
-        0.05f, // Check toutes les 50ms
-        true   // Loop jusqu'au freeze
+        checkDelay,  // Check toutes les 50ms
+        true    // Loop jusqu'à détection du pic
     );
 }
 
-void UFSCombatComponent::OnPowerLauncherAttackHit(AActor* hitEnemy)
+void UFSCombatComponent::FreezeEnemyInAir(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement)
 {
-    if (!hitEnemy)
+    if (!enemyMovement.IsValid())
         return;
 
-    // === DÉTECTION HAUTEUR MAX OU PEAK ===
-    UCharacterMovementComponent* enemyMovement{ hitEnemy->GetComponentByClass<UCharacterMovementComponent>() };
-    if (!enemyMovement)
-        return;
+    enemyMovement->SetMovementMode(EMovementMode::MOVE_Flying);
+    enemyMovement->StopMovementImmediately();
+    enemyMovement->GravityScale = 0.f;
+}
 
-    float startZ{ static_cast<float>(hitEnemy->GetActorLocation().Z) };
-    const float MAX_HEIGHT_OFFSET{ 400.f }; // Hauteur max au-dessus de la position initiale
-
-    TSharedPtr<bool> bPeakDetected = MakeShared<bool>(false);
-
-    FTimerHandle peakDetectionTimer;
-    TWeakObjectPtr<AActor> weakEnemy{ hitEnemy };
-    TWeakObjectPtr<UCharacterMovementComponent> weakEnemyMovement{ enemyMovement };
-
+void UFSCombatComponent::ScheduleEnemyUnfreeze(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement, float delay)
+{
+    FTimerHandle unfreezeTimer;
     GetWorld()->GetTimerManager().SetTimer(
-        peakDetectionTimer,
-        [this, weakEnemy, weakEnemyMovement, bPeakDetected, peakDetectionTimer, startZ, MAX_HEIGHT_OFFSET]() mutable
+        unfreezeTimer,
+        [enemyMovement]()
         {
-            if (*bPeakDetected)
-                return;
-
-            if (!weakEnemyMovement.IsValid() || !weakEnemy.IsValid())
+            if (enemyMovement.IsValid())
             {
-                GetWorld()->GetTimerManager().ClearTimer(peakDetectionTimer);
-                return;
-            }
-
-            float currentZ{ static_cast<float>(weakEnemy->GetActorLocation().Z) };
-            float heightGained{ currentZ - startZ };
-            float currentVelocityZ{ static_cast<float>(weakEnemyMovement->Velocity.Z) };
-
-            // FREEZE si : Peak atteint OU hauteur max dépassée
-            bool bShouldFreeze{ currentVelocityZ <= 0.f || heightGained >= MAX_HEIGHT_OFFSET };
-
-            if (bShouldFreeze)
-            {
-                *bPeakDetected = true;
-                GetWorld()->GetTimerManager().ClearTimer(peakDetectionTimer);
-
-                UE_LOG(LogTemp, Warning, TEXT("Freezing enemy at Z = %f (gained %f units)"),
-                    currentZ, heightGained);
-
-                // FREEZE L'ENNEMI AU PEAK
-                weakEnemyMovement->SetMovementMode(EMovementMode::MOVE_Flying);
-                weakEnemyMovement->StopMovementImmediately();
-                weakEnemyMovement->GravityScale = 0.f;
-
-                // UNFREEZE APRÈS LA FENÊTRE DE COMBO AÉRIEN
-                FTimerHandle unfreezeTimer;
-                GetWorld()->GetTimerManager().SetTimer(
-                    unfreezeTimer,
-                    [weakEnemyMovement]()
-                    {
-                        if (weakEnemyMovement.IsValid())
-                        {
-                            weakEnemyMovement->SetMovementMode(EMovementMode::MOVE_Falling);
-                            weakEnemyMovement->GravityScale = 1.f;
-                            UE_LOG(LogTemp, Warning, TEXT("Enemy released from air freeze"));
-                        }
-                    },
-                    1.2f, // Durée de la fenêtre de combo aérien
-                    false
-                );
+                enemyMovement->SetMovementMode(EMovementMode::MOVE_Falling);
+                enemyMovement->GravityScale = 1.f;
             }
         },
-        0.05f, // Check toutes les 50ms
-        true   // Loop jusqu'au freeze
+        delay,
+        false
     );
 }
 
@@ -1203,301 +1135,6 @@ void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
     );
 }
 
-////////////////////////////////////////////////
-/*
-* 
-* Lock-on system and methods
-* 
-*/
-////////////////////////////////////////////////
-void UFSCombatComponent::LockOnValidCheck()
-{
-    if (!CurrentLockedOnTarget || !CachedDamageableLockOnTarget)
-        return;
-
-    FVector targetLocation{ CurrentLockedOnTarget->GetActorLocation() };
-    FVector playerLocation{ PlayerOwner->GetActorLocation() };
-
-    double distanceSq{ FVector::DistSquared(playerLocation, targetLocation) };
-    if (distanceSq >= FMath::Square(LockOnDetectionRadius) || CachedDamageableLockOnTarget->IsDead())
-        DisengageLockOn();
-}
-
-void UFSCombatComponent::UpdateLockOnCamera(float deltaTime)
-{
-    FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
-    FVector TargetLocation{ CurrentLockedOnTarget->GetActorLocation() };
-    FRotator PlayerLookAtRotation{ UKismetMathLibrary::FindLookAtRotation(PlayerLocation, TargetLocation) };
-    PlayerLookAtRotation.Pitch = 0.0f;
-
-    FRotator CurrentPlayerRotation{ PlayerOwner->GetActorRotation() };
-    FRotator SmoothedPlayerRotation{ FMath::RInterpTo(CurrentPlayerRotation, PlayerLookAtRotation, deltaTime, CameraRotationInterpSpeed) };
-    PlayerOwner->SetActorRotation(SmoothedPlayerRotation);
-
-    FRotator CameraLookAtRotation{ UKismetMathLibrary::FindLookAtRotation(PlayerLocation, TargetLocation) };
-    FVector DirectionToTarget{ (TargetLocation - PlayerLocation).GetSafeNormal() };
-    FVector PlayerRight{ PlayerOwner->GetActorRightVector() };
-    float DotRight{ static_cast<float>(FVector::DotProduct(DirectionToTarget, PlayerRight)) };
-
-    double Distance{ FVector::Dist(PlayerLocation, TargetLocation) };
-    double maxClampDistance{ LockOnDetectionRadius / 2 };
-    double DistanceRatio{ FMath::Clamp(Distance / maxClampDistance, 0.0, 1.0) };
-    double CurrentYawOffset{ FMath::Lerp(CloseCameraYawOffset, FarCameraYawOffset, DistanceRatio) };
-
-    double CurrentPitchOffset{ FMath::Lerp(CloseCameraPitchOffset, FarCameraPitchOffset, DistanceRatio) };
-
-    float dotRightTolerance{ bIsAttacking ? -0.15f : 0.f };
-    CameraLookAtRotation.Yaw += DotRight > dotRightTolerance ? -CurrentYawOffset : CurrentYawOffset;
-    CameraLookAtRotation.Pitch += CurrentPitchOffset;
-
-    FRotator CurrentCameraRotation{ PlayerOwner->GetController()->GetControlRotation() };
-    FRotator SmoothedCameraRotation{ FMath::RInterpTo(CurrentCameraRotation, CameraLookAtRotation, deltaTime, CameraRotationInterpSpeed) };
-
-    PlayerOwner->GetController()->SetControlRotation(SmoothedCameraRotation);
-}
-
-bool UFSCombatComponent::EngageLockOn() 
-{
-    if (!PlayerOwner)
-        return false;
-
-    FVector Start{ PlayerOwner->GetActorLocation() };
-    FVector End{ Start };
-
-    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-    ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-    TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(GetOwner());
-
-    TArray<FHitResult> outHits;
-    bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(
-        GetWorld(),
-        Start,
-        End,
-        LockOnDetectionRadius,
-        ObjectTypes,
-        false,
-        ActorsToIgnore,
-        EDrawDebugTrace::None,
-        outHits,
-        true
-    ) };
-
-    if (!bHit)
-        return false;
-
-    AController* Controller{ PlayerOwner->GetController() };
-    if (!Controller)
-        return false;
-
-    FRotator ControlRotation{ Controller->GetControlRotation() };
-    FVector CameraForward{ ControlRotation.Vector() };
-    CameraForward.Z = 0;
-    CameraForward.Normalize();
-
-    TSet<AActor*> uniqueHitActors;
-    for (const FHitResult& hit : outHits)
-    {
-        AActor* HitActor{ hit.GetActor() };
-        if (uniqueHitActors.Contains(HitActor))
-            continue;
-
-        uniqueHitActors.Add(HitActor);
-
-        if (!HitActor->Implements<UFSFocusable>() ||
-            TargetsInLockOnRadius.Contains(HitActor) ||
-            !HitActor->Implements<UFSDamageable>())
-            continue;
-
-        IFSDamageable* damageableTarget = Cast<IFSDamageable>(HitActor);
-        if (!damageableTarget || damageableTarget->IsDead())
-            continue;
-
-        FVector TargetLocation{ HitActor->GetActorLocation() };
-        FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
-        FVector DirectionToTarget{ TargetLocation - PlayerLocation };
-        DirectionToTarget.Z = 0;
-
-        if (DirectionToTarget.IsNearlyZero())
-            continue;
-
-        DirectionToTarget.Normalize();
-
-        double DotForward{ FVector::DotProduct(DirectionToTarget, CameraForward) };
-
-        if (DotForward > 0.0) // 120°
-            TargetsInLockOnRadius.Add(HitActor);
-    }
-
-    if (TargetsInLockOnRadius.IsEmpty())
-        return false;
-
-    float distance{ LockOnDetectionRadius };
-    for (AActor* target : TargetsInLockOnRadius)
-    {
-        FVector targetLocation{ target->GetActorLocation() };
-        FVector playerLocation{ PlayerOwner->GetActorLocation() };
-        double newDistance{ UKismetMathLibrary::Vector_Distance(playerLocation, targetLocation) };
-
-        if (newDistance < distance)
-        {
-            distance = newDistance;
-            CurrentLockedOnTarget = target;
-            CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
-        }
-    }
-
-    if (!CurrentLockedOnTarget)
-        return false;
-
-    bIsLockedOnEngaged = true;
-    PlayerOwner->GetController()->SetIgnoreLookInput(true);
-    PlayerOwner->GetCharacterMovement()->bOrientRotationToMovement = false;
-    PlayerOwner->GetCharacterMovement()->bUseControllerDesiredRotation = false; // remettre à TRUE après
-    PrimaryComponentTick.SetTickFunctionEnable(true);
-    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(true);
-
-    GetWorld()->GetTimerManager().SetTimer(
-        LockOnValidCheckTimer,
-        this, &UFSCombatComponent::LockOnValidCheck,
-        LockOnDistanceCheckDelay, 
-        true
-    );
-
-    return true;
-}
-
-bool UFSCombatComponent::SwitchLockOnTarget(float axisValueX)
-{
-    if (!CurrentLockedOnTarget || GetWorld()->GetTimerManager().IsTimerActive(delaySwitchLockOnTimer))
-        return false;
-
-    FVector Start{ PlayerOwner->GetActorLocation() };
-    FVector End{ Start };
-
-    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-    ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-    TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(GetOwner());
-
-    TArray<FHitResult> outHits;
-    bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(
-        GetWorld(),
-        Start,
-        End,
-        LockOnDetectionRadius,
-        ObjectTypes,
-        false,
-        ActorsToIgnore,
-        EDrawDebugTrace::None,
-        outHits,
-        true
-    ) };
-
-    if (!bHit)
-        return false;
-
-    FRotator ControlRotation{ PlayerOwner->GetController()->GetControlRotation() };
-    FVector CameraForward{ ControlRotation.Vector() };
-    CameraForward.Z = 0;
-    CameraForward.Normalize();
-
-    FVector CameraRight{ FRotationMatrix(ControlRotation).GetScaledAxis(EAxis::Y) };
-    CameraRight.Z = 0;
-    CameraRight.Normalize();
-
-    FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
-    bool bLookingRight{ axisValueX > 0 };
-
-    AActor* BestTarget{ nullptr };
-    float SmallestAngle{ FLT_MAX };
-
-    TSet<AActor*> ProcessedActors;
-    for (const FHitResult& hit : outHits)
-    {
-        AActor* HitActor{ hit.GetActor() };
-
-        if (ProcessedActors.Contains(HitActor) ||
-            !HitActor->Implements<UFSFocusable>() ||
-            HitActor == CurrentLockedOnTarget ||
-            !HitActor->Implements<UFSDamageable>())
-            continue;
-
-        IFSDamageable* damageableTarget = Cast<IFSDamageable>(HitActor);
-        if (!damageableTarget || damageableTarget->IsDead())
-            continue;
-
-        ProcessedActors.Add(HitActor);
-
-        FVector TargetLocation{ HitActor->GetActorLocation() };
-        FVector DirectionToTarget{ TargetLocation - PlayerLocation };
-        DirectionToTarget.Z = 0;
-
-        if (DirectionToTarget.IsNearlyZero())
-            continue;
-
-        DirectionToTarget.Normalize();
-
-        double DotForward{ FVector::DotProduct(DirectionToTarget, CameraForward) };
-        if (DotForward < 0.f) // FOV de 180°
-            continue;
-
-        double DotRight{ FVector::DotProduct(DirectionToTarget, CameraRight) };
-
-        if (bLookingRight && DotRight <= 0)
-            continue;
-
-        else if (!bLookingRight && DotRight >= 0)
-            continue;
-
-        double AngleRadians{ FMath::Atan2(DotRight, DotForward) };
-        double AngleDegrees{ FMath::RadiansToDegrees(AngleRadians) };
-        double AbsAngle{ FMath::Abs(AngleDegrees) };
-
-        if (AbsAngle < SmallestAngle)
-        {
-            SmallestAngle = AbsAngle;
-            BestTarget = HitActor;
-        }
-    }
-
-    if (!BestTarget)
-        return false;
-
-    // Remove UI Lock-on from previous target
-    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(false);
-
-    CurrentLockedOnTarget = BestTarget;
-    CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
-    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(true);
-
-    GetWorld()->GetTimerManager().SetTimer(delaySwitchLockOnTimer, targetSwitchDelay, false);
-
-    return true;
-}
-
-void UFSCombatComponent::DisengageLockOn()
-{
-    TargetsInLockOnRadius.Empty();
-    Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(false);
-    CurrentLockedOnTarget = nullptr;
-    CachedDamageableLockOnTarget = nullptr;
-
-    bIsLockedOnEngaged = false;
-
-    PrimaryComponentTick.SetTickFunctionEnable(false);
-
-    PlayerOwner->GetController()->ResetIgnoreLookInput();
-    PlayerOwner->GetCharacterMovement()->bOrientRotationToMovement = true;
-    PlayerOwner->GetCharacterMovement()->bUseControllerDesiredRotation = false;
-
-    LockOnValidCheckTimer.Invalidate();
-    OnLockOnStopped.Broadcast();
-}
-
-
 AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines) const
 {
     FVector Start{ PlayerOwner->GetActorLocation() };
@@ -1537,7 +1174,7 @@ AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool
 
         uniqueHitActors.Add(hitActor);
 
-        if (hitActor->Implements<UFSDamageable>() || hitActor->Implements<UFSFocusable>())
+        if (hitActor->Implements<UFSDamageable>())
         {
             float newDistance{ static_cast<float>(FVector::Distance(hitActor->GetActorLocation(), PlayerOwner->GetActorLocation())) };
             if (newDistance < shortestDistance)

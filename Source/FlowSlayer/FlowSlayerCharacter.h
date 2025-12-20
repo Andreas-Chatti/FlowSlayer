@@ -17,6 +17,7 @@
 #include "FSWeapon.h"
 #include "Public/FSDamageable.h"
 #include "Public/FSCombatComponent.h"
+#include "Public/FSLockOnComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
 class USpringArmComponent;
@@ -64,6 +65,10 @@ private:
 	/** Combat component class */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	UFSCombatComponent* CombatComponent;
+
+	/** Lock-On component class */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UFSLockOnComponent* LockOnComponent;
 
 	/** Motion warping component class */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animations, meta = (AllowPrivateAccess = "true"))
