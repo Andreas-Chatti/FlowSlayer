@@ -9,7 +9,6 @@
 #include "Camera/CameraShakeBase.h"
 #include "Logging/LogMacros.h"
 #include "FSWeapon.h"
-#include "FSFocusable.h"
 #include "FSDamageable.h"
 #include "MotionWarpingComponent.h"
 #include "EnhancedInputLibrary.h"
@@ -75,9 +74,6 @@ DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
 /** Delegates for AirCombo air stall - broadcasted by AirStallNotify */
 DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
-
-/** Delegate when lock-on is stopped */
-DECLARE_MULTICAST_DELEGATE(FOnLockOnStopped);
 
 
 /** Single attack data within a combo */
@@ -189,15 +185,12 @@ public:
     FOnComboWindowClosed OnComboWindowClosed;
     FOnComboWindowOpened OnComboWindowOpened;
 
-    /** Air stall for air combos 
+    /** Air stall for air combos
     * Broadcasted by AirStallNotify to start an air stall for an air combo
     * Stop the air stall at the end
     */
     FOnAirStallStarted OnAirStallStarted;
     FOnAirStallFinished OnAirStallFinished;
-
-    /** Broadcasted when the lock-on is stopped or interrupted by distance or target's death */
-    FOnLockOnStopped OnLockOnStopped;
 
     /** Called for attacking input */
     void Attack(EAttackType attackType, bool isMoving, bool isFalling);
@@ -350,8 +343,30 @@ private:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
 
-    /** Triggered when an air attack hit an enemy */
+    /** Called when an air attack hits an enemy
+    * Sets both player and enemy to Flying mode for air combo window
+    */
     void OnAirAttackHit(AActor* hitEnemy);
+
+    /** Freezes an enemy in mid-air by disabling gravity and stopping movement
+    * @param enemyMovement The enemy's movement component to freeze
+    */
+    void FreezeEnemyInAir(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement);
+
+    /** Schedules an enemy to unfreeze after a delay, restoring normal falling physics
+    * @param enemyMovement The enemy's movement component to unfreeze
+    * @param delay Time in seconds before unfreezing the enemy
+    */
+    void ScheduleEnemyUnfreeze(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement, float delay);
+
+    /** Detects when a launched enemy reaches trajectory peak and freezes them for air combo window
+    * Uses a looping timer to check velocity and height until peak is detected
+    * @param enemy The enemy actor to track
+    * @param enemyMovement The enemy's movement component
+    * @param maxHeight Maximum allowed height gain before forcing freeze (safety limit)
+    * @param freezeDuration How long to keep the enemy frozen for combo window
+    */
+    void FreezeEnemyAtTrajectoryPeak(AActor* enemy, UCharacterMovementComponent* enemyMovement, float maxHeight, float freezeDuration);
 
     /** SPACE + LMB air attack */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
@@ -369,15 +384,15 @@ private:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo LauncherAttack;
 
-    /** Side effects of the launcher attack when an enemy is hit */
+    /** Called when launcher attack hits an enemy
+    * Detects trajectory peak and freezes enemy in air for combo window
+    * @param hitEnemy The enemy actor that was hit by the launcher
+    */
     void OnLauncherAttackHit(AActor* hitEnemy);
 
     /** A + RMB power launcher */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo PowerLauncherAttack;
-
-    /** Side effects of the power launcher attack when an enemy is hit */
-    void OnPowerLauncherAttackHit(AActor* hitEnemy);
 
     /** E multi-hit spin attack */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
@@ -446,109 +461,6 @@ private:
     /** Next combo to chain into */
     FCombo* PendingCombo{ nullptr };
 
-    /** List of valid targets currently in lock-on detection radius 
-    * Only the nearest target is locked-on
-    */
-    UPROPERTY()
-    TSet<AActor*> TargetsInLockOnRadius{};
-
-    /** Current locked-on target nearest to the player */
-    UPROPERTY()
-    AActor* CurrentLockedOnTarget{ nullptr };
-
-    /** IFSDamageable version of the current locked-on target
-    * Mainly to access IsDead() method to disengage lock-on when target dies
-    */
-    IFSDamageable* CachedDamageableLockOnTarget{ nullptr };
-
-    /** Radius where focusable targets can be detected and locked-on */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-    float LockOnDetectionRadius{ 2000.f };
-
-    /** TRUE if player is locked-on to a target */
-    bool bIsLockedOnEngaged{ false };
-
-    /** Disable the lock-on if the target is outside the detection radius 
-    * Is call every LockOnDistanceCheckDelay in EngageLockOn()
-    * If distance between player and locked-on target is >= LockOnDetectionRadius
-    * OR target is dead
-    * Calls DisengageLockOn() which deactivate the LockOnValidCheckTimer to stop this method running every 
-    */
-    void LockOnValidCheck();
-
-    /** Update Pitch and Yaw rotation of the camera every frame (called in Tick) based on the locked-on target distance from the player 
-    * Yaw and pitch values will be interpolated based on LockOnDetectionRadius / 2
-    * At minimum distance yaw and pitch offset will be equal to CloseCameraPitchOffset and CloseCameraYawOffset
-    * At maximum distance (LockOnDetectionRadius / 2), yaw and pitch offset will be equal to FarCameraPitchOffset and FarCameraYawOffset
-    * Check whether the target is on the right or left side of the screen and adjust dynamically the yaw (negative or positive) based on the target's position
-    */
-    void UpdateLockOnCamera(float deltaTime);
-
-    /** Min pitch offset when locked-on FAR from target */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-    float FarCameraPitchOffset{ -10.0f };
-
-    /** Max pitch offset when locked-on CLOSE to target */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-    float CloseCameraPitchOffset{ -5.0f };
-
-    /** Max yaw offset when locked-on CLOSE an enemy */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-    float CloseCameraYawOffset{ 30.0f };
-
-    /** Min yaw offset when locked-on FAR an enemy */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-    float FarCameraYawOffset{ 0.0f };
-
-    /** Camera rotation interp speed */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-    float CameraRotationInterpSpeed{ 8.0f };
-
-public:
-    /** Delay in which the player can switch lock-on in-between targets */
-    const float targetSwitchDelay{ 0.65f };
-
-    /** Sensibility on the X axis LEFT and RIGHT when the Player moves the mouse to switch lock-on target */
-    const double XAxisSwitchSensibility{ 1.0 };
-
-private:
-    /** Timer responsible for the lock-on delay in-between targets */
-    UPROPERTY()
-    FTimerHandle delaySwitchLockOnTimer;
-
-    UPROPERTY()
-    FTimerHandle LockOnValidCheckTimer;
-
-    /** Delay in-between each distance checks */
-    float LockOnDistanceCheckDelay{ 0.5f };
-
-public:
-    /** Whether the player is currently locked on a valid target */
-    UFUNCTION(BlueprintCallable)
-    bool IsLockedOnTarget() const { return bIsLockedOnEngaged; }
-
-    /** @return Current locked-on target or nullptr if there's none */
-    const AActor* GetCurrentLockedOnTarget() const { return CurrentLockedOnTarget; }
-
-    /** Lock-on the nearest target in a specific sphere radius the character being the center
-    * @return FALSE if no valid target is found
-    * @return TRUE if a valid target is found
-    */
-    bool EngageLockOn();
-
-    /** Switch lock-on target based on camera look direction
-    * @param followCamera Camera component used to determine direction
-    * @param axisValueX Mouse/controller X axis input (negative = left, positive = right)
-    * @return TRUE if successfully switched to new target, FALSE otherwise
-    */
-    UFUNCTION(BlueprintCallable)
-    bool SwitchLockOnTarget(float axisValueX);
-
-    /** Stop the lock-on */
-    void DisengageLockOn();
-
-private:
-
     // === FUNCTIONS ===
 
     /** Select the correct Combo based on the current player's state (moving, falling, attack type) */
@@ -561,7 +473,7 @@ private:
     void ContinueCombo();
 
     /** Resets all combo state variables to their default values */
-    void StopCombo();
+    void ResetComboState();
 
     // === COMBO WINDOW HANDLERS (Bound to delegates in BeginPlay) ===
 
@@ -609,7 +521,23 @@ private:
     */
     void SetupAirAttackMotionWarp(float notifyStartTime, float notifyEndTime, float zOffset = 0.f, float forwardOffset = 0.f, float searchRadius = 250.f, FName motionWarpingTargetName = "AttackTarget");
 
-
+    /** Setup motion warp for ground-based attacks (dash attacks, launcher ground phase)
+    *
+    * Creates a motion warp target toward the nearest enemy for ground tracking.
+    * Unlike air attacks, this does NOT change movement mode (stays in MOVE_Walking).
+    *
+    * @param notifyStartTime When the MotionWarp notify state STARTS in the animation montage (seconds).
+    * @param notifyEndTime When the MotionWarp notify state ENDS in the animation montage (seconds).
+    * @param forwardOffset Forward distance added in front of the player's facing direction.
+    * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
+    * @param motionWarpingTargetName Name of the warp target to create (must match notify state).
+    */
     void SetupGroundAttackMotionWarp(float notifyStartTime, float notifyEndTime, float forwardOffset = 0.f, float searchRadius = 250.f, FName motionWarpingTargetName = "AttackTarget");
+
+    /** Transitions from current combo to a different pending combo
+    * Replaces the ongoing combo with the pending combo and starts it from the first attack
+    * Used when chaining between different combo types (e.g., StandingLight -> RunningHeavy)
+    */
+    void ChainingToNextCombo();
 
 };
