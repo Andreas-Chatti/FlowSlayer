@@ -343,10 +343,8 @@ protected:
 
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-	
-	virtual void BeginPlay() override;
 
-	virtual void Tick(float DeltaTime) override;
+	virtual void BeginPlay() override;
 
 	void Ragdoll();
 	void DisableAllInputs();
@@ -368,8 +366,14 @@ private:
 	virtual void Falling() override;
 
 	/** Simple function helper to rotate the character to where player is looking
-	* Smooth transition during local variable rotationDuration (0.3f default) 
+	* Smooth transition during local variable rotationDuration (0.3f default)
 	*/
 	void RotatePlayerToCameraDirection();
+
+	/** Helper to trigger an attack with input buffer delay
+	* Eliminates code duplication across all attack input handlers
+	* @param attackType The type of attack to trigger after buffer delay
+	*/
+	void TriggerAttackWithBuffer(EAttackType attackType);
 };
 
