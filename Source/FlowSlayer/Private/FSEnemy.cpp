@@ -67,6 +67,7 @@ void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
         return;
 
     CurrentHealth -= DamageAmount;
+    LifeBarWidget->SetVisibility(true);
     //UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
       //  *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
 
@@ -109,6 +110,7 @@ void AFSEnemy::Die()
 
     GetCapsuleComponent()->SetCollisionProfileName("Ragdoll");
     GetCharacterMovement()->DisableMovement();
+    LifeBarWidget->SetVisibility(false);
 
     PlayDeathMontage();
 
@@ -153,6 +155,16 @@ void AFSEnemy::PlayDeathMontage()
 }
 
 void AFSEnemy::DisplayLockedOnWidget(bool bShowWidget)
+{
+    LockOnWidget->SetVisibility(bShowWidget);
+}
+
+void AFSEnemy::DisplayHealthBarWidget(bool bShowWidget)
+{
+    LifeBarWidget->SetVisibility(bShowWidget);
+}
+
+void AFSEnemy::DisplayAllWidgets(bool bShowWidget)
 {
     LockOnWidget->SetVisibility(bShowWidget);
     LifeBarWidget->SetVisibility(bShowWidget);

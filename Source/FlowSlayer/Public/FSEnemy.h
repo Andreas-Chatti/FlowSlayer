@@ -35,6 +35,14 @@ public:
 
     virtual void DisplayLockedOnWidget(bool bShowWidget) override;
 
+    virtual void DisplayHealthBarWidget(bool bShowWidget) override;
+
+    virtual void DisplayAllWidgets(bool bShowWidget) override;
+
+    virtual float GetCurrentHealth() const override { return CurrentHealth; }
+
+    virtual float GetMaxHealth() const override { return MaxHealth; }
+
     float getAttackRange() const { return AttackRange; }
     bool IsAttacking() const { return bIsAttacking; }
 

@@ -18,4 +18,8 @@ public:
     virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) = 0;
 
     virtual bool IsDead() const = 0;
+
+    virtual float GetCurrentHealth() const = 0;
+
+    virtual float GetMaxHealth() const = 0;
 };

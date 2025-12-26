@@ -123,7 +123,8 @@ bool UFSLockOnComponent::EngageLockOn()
 
 		if (!HitActor->Implements<UFSFocusable>() ||
 			TargetsInLockOnRadius.Contains(HitActor) ||
-			!HitActor->Implements<UFSDamageable>())
+			!HitActor->Implements<UFSDamageable>() ||
+			Cast<IFSDamageable>(HitActor)->IsDead())
 			continue;
 
 		TargetsInLockOnRadius.Add(HitActor);
@@ -158,9 +159,10 @@ bool UFSLockOnComponent::EngageLockOn()
 
 	CurrentLockedOnTarget = NearestTarget;
 	CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
+	CachedFocusableTarget = Cast<IFSFocusable>(CurrentLockedOnTarget);
 	bIsLockedOnEngaged = true;
 
-	Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(true);
+	CachedFocusableTarget->DisplayAllWidgets(true);
 
 	PrimaryComponentTick.SetTickFunctionEnable(true);
 
@@ -238,7 +240,8 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 
 		if (HitActor == CurrentLockedOnTarget ||
 			!HitActor->Implements<UFSFocusable>() ||
-			!HitActor->Implements<UFSDamageable>())
+			!HitActor->Implements<UFSDamageable>() ||
+			Cast<IFSDamageable>(HitActor)->IsDead())
 			continue;
 
 		FVector ToTarget{ HitActor->GetActorLocation() - PlayerLocation };
@@ -272,12 +275,16 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 	if (!BestTarget)
 		return false;
 
-	Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(false);
+	bool isFullLife{ CachedDamageableLockOnTarget && (CachedDamageableLockOnTarget->GetCurrentHealth() >= CachedDamageableLockOnTarget->GetMaxHealth()) };
+	if (isFullLife)
+		CachedFocusableTarget->DisplayAllWidgets(false);
+	else
+		CachedFocusableTarget->DisplayLockedOnWidget(false);
 
 	CurrentLockedOnTarget = BestTarget;
 	CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
-
-	Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(true);
+	CachedFocusableTarget = Cast<IFSFocusable>(CurrentLockedOnTarget);
+	CachedFocusableTarget->DisplayAllWidgets(true);
 
 	GetWorld()->GetTimerManager().SetTimer(
 		delaySwitchLockOnTimer,
@@ -294,7 +301,14 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 void UFSLockOnComponent::DisengageLockOn()
 {
 	TargetsInLockOnRadius.Empty();
-	Cast<IFSFocusable>(CurrentLockedOnTarget)->DisplayLockedOnWidget(false);
+
+	bool isFullLife{ CachedDamageableLockOnTarget && (CachedDamageableLockOnTarget->GetCurrentHealth() >= CachedDamageableLockOnTarget->GetMaxHealth()) };
+	bool isDead{ CachedDamageableLockOnTarget && CachedDamageableLockOnTarget->IsDead() };
+	if (isFullLife || isDead)
+		CachedFocusableTarget->DisplayAllWidgets(false);
+	else
+		CachedFocusableTarget->DisplayLockedOnWidget(false);
+
 	CurrentLockedOnTarget = nullptr;
 	CachedDamageableLockOnTarget = nullptr;
 

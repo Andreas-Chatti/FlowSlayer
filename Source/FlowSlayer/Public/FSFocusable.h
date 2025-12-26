@@ -15,5 +15,9 @@ class FLOWSLAYER_API IFSFocusable
 
 public:
 
+	virtual void DisplayAllWidgets(bool bShowWidget) = 0;
+
 	virtual void DisplayLockedOnWidget(bool bShowWidget) = 0;
+
+	virtual void DisplayHealthBarWidget(bool bShowWidget) = 0;
 };
