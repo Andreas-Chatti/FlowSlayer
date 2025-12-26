@@ -164,6 +164,10 @@ public:
 
 	virtual bool CanJumpInternal_Implementation() const override;
 
+	virtual float GetCurrentHealth() const override { return CurrentHealth; }
+
+	virtual float GetMaxHealth() const override { return MaxHealth; }
+
 	UFUNCTION(BlueprintCallable)
 	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
 

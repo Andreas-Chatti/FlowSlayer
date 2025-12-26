@@ -88,6 +88,9 @@ private:
 	*/
 	IFSDamageable* CachedDamageableLockOnTarget{ nullptr };
 
+	/** IFSFocusable reference of the current locked-on target */
+	IFSFocusable* CachedFocusableTarget{ nullptr };
+
 	/** Radius where focusable targets can be detected and locked-on */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
 	float LockOnDetectionRadius{ 2000.f };

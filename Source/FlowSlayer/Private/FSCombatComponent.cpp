@@ -795,7 +795,12 @@ void UFSCombatComponent::HandleAirStallFinished(float gravityScale)
 
 void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float zOffset, float forwardOffset)
 {
-    AActor* nearestEnemy{ GetNearestEnemyFromPlayer(searchRadius, debugLines) };
+    AActor* nearestEnemy{ nullptr };
+    if (LockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), LockedOnTarget->GetActorLocation()) <= (searchRadius * searchRadius)))
+        nearestEnemy = LockedOnTarget;
+    else
+        nearestEnemy = GetNearestEnemyFromPlayer(searchRadius, debugLines);
+
     UMotionWarpingComponent* MotionWarpingComp{ PlayerOwner->FindComponentByClass<UMotionWarpingComponent>() };
 
     if (!MotionWarpingComp || !nearestEnemy)
@@ -853,8 +858,8 @@ void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName,
 
 void UFSCombatComponent::SetupGroundAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float forwardOffset)
 {
-    const AActor* nearestEnemy{ nullptr };
-    if (LockedOnTarget)
+    AActor* nearestEnemy{ nullptr };
+    if (LockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), LockedOnTarget->GetActorLocation()) <= (searchRadius * searchRadius)))
         nearestEnemy = LockedOnTarget;
     else
         nearestEnemy = GetNearestEnemyFromPlayer(searchRadius, debugLines);
@@ -1277,7 +1282,7 @@ AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool
 
         uniqueHitActors.Add(hitActor);
 
-        if (hitActor->Implements<UFSDamageable>())
+        if (hitActor->Implements<UFSDamageable>() && !Cast<IFSDamageable>(hitActor)->IsDead())
         {
             float newDistance{ static_cast<float>(FVector::Distance(hitActor->GetActorLocation(), PlayerOwner->GetActorLocation())) };
             if (newDistance < shortestDistance)
