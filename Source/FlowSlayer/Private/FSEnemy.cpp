@@ -2,8 +2,7 @@
 
 AFSEnemy::AFSEnemy()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.bStartWithTickEnabled = true;
+    PrimaryActorTick.bCanEverTick = false;
 
     GetCharacterMovement()->bOrientRotationToMovement = true;
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
@@ -56,11 +55,6 @@ void AFSEnemy::BeginPlay()
     InitializeLifeBarWidgetRef();
 }
 
-void AFSEnemy::Tick(float DeltaTime)
-{
-    Super::Tick(DeltaTime);
-}
-
 void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
 {
     if (bIsDead)
@@ -80,8 +74,18 @@ void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
         bIsStunned = true;
         bIsCcImune = true;
 
+        TWeakObjectPtr<AFSEnemy> WeakThis{ this };
         FTimerHandle ccImuneTimer;
-        GetWorld()->GetTimerManager().SetTimer(ccImuneTimer, [this]() {bIsCcImune = false;}, CcImuneDelay, false);
+        GetWorld()->GetTimerManager().SetTimer(
+            ccImuneTimer,
+            [WeakThis]()
+            {
+                if (WeakThis.IsValid())
+                    WeakThis->bIsCcImune = false;
+            },
+            CcImuneDelay,
+            false
+        );
     }
 }
 
@@ -166,6 +170,6 @@ void AFSEnemy::DisplayHealthBarWidget(bool bShowWidget)
 
 void AFSEnemy::DisplayAllWidgets(bool bShowWidget)
 {
-    LockOnWidget->SetVisibility(bShowWidget);
-    LifeBarWidget->SetVisibility(bShowWidget);
+    DisplayLockedOnWidget(bShowWidget);
+    DisplayHealthBarWidget(bShowWidget);
 }

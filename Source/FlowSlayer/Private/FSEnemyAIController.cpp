@@ -46,7 +46,7 @@ void AFSEnemyAIController::FollowPlayer()
 
     EPathFollowingStatus::Type Status{ GetMoveStatus() };
     if (Status == EPathFollowingStatus::Idle)
-        MoveToActor(PlayerPawn, OwnedEnemyPawn->getAttackRange());
+        MoveToActor(PlayerPawn, OwnedEnemyPawn->GetAttackRange());
 }
 
 void AFSEnemyAIController::RotateToPlayer()
