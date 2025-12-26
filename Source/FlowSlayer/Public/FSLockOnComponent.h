@@ -73,6 +73,10 @@ private:
 	UPROPERTY()
 	ACharacter* PlayerOwner{ nullptr };
 
+	/** Cached combat component reference */
+	UPROPERTY()
+	UFSCombatComponent* CombatComponent{ nullptr };
+
 	/** List of valid targets currently in lock-on detection radius
 	* Only the nearest target is locked-on
 	*/
@@ -113,6 +117,17 @@ private:
 	* Check whether the target is on the right or left side of the screen and adjust dynamically the yaw (negative or positive) based on the target's position
 	*/
 	void UpdateLockOnCamera(float deltaTime);
+
+	/** Helper to find all targets in lock-on radius using sphere trace
+	* @param outHits Array to fill with hit results
+	* @return TRUE if any targets found, FALSE otherwise
+	*/
+	bool FindTargetsInRadius(TArray<FHitResult>& outHits);
+
+	/** Helper to hide previous target widgets based on health state
+	* Hides all widgets if target is full health or dead, otherwise only hides lock-on widget
+	*/
+	void HidePreviousTargetWidgets();
 
 	/** Min pitch offset when locked-on FAR from target */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
