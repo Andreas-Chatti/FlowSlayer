@@ -11,8 +11,10 @@ void UFSLockOnComponent::BeginPlay()
 	Super::BeginPlay();
 
 	PlayerOwner = Cast<ACharacter>(GetOwner());
-	if (!PlayerOwner)
-		UE_LOG(LogTemp, Error, TEXT("FSLockOnComponent: Owner is not a Character!"));
+	checkf(PlayerOwner, TEXT("FSLockOnComponent: Owner is not a Character!"));
+
+	CombatComponent = PlayerOwner->FindComponentByClass<UFSCombatComponent>();
+	checkf(CombatComponent, TEXT("FSLockOnComponent: CombatComponent not found on owner!"));
 }
 
 void UFSLockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -60,8 +62,7 @@ void UFSLockOnComponent::UpdateLockOnCamera(float deltaTime)
 	double CurrentPitchOffset{ FMath::Lerp(CloseCameraPitchOffset, FarCameraPitchOffset, DistanceRatio) };
 
 	// Check if player is attacking to adjust tolerance
-	UFSCombatComponent* CombatComp{ PlayerOwner->FindComponentByClass<UFSCombatComponent>() };
-	float dotRightTolerance{ (CombatComp && CombatComp->isAttacking()) ? -0.15f : 0.f };
+	float dotRightTolerance{ (CombatComponent && CombatComponent->isAttacking()) ? -0.15f : 0.f };
 
 	CameraLookAtRotation.Yaw += DotRight > dotRightTolerance ? -CurrentYawOffset : CurrentYawOffset;
 	CameraLookAtRotation.Pitch += CurrentPitchOffset;
@@ -72,7 +73,7 @@ void UFSLockOnComponent::UpdateLockOnCamera(float deltaTime)
 	PlayerOwner->GetController()->SetControlRotation(SmoothedCameraRotation);
 }
 
-bool UFSLockOnComponent::EngageLockOn()
+bool UFSLockOnComponent::FindTargetsInRadius(TArray<FHitResult>& outHits)
 {
 	if (!PlayerOwner)
 		return false;
@@ -86,8 +87,7 @@ bool UFSLockOnComponent::EngageLockOn()
 	TArray<AActor*> ActorsToIgnore;
 	ActorsToIgnore.Add(GetOwner());
 
-	TArray<FHitResult> outHits;
-	bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(
+	return UKismetSystemLibrary::SphereTraceMultiForObjects(
 		GetWorld(),
 		Start,
 		End,
@@ -98,9 +98,30 @@ bool UFSLockOnComponent::EngageLockOn()
 		EDrawDebugTrace::None,
 		outHits,
 		true
-	) };
+	);
+}
 
-	if (!bHit)
+void UFSLockOnComponent::HidePreviousTargetWidgets()
+{
+	if (!CachedDamageableLockOnTarget || !CachedFocusableTarget)
+		return;
+
+	bool isFullLife{ CachedDamageableLockOnTarget->GetCurrentHealth() >= CachedDamageableLockOnTarget->GetMaxHealth() };
+	bool isDead{ CachedDamageableLockOnTarget->IsDead() };
+
+	if (isFullLife || isDead)
+		CachedFocusableTarget->DisplayAllWidgets(false);
+	else
+		CachedFocusableTarget->DisplayLockedOnWidget(false);
+}
+
+bool UFSLockOnComponent::EngageLockOn()
+{
+	if (!PlayerOwner)
+		return false;
+
+	TArray<FHitResult> outHits;
+	if (!FindTargetsInRadius(outHits))
 		return false;
 
 	AController* Controller{ PlayerOwner->GetController() };
@@ -187,30 +208,8 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 	if (!CurrentLockedOnTarget || GetWorld()->GetTimerManager().IsTimerActive(delaySwitchLockOnTimer))
 		return false;
 
-	FVector Start{ PlayerOwner->GetActorLocation() };
-	FVector End{ Start };
-
-	TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-	ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-	TArray<AActor*> ActorsToIgnore;
-	ActorsToIgnore.Add(GetOwner());
-
 	TArray<FHitResult> outHits;
-	bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(
-		GetWorld(),
-		Start,
-		End,
-		LockOnDetectionRadius,
-		ObjectTypes,
-		false,
-		ActorsToIgnore,
-		EDrawDebugTrace::None,
-		outHits,
-		true
-	) };
-
-	if (!bHit)
+	if (!FindTargetsInRadius(outHits))
 		return false;
 
 	FRotator ControlRotation{ PlayerOwner->GetController()->GetControlRotation() };
@@ -275,11 +274,7 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 	if (!BestTarget)
 		return false;
 
-	bool isFullLife{ CachedDamageableLockOnTarget && (CachedDamageableLockOnTarget->GetCurrentHealth() >= CachedDamageableLockOnTarget->GetMaxHealth()) };
-	if (isFullLife)
-		CachedFocusableTarget->DisplayAllWidgets(false);
-	else
-		CachedFocusableTarget->DisplayLockedOnWidget(false);
+	HidePreviousTargetWidgets();
 
 	CurrentLockedOnTarget = BestTarget;
 	CachedDamageableLockOnTarget = Cast<IFSDamageable>(CurrentLockedOnTarget);
@@ -292,8 +287,8 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 		false
 	);
 
-	UFSCombatComponent* CombatComp{ PlayerOwner->FindComponentByClass<UFSCombatComponent>() };
-	CombatComp->SetLockedOnTargetRef(CurrentLockedOnTarget);
+	if (CombatComponent)
+		CombatComponent->SetLockedOnTargetRef(CurrentLockedOnTarget);
 
 	return true;
 }
@@ -302,15 +297,11 @@ void UFSLockOnComponent::DisengageLockOn()
 {
 	TargetsInLockOnRadius.Empty();
 
-	bool isFullLife{ CachedDamageableLockOnTarget && (CachedDamageableLockOnTarget->GetCurrentHealth() >= CachedDamageableLockOnTarget->GetMaxHealth()) };
-	bool isDead{ CachedDamageableLockOnTarget && CachedDamageableLockOnTarget->IsDead() };
-	if (isFullLife || isDead)
-		CachedFocusableTarget->DisplayAllWidgets(false);
-	else
-		CachedFocusableTarget->DisplayLockedOnWidget(false);
+	HidePreviousTargetWidgets();
 
 	CurrentLockedOnTarget = nullptr;
 	CachedDamageableLockOnTarget = nullptr;
+	CachedFocusableTarget = nullptr;
 
 	bIsLockedOnEngaged = false;
 
