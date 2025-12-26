@@ -4,6 +4,8 @@ DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 AFlowSlayerCharacter::AFlowSlayerCharacter()
 {
+	PrimaryActorTick.bCanEverTick = false;
+
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
 
@@ -15,13 +17,13 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 		mesh->SetUsingAbsoluteLocation(false);
 		mesh->SetUsingAbsoluteRotation(false);
 	}
-		
+
 	// Don't rotate when the controller rotates. Let that just affect the camera.
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
 
-	GetCharacterMovement()->bOrientRotationToMovement = true;	
+	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->RotationRate = FRotator{ 0.f, 500.f, 0.f };
 
 	GetCharacterMovement()->JumpZVelocity = 900.0f;
@@ -74,11 +76,6 @@ void AFlowSlayerCharacter::BeginPlay()
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
 	Tags.Add("Player");
-}
-
-void AFlowSlayerCharacter::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 }
 
 void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
@@ -314,11 +311,16 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 	bCanDash = false;
 	bIsDashing = true;
 
+	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
 	float dashDuration{ FwdDashAnim->GetPlayLength() };
 	FTimerHandle dashingStateTimer;
 	GetWorldTimerManager().SetTimer(
 		dashingStateTimer,
-		[this]() { bIsDashing = false; },
+		[WeakThis]()
+		{
+			if (WeakThis.IsValid())
+				WeakThis->bIsDashing = false;
+		},
 		dashDuration,
 		false
 	);
@@ -327,7 +329,11 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 	FTimerHandle dashCooldownTimer;
 	GetWorldTimerManager().SetTimer(
 		dashCooldownTimer,
-		[this]() { bCanDash = true; },
+		[WeakThis]()
+		{
+			if (WeakThis.IsValid())
+				WeakThis->bCanDash = true;
+		},
 		totalDashCooldown,
 		false
 	);
@@ -360,17 +366,40 @@ void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
 	GetCharacterMovement()->bOrientRotationToMovement = false;
 	GetCharacterMovement()->bUseControllerDesiredRotation = true;
 
+	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
 	const float rotationDuration{ 0.3f };
 	FTimerHandle myTimer;
 	GetWorld()->GetTimerManager().SetTimer(
 		myTimer,
-		[this]()
+		[WeakThis]()
 		{
-			GetCharacterMovement()->bUseControllerDesiredRotation = false;
-			GetCharacterMovement()->bOrientRotationToMovement = true;
+			if (WeakThis.IsValid())
+			{
+				WeakThis->GetCharacterMovement()->bUseControllerDesiredRotation = false;
+				WeakThis->GetCharacterMovement()->bOrientRotationToMovement = true;
+			}
 		},
 		rotationDuration,
 		false);
+}
+
+void AFlowSlayerCharacter::TriggerAttackWithBuffer(EAttackType attackType)
+{
+	if (attackType == EAttackType::None)
+		return;
+
+	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
+	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		InputBufferTimer,
+		[WeakThis, attackType]()
+		{
+			if (WeakThis.IsValid())
+				WeakThis->OnAttackTriggered(attackType);
+		},
+		InputBufferDelay,
+		false
+	);
 }
 
 void AFlowSlayerCharacter::Jump()
@@ -497,16 +526,10 @@ void AFlowSlayerCharacter::OnDashAttackActionStarted()
 	if (attackType == EAttackType::None)
 		return;
 
-	else if (bIsDashing)
+	if (bIsDashing)
 		StopAnimMontage(GetCurrentMontage() == FwdDashAnim ? FwdDashAnim : BwdDashAnim);
 
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[this, attackType]() { OnAttackTriggered(attackType); },
-		InputBufferDelay,
-		false
-	);
+	TriggerAttackWithBuffer(attackType);
 }
 
 void AFlowSlayerCharacter::OnJumpAttackActionStarted()
@@ -535,16 +558,7 @@ void AFlowSlayerCharacter::OnJumpAttackActionStarted()
 			attackType = EAttackType::AerialSlam;
 	}
 
-	if (attackType == EAttackType::None)
-		return;
-
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[this, attackType]() { OnAttackTriggered(attackType); },
-		InputBufferDelay,
-		false
-	);
+	TriggerAttackWithBuffer(attackType);
 }
 
 void AFlowSlayerCharacter::OnLauncherActionStarted(const FInputActionInstance& Value)
@@ -561,16 +575,7 @@ void AFlowSlayerCharacter::OnLauncherActionStarted(const FInputActionInstance& V
 	else if (isRMBPressed)
 		attackType = EAttackType::PowerLauncher;
 
-	if (attackType == EAttackType::None)
-		return;
-
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[this, attackType]() { OnAttackTriggered(attackType); },
-		InputBufferDelay,
-		false
-	);
+	TriggerAttackWithBuffer(attackType);
 }
 
 void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance& Value)
@@ -587,16 +592,7 @@ void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance&
 	else if (isRMBPressed)
 		attackType = EAttackType::HorizontalSweep;
 
-	if (attackType == EAttackType::None)
-		return;
-
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[this, attackType]() { OnAttackTriggered(attackType); },
-		InputBufferDelay,
-		false
-	);
+	TriggerAttackWithBuffer(attackType);
 }
 
 void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstance& Value)
@@ -614,16 +610,7 @@ void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstanc
 	else if (GetInputKeyState(EKeys::S))
 		attackType = EAttackType::PowerSlash;
 
-	if (attackType == EAttackType::None)
-		return;
-
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[this, attackType]() { OnAttackTriggered(attackType); },
-		InputBufferDelay,
-		false
-	);
+	TriggerAttackWithBuffer(attackType);
 }
 
 void AFlowSlayerCharacter::OnSlamActionStarted()
@@ -640,14 +627,5 @@ void AFlowSlayerCharacter::OnSlamActionStarted()
 	else if (isRMBPressed)
 		attackType = EAttackType::GroundSlam;
 
-	if (attackType == EAttackType::None)
-		return;
-
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[this, attackType]() { OnAttackTriggered(attackType); },
-		InputBufferDelay,
-		false
-	);
+	TriggerAttackWithBuffer(attackType);
 }
