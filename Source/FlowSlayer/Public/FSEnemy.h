@@ -43,10 +43,10 @@ public:
 
     virtual float GetMaxHealth() const override { return MaxHealth; }
 
-    float getAttackRange() const { return AttackRange; }
+    float GetAttackRange() const { return AttackRange; }
     bool IsAttacking() const { return bIsAttacking; }
 
-    void setIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
+    void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
 
     FOnHitboxActivated OnHitboxActivated;
     FOnHitboxDeactivated OnHitboxDeactivated;
@@ -55,8 +55,6 @@ public:
 protected:
 
     virtual void BeginPlay() override;
-
-    virtual void Tick(float DeltaTime) override;
 
     virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
 
