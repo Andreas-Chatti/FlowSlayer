@@ -51,11 +51,11 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
 	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
 
-	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
-	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
-
 	LockOnComponent = CreateDefaultSubobject<UFSLockOnComponent>(TEXT("LockOnComponent"));
 	checkf(LockOnComponent, TEXT("FATAL: LockOnComponent is NULL or INVALID !"));
+
+	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
+	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
 
 	JumpMaxCount = 2;
 	CurrentHealth = MaxHealth;
@@ -65,6 +65,7 @@ void AFlowSlayerCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	LockOnComponent->OnLockOnStarted.BindUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStarted);
 	LockOnComponent->OnLockOnStopped.AddUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStopped);
 	OnAnimationCanceled.AddUObject(this, &AFlowSlayerCharacter::HandleOnAnimationCanceled);
 
@@ -86,8 +87,8 @@ void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDeale
 		return;
 
     CurrentHealth -= DamageAmount;
-    UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
-        *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
+    //UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
+      //  *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
 
     if (CurrentHealth <= 0.f)
         Die();
@@ -162,9 +163,15 @@ void AFlowSlayerCharacter::HandleOnAnimationCanceled(FlowSlayerInput::EActionTyp
 	}
 }
 
+void AFlowSlayerCharacter::HandleOnLockOnStarted(AActor* lockedOnTarget)
+{
+	CombatComponent->SetLockedOnTargetRef(lockedOnTarget);
+}
+
 void AFlowSlayerCharacter::HandleOnLockOnStopped()
 {
 	GetCharacterMovement()->MaxWalkSpeed = SprintSpeedThreshold;
+	CombatComponent->SetLockedOnTargetRef(nullptr);
 }
 
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

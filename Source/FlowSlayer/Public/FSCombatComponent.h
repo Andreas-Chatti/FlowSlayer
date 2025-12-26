@@ -279,6 +279,8 @@ public:
 
     const AFSWeapon* GetEquippedWeapon() const { return equippedWeapon; }
 
+    void SetLockedOnTargetRef(AActor* lockedOnTarget) { LockedOnTarget = lockedOnTarget; }
+
 private:
 
     /** Player's Weapon reference */
@@ -294,6 +296,12 @@ private:
     /** Cached AnimInstance reference */
     UPROPERTY()
     UAnimInstance* AnimInstance;
+
+    /** Current locked-on target reference 
+    * nullptr if there's no target locked-on
+    */
+    UPROPERTY()
+    AActor* LockedOnTarget;
 
     UPROPERTY()
     FTimerHandle hitstopTimerHandle;
@@ -519,7 +527,7 @@ private:
     * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
     *                     Defaults to 250.f. Motion warp is skipped if no enemy is found within radius.
     */
-    void SetupAirAttackMotionWarp(float notifyStartTime, float notifyEndTime, float zOffset = 0.f, float forwardOffset = 0.f, float searchRadius = 250.f, FName motionWarpingTargetName = "AttackTarget");
+    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines = false, float zOffset = 0.f, float forwardOffset = 0.f);
 
     /** Setup motion warp for ground-based attacks (dash attacks, launcher ground phase)
     *
@@ -532,7 +540,7 @@ private:
     * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
     * @param motionWarpingTargetName Name of the warp target to create (must match notify state).
     */
-    void SetupGroundAttackMotionWarp(float notifyStartTime, float notifyEndTime, float forwardOffset = 0.f, float searchRadius = 250.f, FName motionWarpingTargetName = "AttackTarget");
+    void SetupGroundAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines = false, float forwardOffset = 0.f);
 
     /** Transitions from current combo to a different pending combo
     * Replaces the ongoing combo with the pending combo and starts it from the first attack

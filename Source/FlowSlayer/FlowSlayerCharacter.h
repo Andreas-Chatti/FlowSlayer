@@ -125,6 +125,9 @@ private:
 	/** Callback called when player dashed or jumped sucessfully in the animation cancel window during an attack animation */
 	void HandleOnAnimationCanceled(FlowSlayerInput::EActionType actionType);
 
+	/** Callback called when lock-on starts */
+	void HandleOnLockOnStarted(AActor* lockedOnTarget);
+
 	/** Callback called when lock-on is stopped or interrupted in any way */
 	void HandleOnLockOnStopped();
 

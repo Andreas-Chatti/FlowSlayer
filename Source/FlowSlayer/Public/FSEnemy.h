@@ -91,8 +91,14 @@ protected:
     UPROPERTY()
     APawn* Player;
 
+
+    /** Lock-on ui widget indicator when this enemy is locked-on */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
     UWidgetComponent* LockOnWidget{ nullptr };
+
+    /** Life bar widget ui */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+    UWidgetComponent* LifeBarWidget{ nullptr };
 
 private:
 
@@ -102,4 +108,9 @@ private:
     void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
     void PlayDeathMontage();
+
+    /* Initialize directly the blueprint variable "OwningEnemy" from this method 
+    * Used for now because there's no way to directly a direct reference to FSEnemy in widget blueprint
+    */
+    void InitializeLifeBarWidgetRef();
 };

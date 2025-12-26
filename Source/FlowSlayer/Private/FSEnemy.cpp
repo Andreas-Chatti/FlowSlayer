@@ -14,6 +14,31 @@ AFSEnemy::AFSEnemy()
     LockOnWidget->SetWidgetSpace(EWidgetSpace::Screen);
     LockOnWidget->SetDrawSize(FVector2D(40.0f, 40.0f));
     LockOnWidget->SetVisibility(false);
+
+    // Life bar UI setup
+    LifeBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("LifeBarWidget"));
+    LifeBarWidget->SetupAttachment(GetMesh());
+    LifeBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
+    LifeBarWidget->SetDrawSize(FVector2D(40.0f, 40.0f));
+    LifeBarWidget->SetVisibility(false);
+}
+
+void AFSEnemy::InitializeLifeBarWidgetRef()
+{
+    if (!LifeBarWidget)
+        return;
+
+    UUserWidget* Widget{ LifeBarWidget->GetUserWidgetObject() };
+    if (!Widget)
+        return;
+
+    // Set the OwningEnemy property on the widget
+    FObjectProperty* Prop{ FindFProperty<FObjectProperty>(Widget->GetClass(), TEXT("OwningEnemy")) };
+    if (!Prop)
+        return;
+
+    void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(Widget);
+    Prop->SetObjectPropertyValue(ValuePtr, this);
 }
 
 void AFSEnemy::BeginPlay()
@@ -27,6 +52,8 @@ void AFSEnemy::BeginPlay()
     UAnimInstance* AnimInstance{ GetMesh()->GetAnimInstance() };
     if (AnimInstance)
         AnimInstance->OnMontageEnded.AddDynamic(this, &AFSEnemy::OnAttackMontageEnded);
+
+    InitializeLifeBarWidgetRef();
 }
 
 void AFSEnemy::Tick(float DeltaTime)
@@ -78,10 +105,9 @@ void AFSEnemy::Attack_Implementation()
 void AFSEnemy::Die()
 {
     bIsDead = true;
-    UE_LOG(LogTemp, Warning, TEXT("[%s] DIED - Awarded %d XP"), *GetName(), XPReward);
+    //UE_LOG(LogTemp, Warning, TEXT("[%s] DIED - Awarded %d XP"), *GetName(), XPReward);
 
-    // Disable collision and movement
-    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    GetCapsuleComponent()->SetCollisionProfileName("Ragdoll");
     GetCharacterMovement()->DisableMovement();
 
     PlayDeathMontage();
@@ -129,4 +155,5 @@ void AFSEnemy::PlayDeathMontage()
 void AFSEnemy::DisplayLockedOnWidget(bool bShowWidget)
 {
     LockOnWidget->SetVisibility(bShowWidget);
+    LifeBarWidget->SetVisibility(bShowWidget);
 }
