@@ -210,8 +210,6 @@ protected:
 
     virtual void BeginPlay() override;
 
-    virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
-
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     TSubclassOf<AFSWeapon> weaponClass;
 
@@ -297,7 +295,11 @@ private:
     UPROPERTY()
     UAnimInstance* AnimInstance;
 
-    /** Current locked-on target reference 
+    /** Cached MotionWarpingComponent reference */
+    UPROPERTY()
+    UMotionWarpingComponent* MotionWarpingComponent;
+
+    /** Current locked-on target reference
     * nullptr if there's no target locked-on
     */
     UPROPERTY()
@@ -506,6 +508,14 @@ private:
     */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     float AirStallGravity{ 0.3f };
+
+    /** Helper to get the target for motion warping
+    * Prioritizes locked-on target if within radius, otherwise finds nearest enemy
+    * @param searchRadius Maximum detection radius
+    * @param debugLines Whether to show debug lines
+    * @return Target actor or nullptr if none found
+    */
+    AActor* GetTargetForMotionWarp(float searchRadius, bool debugLines = false);
 
     /** Setup motion warp for air-based attacks (launcher, air combos, aerial slams)
     *

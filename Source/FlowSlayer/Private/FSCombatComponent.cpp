@@ -2,8 +2,7 @@
 
 UFSCombatComponent::UFSCombatComponent()
 {
-    PrimaryComponentTick.bCanEverTick = true;
-    PrimaryComponentTick.bStartWithTickEnabled = false;
+    PrimaryComponentTick.bCanEverTick = false;
 }
 
 void UFSCombatComponent::BeginPlay()
@@ -35,11 +34,10 @@ void UFSCombatComponent::BeginPlay()
 
     // Initialize combo lookup table for fast attack selection
     InitializeComboLookupTable();
-}
 
-void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
-{
-    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+    // Cache MotionWarpingComponent reference
+    MotionWarpingComponent = PlayerOwner->FindComponentByClass<UMotionWarpingComponent>();
+    checkf(MotionWarpingComponent, TEXT("FATAL: MotionWarpingComponent not found on player!"));
 }
 
 bool UFSCombatComponent::InitializeAndAttachWeapon()
@@ -793,21 +791,22 @@ void UFSCombatComponent::HandleAirStallFinished(float gravityScale)
     PlayerOwner->GetCharacterMovement()->GravityScale = gravityScale;
 }
 
+AActor* UFSCombatComponent::GetTargetForMotionWarp(float searchRadius, bool debugLines)
+{
+    if (LockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), LockedOnTarget->GetActorLocation()) <= (searchRadius * searchRadius)))
+        return LockedOnTarget;
+
+    return GetNearestEnemyFromPlayer(searchRadius, debugLines);
+}
+
 void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float zOffset, float forwardOffset)
 {
-    AActor* nearestEnemy{ nullptr };
-    if (LockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), LockedOnTarget->GetActorLocation()) <= (searchRadius * searchRadius)))
-        nearestEnemy = LockedOnTarget;
-    else
-        nearestEnemy = GetNearestEnemyFromPlayer(searchRadius, debugLines);
-
-    UMotionWarpingComponent* MotionWarpingComp{ PlayerOwner->FindComponentByClass<UMotionWarpingComponent>() };
-
-    if (!MotionWarpingComp || !nearestEnemy)
+    AActor* nearestEnemy{ GetTargetForMotionWarp(searchRadius, debugLines) };
+    if (!MotionWarpingComponent || !nearestEnemy)
         return;
 
     TWeakObjectPtr<AActor> weakEnemy{ nearestEnemy };
-    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MotionWarpingComp };
+    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MotionWarpingComponent };
 
     FTimerHandle flyingStartTimer;
     GetWorld()->GetTimerManager().SetTimer(
@@ -858,14 +857,8 @@ void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName,
 
 void UFSCombatComponent::SetupGroundAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float forwardOffset)
 {
-    AActor* nearestEnemy{ nullptr };
-    if (LockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), LockedOnTarget->GetActorLocation()) <= (searchRadius * searchRadius)))
-        nearestEnemy = LockedOnTarget;
-    else
-        nearestEnemy = GetNearestEnemyFromPlayer(searchRadius, debugLines);
-
-    UMotionWarpingComponent* MotionWarpingComp{ PlayerOwner->FindComponentByClass<UMotionWarpingComponent>() };
-    if (!MotionWarpingComp || !nearestEnemy)
+    AActor* nearestEnemy{ GetTargetForMotionWarp(searchRadius, debugLines) };
+    if (!MotionWarpingComponent || !nearestEnemy)
         return;
 
     FVector targetLocation{ nearestEnemy->GetActorLocation() };
@@ -882,12 +875,18 @@ void UFSCombatComponent::SetupGroundAttackMotionWarp(FName motionWarpingTargetNa
     target.Location = targetLocation;
     target.Rotation = lookAtRotation;
 
-    MotionWarpingComp->AddOrUpdateWarpTarget(target);
+    MotionWarpingComponent->AddOrUpdateWarpTarget(target);
+
+    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MotionWarpingComponent };
 
     FTimerHandle notifyStartTimer;
     GetWorld()->GetTimerManager().SetTimer(
         notifyStartTimer,
-        [MotionWarpingComp, target]() { MotionWarpingComp->AddOrUpdateWarpTarget(target); },
+        [weakMotionWarp, target]()
+        {
+            if (weakMotionWarp.IsValid())
+                weakMotionWarp->AddOrUpdateWarpTarget(target);
+        },
         notifyStartTime,
         false
     );
@@ -895,7 +894,11 @@ void UFSCombatComponent::SetupGroundAttackMotionWarp(FName motionWarpingTargetNa
     FTimerHandle notifyEndTimer;
     GetWorld()->GetTimerManager().SetTimer(
         notifyEndTimer,
-        [this, MotionWarpingComp]() { MotionWarpingComp->RemoveAllWarpTargets(); },
+        [weakMotionWarp]()
+        {
+            if (weakMotionWarp.IsValid())
+                weakMotionWarp->RemoveAllWarpTargets();
+        },
         notifyEndTime,
         false
     );
@@ -1229,14 +1232,19 @@ void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
         enemyMesh->SetMaterial(i, HitFlashMaterial);
     }
 
+    TWeakObjectPtr<USkeletalMeshComponent> weakEnemyMesh{ enemyMesh };
+
     FTimerHandle flashTimerHandle;
     GetWorld()->GetTimerManager().SetTimer(
         flashTimerHandle,
-        [enemyMesh, ogMats]()
+        [weakEnemyMesh, ogMats]()
         {
-            for (int32 i{}; i < enemyMesh->GetNumMaterials(); i++)
+            if (!weakEnemyMesh.IsValid())
+                return;
+
+            for (int32 i{}; i < weakEnemyMesh->GetNumMaterials(); i++)
                 if (ogMats.IsValidIndex(i))
-                    enemyMesh->SetMaterial(i, ogMats[i]);
+                    weakEnemyMesh->SetMaterial(i, ogMats[i]);
         },
         hitFlashDuration,
         false
