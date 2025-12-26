@@ -10,6 +10,9 @@
 #include "FSCombatComponent.h"
 #include "FSLockOnComponent.generated.h"
 
+/** Delegate when lock-on is engaged */
+DECLARE_DELEGATE_OneParam(FOnLockOnStarted, AActor* lockedOnTarget);
+
 /** Delegate when lock-on is stopped */
 DECLARE_MULTICAST_DELEGATE(FOnLockOnStopped);
 
@@ -24,6 +27,9 @@ class FLOWSLAYER_API UFSLockOnComponent : public UActorComponent
 
 public:
 	UFSLockOnComponent();
+
+	/** Broadcasted when lock-on starts and have a valid target */
+	FOnLockOnStarted OnLockOnStarted;
 
 	/** Broadcasted when the lock-on is stopped or interrupted by distance or target's death */
 	FOnLockOnStopped OnLockOnStopped;

@@ -251,6 +251,14 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::PierceThrust,
             EAttackType::SpinAttack
         };
+        DashPierceAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
+            { 
+                const FName warpTargetName{ "DashIn" };
+                constexpr float notifyStart{ 0.09f };
+                constexpr float notifyEnd{ 0.52f };
+                constexpr float searchRadius{ 600.f };
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+            });
     }
 
     // === DASH SPINNING SLASH ===
@@ -269,6 +277,14 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::PowerSlash,
             EAttackType::Launcher
         };
+        DashSpinningSlashAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+            {
+                const FName warpTargetName{ "DashIn" };
+                constexpr float notifyStart{ 0.16f };
+                constexpr float notifyEnd{ 0.51f };
+                constexpr float searchRadius{ 600.f };
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+            });
     }
 
     // === DASH DOUBLE SLASH ===
@@ -361,9 +377,22 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::AirCombo,
             EAttackType::AerialSlam
         };
-        LauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() { 
-            SetupGroundAttackMotionWarp(0.1f, 0.35f, 0.f, 400.f, "DashIn");
-            SetupAirAttackMotionWarp(0.40f, 0.82f, 150.f, 0.f, 400.f); });
+        LauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
+            { 
+            const FName warpTargetName{ "DashIn" };
+            constexpr float notifyStart{ 0.1f };
+            constexpr float notifyEnd{ 0.35f };
+            constexpr float searchRadius{ 400.f };
+            SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+
+
+            const FName airWarpTargetName{ "AttackTarget" };
+            constexpr float airNotifyStart{ 0.4f };
+            constexpr float airNotifyEnd{ 0.82f };
+            constexpr float airSearchRadius{ 400.f };
+            constexpr float zOffset{ 150.f };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius, false, zOffset); 
+            });
         LauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
     }
 
@@ -378,9 +407,21 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::AirCombo,
             EAttackType::AerialSlam
         };
-        PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() { 
-            SetupGroundAttackMotionWarp(0.3f, 0.42f, 0.f, 400.f, "DashIn");
-            SetupAirAttackMotionWarp(0.47f, 0.86f, 250.f, 0.f, 400.f); });
+        PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
+            { 
+            const FName warpTargetName{ "DashIn" };
+            constexpr float notifyStart{ 0.3f };
+            constexpr float notifyEnd{ 0.42f };
+            constexpr float searchRadius{ 400.f };
+            SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+
+            const FName airWarpTargetName{ "AttackTarget" };
+            constexpr float airNotifyStart{ 0.47f };
+            constexpr float airNotifyEnd{ 0.86f };
+            constexpr float airSearchRadius{ 400.f };
+            constexpr float zOffset{ 250.f };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius, false, zOffset);
+            });
         PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
     }
 
@@ -414,6 +455,14 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::PowerSlash
         };
+        HorizontalSweepAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+            {
+                const FName warpTargetName{ "Rotate" };
+                constexpr float notifyStart{ 0.f };
+                constexpr float notifyEnd{ 0.24f };
+                constexpr float searchRadius{ 300.f };
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+            });
     }
 
     // === PIERCE THRUST ===
@@ -430,6 +479,14 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::SpinAttack
         };
+        PierceThrustAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+            {
+                const FName warpTargetName{ "Rotate" };
+                constexpr float notifyStart{ 0.f };
+                constexpr float notifyEnd{ 0.36f };
+                constexpr float searchRadius{ 300.f };
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+            });
     }
 
     // === POWER SLASH ===
@@ -461,6 +518,14 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::HorizontalSweep,
             EAttackType::JumpSlam
         };
+        DiagonalRetourneAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+            {
+                const FName warpTargetName{ "Rotate" };
+                constexpr float notifyStart{ 0.f };
+                constexpr float notifyEnd{ 0.62f };
+                constexpr float searchRadius{ 300.f };
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+            });
     }
 
     // === GROUND SLAM ===
@@ -475,6 +540,14 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::PowerSlash
         };
+        GroundSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+            {
+                const FName warpTargetName{ "Rotate" };
+                constexpr float notifyStart{ 0.f };
+                constexpr float notifyEnd{ 0.37f };
+                constexpr float searchRadius{ 250.f };
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+            });
     }
 
     // === AIR COMBO (3 attacks) ===
@@ -484,14 +557,28 @@ void UFSCombatComponent::InitializeComboAttackData()
         AirCombo.Attacks[0].Damage = 50.f;
         AirCombo.Attacks[0].KnockbackForce = 80.f;
         AirCombo.Attacks[0].AttackType = EAttackType::AirCombo;
-        AirCombo.Attacks[0].OnAttackExecuted.BindLambda([this]() { SetupAirAttackMotionWarp(0.15f, 0.34f, 0.f, 0.f, 250.f);});
+        AirCombo.Attacks[0].OnAttackExecuted.BindLambda([this]() 
+            { 
+                const FName airWarpTargetName{ "AttackTarget" };
+                constexpr float airNotifyStart{ 0.15f };
+                constexpr float airNotifyEnd{ 0.34f };
+                constexpr float airSearchRadius{ 250.f };
+                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            });
         AirCombo.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
         // Attack 2
         AirCombo.Attacks[1].Damage = 55.f;
         AirCombo.Attacks[1].KnockbackForce = 100.f;
         AirCombo.Attacks[1].AttackType = EAttackType::AirCombo;
-        AirCombo.Attacks[1].OnAttackExecuted.BindLambda([this]() { SetupAirAttackMotionWarp(0.33f, 0.52f, 0.f, 0.f, 250.f);});
+        AirCombo.Attacks[1].OnAttackExecuted.BindLambda([this]() 
+            { 
+                const FName airWarpTargetName{ "AttackTarget" };
+                constexpr float airNotifyStart{ 0.33f };
+                constexpr float airNotifyEnd{ 0.52f };
+                constexpr float airSearchRadius{ 250.f };
+                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            });
         AirCombo.Attacks[1].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
         // Attack 3 (final) - Only this one has ChainableAttacks
@@ -499,7 +586,14 @@ void UFSCombatComponent::InitializeComboAttackData()
         AirCombo.Attacks[2].KnockbackForce = 120.f;
         AirCombo.Attacks[2].AttackType = EAttackType::AirCombo;
         AirCombo.Attacks[2].ChainableAttacks = { EAttackType::AerialSlam };
-        AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]() { SetupAirAttackMotionWarp(0.14f, 0.28f, 0.f, 0.f, 250.f);});
+        AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]() 
+            { 
+                const FName airWarpTargetName{ "AttackTarget" };
+                constexpr float airNotifyStart{ 0.14f };
+                constexpr float airNotifyEnd{ 0.28f };
+                constexpr float airSearchRadius{ 250.f };
+                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            });
         AirCombo.Attacks[2].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
     }
 
@@ -508,7 +602,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         AerialSlamAttack.Attacks[0].Damage = 110.f;
         AerialSlamAttack.Attacks[0].KnockbackForce = 500.f;
-        AerialSlamAttack.Attacks[0].KnockbackUpForce = 200.f;
+        AerialSlamAttack.Attacks[0].KnockbackUpForce = -1500.f;
         AerialSlamAttack.Attacks[0].AttackType = EAttackType::AerialSlam;
         AerialSlamAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -518,6 +612,14 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::GroundSlam,
             EAttackType::SpinAttack
         };
+        AerialSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+            {
+                const FName airWarpTargetName{ "AttackTarget" };
+                constexpr float airNotifyStart{ 0.12f };
+                constexpr float airNotifyEnd{ 0.51f };
+                constexpr float airSearchRadius{ 250.f };
+                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            });
     }
 }
 
@@ -691,9 +793,9 @@ void UFSCombatComponent::HandleAirStallFinished(float gravityScale)
     PlayerOwner->GetCharacterMovement()->GravityScale = gravityScale;
 }
 
-void UFSCombatComponent::SetupAirAttackMotionWarp(float notifyStartTime, float notifyEndTime, float zOffset, float forwardOffset, float searchRadius, FName motionWarpingTargetName)
+void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float zOffset, float forwardOffset)
 {
-    AActor* nearestEnemy{ GetNearestEnemyFromPlayer(searchRadius) };
+    AActor* nearestEnemy{ GetNearestEnemyFromPlayer(searchRadius, debugLines) };
     UMotionWarpingComponent* MotionWarpingComp{ PlayerOwner->FindComponentByClass<UMotionWarpingComponent>() };
 
     if (!MotionWarpingComp || !nearestEnemy)
@@ -749,9 +851,13 @@ void UFSCombatComponent::SetupAirAttackMotionWarp(float notifyStartTime, float n
     );
 }
 
-void UFSCombatComponent::SetupGroundAttackMotionWarp(float notifyStartTime, float notifyEndTime, float forwardOffset, float searchRadius, FName motionWarpingTargetName)
+void UFSCombatComponent::SetupGroundAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float forwardOffset)
 {
-    AActor* nearestEnemy{ GetNearestEnemyFromPlayer(searchRadius) };
+    const AActor* nearestEnemy{ nullptr };
+    if (LockedOnTarget)
+        nearestEnemy = LockedOnTarget;
+    else
+        nearestEnemy = GetNearestEnemyFromPlayer(searchRadius, debugLines);
 
     UMotionWarpingComponent* MotionWarpingComp{ PlayerOwner->FindComponentByClass<UMotionWarpingComponent>() };
     if (!MotionWarpingComp || !nearestEnemy)
@@ -784,10 +890,7 @@ void UFSCombatComponent::SetupGroundAttackMotionWarp(float notifyStartTime, floa
     FTimerHandle notifyEndTimer;
     GetWorld()->GetTimerManager().SetTimer(
         notifyEndTimer,
-        [this, MotionWarpingComp]()
-        {
-            MotionWarpingComp->RemoveAllWarpTargets();
-        },
+        [this, MotionWarpingComp]() { MotionWarpingComp->RemoveAllWarpTargets(); },
         notifyEndTime,
         false
     );
@@ -996,9 +1099,9 @@ void UFSCombatComponent::OnAirAttackHit(AActor* hitEnemy)
 ////////////////////////////////////////////////
 void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocation)
 {
-    if (!hitActor)
+    if (!hitActor || Cast<IFSDamageable>(hitActor)->IsDead())
         return;
-
+    
     // NOTE: ComboIndex has already been incremented at this point, 
     // so the actual ComboIndex to this attack that hit the enemy here is : ComboIndex - 1
     const FAttackData* currentAttack{ OngoingCombo->GetAttackAt(ComboIndex - 1) };

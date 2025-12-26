@@ -175,6 +175,8 @@ bool UFSLockOnComponent::EngageLockOn()
 		true
 	);
 
+	OnLockOnStarted.Execute(CurrentLockedOnTarget);
+
 	return true;
 }
 
@@ -282,6 +284,9 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 		targetSwitchDelay,
 		false
 	);
+
+	UFSCombatComponent* CombatComp{ PlayerOwner->FindComponentByClass<UFSCombatComponent>() };
+	CombatComp->SetLockedOnTargetRef(CurrentLockedOnTarget);
 
 	return true;
 }
