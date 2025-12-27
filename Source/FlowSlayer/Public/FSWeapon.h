@@ -33,9 +33,17 @@ public:
 
     AFSWeapon();
 
+    /** Activate the weapon hitbox and enable collision detection
+    * Called via AnimNotify during attack animations
+    * Enables tick, initializes sweep starting position, and activates sword trail VFX
+    */
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ActivateHitbox();
 
+    /** Deactivate the weapon hitbox and disable collision detection
+    * Called via AnimNotify at the end of attack animations
+    * Disables tick, clears hit actors list, and deactivates sword trail VFX
+    */
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void DeactivateHitbox();
 
@@ -50,32 +58,52 @@ protected:
 
     virtual void BeginPlay() override;
 
+    /** Root component for the weapon actor */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    USceneComponent* rootComp;
+    USceneComponent* RootComp;
 
+    /** Weapon mesh component */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    UStaticMeshComponent* weaponMesh;
+    UStaticMeshComponent* WeaponMesh;
 
+    /** Box collision component for damage detection
+    * Only active during attack animations when hitbox is enabled
+    */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    UBoxComponent* hitbox;
+    UBoxComponent* Hitbox;
 
+    /** Sword trail VFX component
+    * Activated/deactivated when hitbox is enabled/disabled
+    */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UNiagaraComponent* SwordTrailComponent{ nullptr };
 
-    /** Sword trail VFX */
+    /** Sword trail VFX system asset */
     UPROPERTY(EditDefaultsOnly, Category = "VFX")
     UNiagaraSystem* SwordTrailSystem;
 
 private:
 
-    // Track actors hit during current attack (reset on deactivate)
-    TSet<AActor*> actorsHitThisAttack;
+    /** Track actors hit during current attack to prevent multiple hits
+    * Cleared when hitbox is deactivated (end of attack)
+    */
+    TSet<AActor*> ActorsHitThisAttack;
 
-    // Continuous collision detection
+    /** Is the hitbox currently active for damage detection? */
     bool bHitboxActive{ false };
-    FVector previousHitboxLocation{ FVector::ZeroVector };
+
+    /** Previous hitbox location for continuous sweep collision detection */
+    FVector PreviousHitboxLocation{ FVector::ZeroVector };
+
+    /** Default hitbox extents (X, Y, Z) */
     const FVector DEFAULT_HITBOX_TRANSFORM{ 50.0f, 20.0f, 80.0f };
 
-    void initializeComponents();
+    /** Initialize all weapon components in constructor */
+    void InitializeComponents();
+
+    /** Perform continuous sweep collision detection between frames
+    * Called every tick when hitbox is active
+    * Sweeps from PreviousHitboxLocation to current location to detect fast-moving hits
+    */
     void UpdateDamageHitbox();
 };
