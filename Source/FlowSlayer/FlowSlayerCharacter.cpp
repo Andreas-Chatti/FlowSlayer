@@ -76,6 +76,18 @@ void AFlowSlayerCharacter::BeginPlay()
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
 	Tags.Add("Player");
+
+	InitializeHUD();
+}
+
+void AFlowSlayerCharacter::InitializeHUD()
+{
+	if (!HUDWidgetClass || !PlayerController)
+		return;
+
+	HUDWidgetInstance = CreateWidget<UUserWidget>(PlayerController, HUDWidgetClass);
+	if (HUDWidgetInstance)
+		HUDWidgetInstance->AddToViewport();
 }
 
 void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
