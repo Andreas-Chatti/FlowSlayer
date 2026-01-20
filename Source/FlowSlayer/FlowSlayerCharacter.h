@@ -18,6 +18,7 @@
 #include "Public/FSDamageable.h"
 #include "Public/FSCombatComponent.h"
 #include "Public/FSLockOnComponent.h"
+#include "Components/WidgetComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
 class USpringArmComponent;
@@ -151,6 +152,14 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
 	UAnimMontage* BwdDashAnim{ nullptr };
 
+	/** Main HUD widget class */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
+	TSubclassOf<UUserWidget> HUDWidgetClass;
+
+	/** Instance du HUD widget */
+	UPROPERTY()
+	UUserWidget* HUDWidgetInstance{ nullptr };
+
 public:
 
 	AFlowSlayerCharacter();
@@ -164,6 +173,7 @@ public:
 
 	virtual bool CanJumpInternal_Implementation() const override;
 
+	UFUNCTION(BlueprintCallable)
 	virtual float GetCurrentHealth() const override { return CurrentHealth; }
 
 	virtual float GetMaxHealth() const override { return MaxHealth; }
@@ -375,5 +385,9 @@ private:
 	* @param attackType The type of attack to trigger after buffer delay
 	*/
 	void TriggerAttackWithBuffer(EAttackType attackType);
+
+
+	/** Initialize Player HUD on BeginPlay */
+	void InitializeHUD();
 };
 
