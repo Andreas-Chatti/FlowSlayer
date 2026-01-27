@@ -13,6 +13,8 @@ void AAFSSpawnZone::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// ProbÃ¨me : Le timer de cette mÃ©thode reste toujours fixe tant qu'on ne dÃ©sactive pas le timer pour en remettre un autre
+	// Solution : A la fin de SpawnEnemy, dÃ©sactiver le timer et le relancer directement avec le nouveau SpawnCooldown
 	GetWorld()->GetTimerManager().SetTimer(
 		SpawnTimerHandle,
 		this,
@@ -27,9 +29,11 @@ void AAFSSpawnZone::SpawnEnemy()
 	FTransform enemyPosition{ GetRandomTransform() };
 	FActorSpawnParameters spawnParams;
 
-	AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy_Grunt>(AFSEnemy_Grunt::StaticClass(), enemyPosition, spawnParams) };
+	// TODO : Faire une sÃ©lection alÃ©atoire du pool d'ennemis dans l'array membre de AFSSpawnZone
+	// ProblÃ¨me : Chaque ennemi ici ne semble pas avoir de AIController qui marche. L'ennemi spawn mais est inactif.
+	AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy_Grunt>(EnemyToSpawn, enemyPosition, spawnParams) };
 
-	SetNewRandomSpawnCooldown();
+	SpawnCooldown = FMath::RandRange(MIN_COOLDOWN, MAX_COOLDOWN);
 }
 
 FTransform AAFSSpawnZone::GetRandomTransform() const
@@ -37,26 +41,34 @@ FTransform AAFSSpawnZone::GetRandomTransform() const
 	if (!SpawnZoneComponent)
 		return FTransform();
 
-	// Récupérer les dimensions de la box
-	FVector boxExtent = SpawnZoneComponent->GetScaledBoxExtent();
-	FVector boxOrigin = SpawnZoneComponent->GetComponentLocation();
+	FVector boxExtent{ SpawnZoneComponent->GetScaledBoxExtent() };
+	FVector boxOrigin{ SpawnZoneComponent->GetComponentLocation() };
 
-	// Générer position aléatoire dans la box
-	float randomX = FMath::FRandRange(-boxExtent.X, boxExtent.X);
-	float randomY = FMath::FRandRange(-boxExtent.Y, boxExtent.Y);
-	float randomZ = FMath::FRandRange(-boxExtent.Z, boxExtent.Z);
+	// Position alÃ©atoire en X/Y seulement
+	double randomX{ FMath::FRandRange(-boxExtent.X, boxExtent.X) };
+	double randomY{ FMath::FRandRange(-boxExtent.Y, boxExtent.Y) };
 
-	FVector randomLocalPosition{ randomX, randomY, randomZ };
-	FVector randomWorldPosition = boxOrigin + randomLocalPosition;
+	FVector randomWorldPosition{ boxOrigin.X + randomX, boxOrigin.Y + randomY, boxOrigin.Z + boxExtent.Z };
+
+	// Line trace vers le bas pour trouver le sol
+	FHitResult hitResult;
+	FVector traceStart{ randomWorldPosition };
+	// C'est quoi 100.f ?
+	// C'est quoi boxOrigin.Z - boxExtend.Z ?
+	FVector traceEnd{ randomWorldPosition.X, randomWorldPosition.Y, boxOrigin.Z - boxExtent.Z - 100.f };
+
+	FCollisionQueryParams queryParams;
+	queryParams.bTraceComplex = false;
+
+	if (GetWorld()->LineTraceSingleByChannel(hitResult, traceStart, traceEnd, ECC_WorldStatic, queryParams))
+	{
+		randomWorldPosition.Z = hitResult.ImpactPoint.Z;
+		DrawDebugSphere(GetWorld(), hitResult.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+	}
+
+	DrawDebugLine(GetWorld(), traceStart, traceEnd, FColor::Green, false, 2.0f);
 
 	return FTransform(randomWorldPosition);
-}
-
-void AAFSSpawnZone::SetNewRandomSpawnCooldown()
-{
-	float newRandCooldown{ FMath::RandRange(MIN_COOLDOWN, MAX_COOLDOWN) };
-
-	SpawnCooldown = std::move(newRandCooldown);
 }
 
 void AAFSSpawnZone::Tick(float DeltaTime)
