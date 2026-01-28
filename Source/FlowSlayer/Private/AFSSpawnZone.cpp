@@ -13,8 +13,6 @@ void AAFSSpawnZone::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Probème : Le timer de cette méthode reste toujours fixe tant qu'on ne désactive pas le timer pour en remettre un autre
-	// Solution : A la fin de SpawnEnemy, désactiver le timer et le relancer directement avec le nouveau SpawnCooldown
 	GetWorld()->GetTimerManager().SetTimer(
 		SpawnTimerHandle,
 		this,
@@ -29,11 +27,27 @@ void AAFSSpawnZone::SpawnEnemy()
 	FTransform enemyPosition{ GetRandomTransform() };
 	FActorSpawnParameters spawnParams;
 
-	// TODO : Faire une sélection aléatoire du pool d'ennemis dans l'array membre de AFSSpawnZone
-	// Problème : Chaque ennemi ici ne semble pas avoir de AIController qui marche. L'ennemi spawn mais est inactif.
-	AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy_Grunt>(EnemyToSpawn, enemyPosition, spawnParams) };
+	int32 randIndex{ FMath::RandRange(0, EnemyPoolSpawn.Num() - 1) };
+
+	if (EnemyPoolSpawn.IsValidIndex(randIndex))
+	{
+		AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition, spawnParams) };
+
+		if (spawnedEnemy)
+			spawnedEnemy->SpawnDefaultController();
+	}
 
 	SpawnCooldown = FMath::RandRange(MIN_COOLDOWN, MAX_COOLDOWN);
+
+	GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
+
+	GetWorld()->GetTimerManager().SetTimer(
+		SpawnTimerHandle,
+		this,
+		&AAFSSpawnZone::SpawnEnemy,
+		SpawnCooldown,
+		bIsSpawnEnabled
+	);
 }
 
 FTransform AAFSSpawnZone::GetRandomTransform() const

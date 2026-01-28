@@ -3,6 +3,7 @@
 #include "GameFramework/Actor.h"
 #include "FSEnemy_Grunt.h"
 #include "FSEnemy_Runner.h"
+#include "FSEnemyAIController.h"
 #include <Components/BoxComponent.h>
 #include "AFSSpawnZone.generated.h"
 
@@ -33,7 +34,7 @@ private:
 
 	// TODO : Faire un pool  d'ennemis à spawn (TArray de AFSEnemy)
 	UPROPERTY(EditDefaultsOnly, Category = "SpawnSettings")
-	TSubclassOf<AFSEnemy_Grunt> EnemyToSpawn;
+	TArray<TSubclassOf<AFSEnemy>> EnemyPoolSpawn;
 
 	bool bIsSpawnEnabled{ true };
 
@@ -41,10 +42,7 @@ private:
 
 	FTransform GetRandomTransform() const;
 
-	// TODO : Ajuster les cooldown
-	// Problème : Le cooldown semble toujours être très court et jamais à plus de 10 secondes alors que
-	// MAX_COOLDOWN est à 120.f
 	static constexpr float MIN_COOLDOWN{ 3.f };
 
-	static constexpr float MAX_COOLDOWN{ 120.f };
+	static constexpr float MAX_COOLDOWN{ 6.f };
 };

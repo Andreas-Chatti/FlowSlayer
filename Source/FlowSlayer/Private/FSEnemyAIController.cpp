@@ -9,11 +9,16 @@ void AFSEnemyAIController::BeginPlay()
 {
     Super::BeginPlay();
 
-    OwnedEnemyPawn = Cast<AFSEnemy>(GetPawn());
-
     UPathFollowingComponent* PathFollowingComp{ GetPathFollowingComponent() };
     if (PathFollowingComp)
         PathFollowingComp->OnRequestFinished.AddUObject(this, &AFSEnemyAIController::OnMoveToTargetCompleted);
+}
+
+void AFSEnemyAIController::OnPossess(APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+
+    OwnedEnemyPawn = Cast<AFSEnemy>(InPawn);
 }
 
 void AFSEnemyAIController::OnMoveToTargetCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
@@ -46,7 +51,11 @@ void AFSEnemyAIController::FollowPlayer()
 
     EPathFollowingStatus::Type Status{ GetMoveStatus() };
     if (Status == EPathFollowingStatus::Idle)
-        MoveToActor(PlayerPawn, OwnedEnemyPawn->GetAttackRange());
+    {
+        FAIMoveRequest MoveRequest{ PlayerPawn };
+        MoveRequest.SetAcceptanceRadius(OwnedEnemyPawn->GetAttackRange());
+        MoveTo(MoveRequest);
+    }
 }
 
 void AFSEnemyAIController::RotateToPlayer()
