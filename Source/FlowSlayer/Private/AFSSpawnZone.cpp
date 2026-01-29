@@ -2,7 +2,7 @@
 
 AAFSSpawnZone::AAFSSpawnZone()
 {
-	PrimaryActorTick.bCanEverTick = true;
+	PrimaryActorTick.bCanEverTick = false;
 
 	SpawnZoneComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("SpawnZoneComp"));
 	SpawnZoneComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
@@ -12,6 +12,9 @@ AAFSSpawnZone::AAFSSpawnZone()
 void AAFSSpawnZone::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (bDebugLines)
+		SpawnZoneComponent->bHiddenInGame = false;
 
 	GetWorld()->GetTimerManager().SetTimer(
 		SpawnTimerHandle,
@@ -24,14 +27,19 @@ void AAFSSpawnZone::BeginPlay()
 
 void AAFSSpawnZone::SpawnEnemy()
 {
-	FTransform enemyPosition{ GetRandomTransform() };
-	FActorSpawnParameters spawnParams;
+	TOptional<FTransform> enemyPosition{ GetRandomTransform() };
+	if (!enemyPosition.IsSet())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] Enemy spawn failed."));
+		return;
+	}
 
 	int32 randIndex{ FMath::RandRange(0, EnemyPoolSpawn.Num() - 1) };
 
 	if (EnemyPoolSpawn.IsValidIndex(randIndex))
 	{
-		AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition, spawnParams) };
+		FActorSpawnParameters spawnParams;
+		AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), spawnParams) };
 
 		if (spawnedEnemy)
 			spawnedEnemy->SpawnDefaultController();
@@ -50,42 +58,45 @@ void AAFSSpawnZone::SpawnEnemy()
 	);
 }
 
-FTransform AAFSSpawnZone::GetRandomTransform() const
+TOptional<FTransform> AAFSSpawnZone::GetRandomTransform() const
 {
 	if (!SpawnZoneComponent)
-		return FTransform();
+	{
+		UE_LOG(LogTemp, Error, TEXT("[AFSSpawnZone] SpawnZoneComponent is NULL"));
+		return NullOpt;
+	}
 
 	FVector boxExtent{ SpawnZoneComponent->GetScaledBoxExtent() };
 	FVector boxOrigin{ SpawnZoneComponent->GetComponentLocation() };
 
-	// Position aléatoire en X/Y seulement
 	double randomX{ FMath::FRandRange(-boxExtent.X, boxExtent.X) };
 	double randomY{ FMath::FRandRange(-boxExtent.Y, boxExtent.Y) };
 
 	FVector randomWorldPosition{ boxOrigin.X + randomX, boxOrigin.Y + randomY, boxOrigin.Z + boxExtent.Z };
 
-	// Line trace vers le bas pour trouver le sol
 	FHitResult hitResult;
 	FVector traceStart{ randomWorldPosition };
-	// C'est quoi 100.f ?
-	// C'est quoi boxOrigin.Z - boxExtend.Z ?
-	FVector traceEnd{ randomWorldPosition.X, randomWorldPosition.Y, boxOrigin.Z - boxExtent.Z - 100.f };
+
+	constexpr double groundTraceMargin{ 100.0 };
+	double targetZ{ boxOrigin.Z - boxExtent.Z - groundTraceMargin };
+	FVector traceEnd{ randomWorldPosition.X, randomWorldPosition.Y, targetZ };
 
 	FCollisionQueryParams queryParams;
 	queryParams.bTraceComplex = false;
 
-	if (GetWorld()->LineTraceSingleByChannel(hitResult, traceStart, traceEnd, ECC_WorldStatic, queryParams))
+	if (!GetWorld()->LineTraceSingleByChannel(hitResult, traceStart, traceEnd, ECC_WorldStatic, queryParams))
 	{
-		randomWorldPosition.Z = hitResult.ImpactPoint.Z;
-		DrawDebugSphere(GetWorld(), hitResult.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+		UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] No ground detected"));
+		return NullOpt;
 	}
 
-	DrawDebugLine(GetWorld(), traceStart, traceEnd, FColor::Green, false, 2.0f);
+	randomWorldPosition.Z = hitResult.ImpactPoint.Z;
+
+	if (bDebugLines)
+	{
+		DrawDebugSphere(GetWorld(), hitResult.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+		DrawDebugLine(GetWorld(), traceStart, traceEnd, FColor::Green, false, 2.0f);
+	}
 
 	return FTransform(randomWorldPosition);
-}
-
-void AAFSSpawnZone::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
 }
