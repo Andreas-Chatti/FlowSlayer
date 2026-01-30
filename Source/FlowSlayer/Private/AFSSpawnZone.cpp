@@ -16,6 +16,8 @@ void AAFSSpawnZone::BeginPlay()
 	if (bDebugLines)
 		SpawnZoneComponent->bHiddenInGame = false;
 
+	playerRef = GetWorld()->GetFirstPlayerController()->GetCharacter();
+
 	GetWorld()->GetTimerManager().SetTimer(
 		SpawnTimerHandle,
 		this,
@@ -58,7 +60,7 @@ void AAFSSpawnZone::SpawnEnemy()
 	);
 }
 
-TOptional<FTransform> AAFSSpawnZone::GetRandomTransform() const
+TOptional<FTransform> AAFSSpawnZone::GetRandomTransform()
 {
 	if (!SpawnZoneComponent)
 	{
@@ -69,34 +71,54 @@ TOptional<FTransform> AAFSSpawnZone::GetRandomTransform() const
 	FVector boxExtent{ SpawnZoneComponent->GetScaledBoxExtent() };
 	FVector boxOrigin{ SpawnZoneComponent->GetComponentLocation() };
 
-	double randomX{ FMath::FRandRange(-boxExtent.X, boxExtent.X) };
-	double randomY{ FMath::FRandRange(-boxExtent.Y, boxExtent.Y) };
-
-	FVector randomWorldPosition{ boxOrigin.X + randomX, boxOrigin.Y + randomY, boxOrigin.Z + boxExtent.Z };
-
-	FHitResult hitResult;
-	FVector traceStart{ randomWorldPosition };
-
-	constexpr double groundTraceMargin{ 100.0 };
-	double targetZ{ boxOrigin.Z - boxExtent.Z - groundTraceMargin };
-	FVector traceEnd{ randomWorldPosition.X, randomWorldPosition.Y, targetZ };
-
-	FCollisionQueryParams queryParams;
-	queryParams.bTraceComplex = false;
-
-	if (!GetWorld()->LineTraceSingleByChannel(hitResult, traceStart, traceEnd, ECC_WorldStatic, queryParams))
+	constexpr int32 maxTries{ 5 };
+	int32 tryCount{ 0 };
+	while (tryCount < maxTries)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] No ground detected"));
-		return NullOpt;
+		tryCount++;
+
+		double randomX{ FMath::FRandRange(-boxExtent.X, boxExtent.X) };
+		double randomY{ FMath::FRandRange(-boxExtent.Y, boxExtent.Y) };
+
+		FVector randomWorldPosition{ boxOrigin.X + randomX, boxOrigin.Y + randomY, boxOrigin.Z + boxExtent.Z };
+
+		FHitResult hitResult;
+		FVector traceStart{ randomWorldPosition };
+
+		constexpr double groundTraceMargin{ 100.0 };
+		double targetZ{ boxOrigin.Z - boxExtent.Z - groundTraceMargin };
+		FVector traceEnd{ randomWorldPosition.X, randomWorldPosition.Y, targetZ };
+
+		FCollisionQueryParams queryParams;
+		queryParams.bTraceComplex = false;
+
+		if (!GetWorld()->LineTraceSingleByChannel(hitResult, traceStart, traceEnd, ECC_WorldStatic, queryParams))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] No ground detected"));
+			continue;
+		}
+
+		randomWorldPosition.Z = hitResult.ImpactPoint.Z;
+
+		if (bDebugLines)
+		{
+			DrawDebugSphere(GetWorld(), hitResult.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+			DrawDebugLine(GetWorld(), traceStart, traceEnd, FColor::Green, false, 2.0f);
+		}
+
+		if (!playerRef)
+			playerRef = GetWorld()->GetFirstPlayerController()->GetCharacter();
+
+		if (playerRef)
+		{
+			FVector playerLoc{ playerRef->GetActorLocation() };
+			double distSquared{ FVector::DistSquared(playerLoc, randomWorldPosition) };
+			if (distSquared < FMath::Square(MIN_SPAWN_DIST))
+				continue;
+		}
+
+		return FTransform{ randomWorldPosition };
 	}
 
-	randomWorldPosition.Z = hitResult.ImpactPoint.Z;
-
-	if (bDebugLines)
-	{
-		DrawDebugSphere(GetWorld(), hitResult.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
-		DrawDebugLine(GetWorld(), traceStart, traceEnd, FColor::Green, false, 2.0f);
-	}
-
-	return FTransform(randomWorldPosition);
+	return NullOpt;
 }
