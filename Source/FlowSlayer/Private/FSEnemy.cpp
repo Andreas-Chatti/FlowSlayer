@@ -121,6 +121,8 @@ void AFSEnemy::Die()
     // TODO: Award XP to player
     // TODO: Spawn loot/pickups
 
+    OnEnemyDeath.Broadcast(this);
+
     SetLifeSpan(destroyDelay);
 }
 

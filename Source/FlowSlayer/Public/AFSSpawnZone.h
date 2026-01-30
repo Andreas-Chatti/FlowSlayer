@@ -38,18 +38,18 @@ private:
 	/** Initial spawn cooldown when the game starts 
 	* Will be reassigned randomly between MIN_COOLDOWN and MAX_COOLDOWN on each spawn
 	*/
-	UPROPERTY(EditDefaultsOnly, Category = "SpawnSettings")
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
 	float SpawnCooldown{ 3.f };
 
 	/** Pool table of enemy type to spawn from that zone */
-	UPROPERTY(EditDefaultsOnly, Category = "SpawnSettings")
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
 	TArray<TSubclassOf<AFSEnemy>> EnemyPoolSpawn;
 
 	/** Whether to show debug lines :
 	* Line trace from the assigned ramdom spawn location to the bottom of the box (+ 100.f)
 	* Impact point if a proper ground is found
 	*/
-	UPROPERTY(EditDefaultsOnly, Category = "SpawnSettings")
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
 	bool bDebugLines{ false };
 
 	/** If false, this zone will be deactivated and no enemy will not spawn from this zone */
@@ -68,14 +68,31 @@ private:
 	TOptional<FTransform> GetRandomTransform();
 
 	/** Minimum spawn cooldown (included) */
-	static constexpr float MIN_COOLDOWN{ 3.f };
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
+	float MinCooldown{ 3.f };
 
 	/** Maximum spawn cooldown (included) */
-	static constexpr float MAX_COOLDOWN{ 6.f };
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
+	float MaxCooldown{ 6.f };
 
 	/** Minimum distance an enemy will spawn from the player */
-	static constexpr double MIN_SPAWN_DIST{ 1000.0 };
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
+	double MinSpawnDistance{ 1000.0 };
+
+	/** Maximum alive spawned entities this spawn zone can have simultaniously
+	* If this value is -1, that means this specific zone can spawn infinite alive mobs
+	* Example : If equal 10, 10 enemies can spawn from this zone and if 10 enemies have spawned and all
+	* of them are still alive, mobs will stop spawning unless one or more mobs dies.
+	*/
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
+	int32 MaxEntities{ 10 };
+
+	/** List of current spawned entities */
+	TArray<AFSEnemy*> SpawnedEntities;
 
 	/** Player reference */
 	ACharacter* playerRef{ nullptr };
+
+	UFUNCTION()
+	void HandleOnEnemyDeath(AFSEnemy* enemy);
 };
