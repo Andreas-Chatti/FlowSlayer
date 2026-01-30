@@ -65,11 +65,17 @@ private:
 	/** Gives a random location within the limits of the spawn zone 
 	* @return Nullopt if invalid location, otherwise returns the random location
 	*/
-	TOptional<FTransform> GetRandomTransform() const;
+	TOptional<FTransform> GetRandomTransform();
 
 	/** Minimum spawn cooldown (included) */
 	static constexpr float MIN_COOLDOWN{ 3.f };
 
 	/** Maximum spawn cooldown (included) */
 	static constexpr float MAX_COOLDOWN{ 6.f };
+
+	/** Minimum distance an enemy will spawn from the player */
+	static constexpr double MIN_SPAWN_DIST{ 1000.0 };
+
+	/** Player reference */
+	ACharacter* playerRef{ nullptr };
 };
