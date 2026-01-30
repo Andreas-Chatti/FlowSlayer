@@ -29,6 +29,14 @@ void AAFSSpawnZone::BeginPlay()
 
 void AAFSSpawnZone::SpawnEnemy()
 {
+	if (SpawnedEntities.Num() >= MaxEntities && MaxEntities != -1)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] Cannot exceed the number of max entities set from this zone."));
+		bIsSpawnEnabled = false;
+		GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
+		return;
+	}
+
 	TOptional<FTransform> enemyPosition{ GetRandomTransform() };
 	if (!enemyPosition.IsSet())
 	{
@@ -44,10 +52,14 @@ void AAFSSpawnZone::SpawnEnemy()
 		AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), spawnParams) };
 
 		if (spawnedEnemy)
+		{
 			spawnedEnemy->SpawnDefaultController();
+			spawnedEnemy->OnEnemyDeath.AddUObject(this, &AAFSSpawnZone::HandleOnEnemyDeath);
+			SpawnedEntities.Add(spawnedEnemy);
+		}
 	}
 
-	SpawnCooldown = FMath::RandRange(MIN_COOLDOWN, MAX_COOLDOWN);
+	SpawnCooldown = FMath::RandRange(MinCooldown, MaxCooldown);
 
 	GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
 
@@ -113,7 +125,7 @@ TOptional<FTransform> AAFSSpawnZone::GetRandomTransform()
 		{
 			FVector playerLoc{ playerRef->GetActorLocation() };
 			double distSquared{ FVector::DistSquared(playerLoc, randomWorldPosition) };
-			if (distSquared < FMath::Square(MIN_SPAWN_DIST))
+			if (distSquared < FMath::Square(MinSpawnDistance))
 				continue;
 		}
 
@@ -121,4 +133,24 @@ TOptional<FTransform> AAFSSpawnZone::GetRandomTransform()
 	}
 
 	return NullOpt;
+}
+
+void AAFSSpawnZone::HandleOnEnemyDeath(AFSEnemy* enemy)
+{
+	SpawnedEntities.Remove(enemy);
+
+	if (SpawnedEntities.Num() < MaxEntities && MaxEntities != -1 && !bIsSpawnEnabled && 
+		!GetWorld()->GetTimerManager().IsTimerActive(SpawnTimerHandle))
+	{
+
+		bIsSpawnEnabled = true;
+
+		GetWorld()->GetTimerManager().SetTimer(
+			SpawnTimerHandle,
+			this,
+			&AAFSSpawnZone::SpawnEnemy,
+			SpawnCooldown,
+			bIsSpawnEnabled
+		);
+	}
 }

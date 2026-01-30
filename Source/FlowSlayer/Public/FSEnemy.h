@@ -16,6 +16,7 @@
 DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated)
 DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated)
 DECLARE_MULTICAST_DELEGATE(FOnProjectileSpawned)
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, AFSEnemy* enemy)
 
 UCLASS(Abstract)
 class FLOWSLAYER_API AFSEnemy : public ACharacter, public IFSDamageable, public IFSFocusable
@@ -51,6 +52,7 @@ public:
     FOnHitboxActivated OnHitboxActivated;
     FOnHitboxDeactivated OnHitboxDeactivated;
     FOnProjectileSpawned OnProjectileSpawned;
+    FOnEnemyDeath OnEnemyDeath;
 
 protected:
 
