@@ -5,9 +5,7 @@ A **3D action roguelite** built with **Unreal Engine 5.4** and **C++**, featurin
 ![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.4.4-blue?logo=unrealengine)
 ![C++](https://img.shields.io/badge/C++-17-00599C?logo=cplusplus)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
-<a href="https://drive.google.com/drive/folders/13BXUaIHeYjbny9D94_BoQ9VAFmhFtopz?usp=sharing" target="_blank">
-  <img src="https://img.shields.io/badge/Dev%20Videos-Google%20Drive-4285F4?logo=googledrive&logoColor=white" alt="Dev Videos">
-</a>
+[![Dev Videos](https://img.shields.io/badge/Dev%20Videos-Google%20Drive-4285F4?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/13BXUaIHeYjbny9D94_BoQ9VAFmhFtopz?usp=sharing)
 
 ---
 
