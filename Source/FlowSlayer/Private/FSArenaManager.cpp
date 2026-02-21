@@ -15,7 +15,8 @@ void AFSArenaManager::BeginPlay()
 		true
 	);
 
-	StartArena(); 	// For DEBUG ONLY
+	if (bForceActivate)
+		StartArena();
 }
 
 void AFSArenaManager::StartArena()
