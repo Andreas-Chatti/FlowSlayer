@@ -17,59 +17,29 @@ void AAFSSpawnZone::BeginPlay()
 		SpawnZoneComponent->bHiddenInGame = false;
 
 	playerRef = GetWorld()->GetFirstPlayerController()->GetCharacter();
-
-	GetWorld()->GetTimerManager().SetTimer(
-		SpawnTimerHandle,
-		this,
-		&AAFSSpawnZone::SpawnEnemy,
-		SpawnCooldown,
-		bIsSpawnEnabled
-		);
 }
 
-void AAFSSpawnZone::SpawnEnemy()
+AFSEnemy* AAFSSpawnZone::SpawnEnemy()
 {
-	if (SpawnedEntities.Num() >= MaxEntities && MaxEntities != -1)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] Cannot exceed the number of max entities set from this zone."));
-		bIsSpawnEnabled = false;
-		GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
-		return;
-	}
-
 	TOptional<FTransform> enemyPosition{ GetRandomTransform() };
 	if (!enemyPosition.IsSet())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] Enemy spawn failed."));
-		return;
+		return nullptr;
 	}
 
 	int32 randIndex{ FMath::RandRange(0, EnemyPoolSpawn.Num() - 1) };
 
-	if (EnemyPoolSpawn.IsValidIndex(randIndex))
-	{
-		FActorSpawnParameters spawnParams;
-		AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), spawnParams) };
+	if (!EnemyPoolSpawn.IsValidIndex(randIndex))
+		return nullptr;
 
-		if (spawnedEnemy)
-		{
-			spawnedEnemy->SpawnDefaultController();
-			spawnedEnemy->OnEnemyDeath.AddUObject(this, &AAFSSpawnZone::HandleOnEnemyDeath);
-			SpawnedEntities.Add(spawnedEnemy);
-		}
-	}
+	FActorSpawnParameters spawnParams;
+	AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), spawnParams) };
 
-	SpawnCooldown = FMath::RandRange(MinCooldown, MaxCooldown);
+	if (spawnedEnemy)
+		spawnedEnemy->SpawnDefaultController();
 
-	GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
-
-	GetWorld()->GetTimerManager().SetTimer(
-		SpawnTimerHandle,
-		this,
-		&AAFSSpawnZone::SpawnEnemy,
-		SpawnCooldown,
-		bIsSpawnEnabled
-	);
+	return spawnedEnemy;
 }
 
 TOptional<FTransform> AAFSSpawnZone::GetRandomTransform()
@@ -133,24 +103,4 @@ TOptional<FTransform> AAFSSpawnZone::GetRandomTransform()
 	}
 
 	return NullOpt;
-}
-
-void AAFSSpawnZone::HandleOnEnemyDeath(AFSEnemy* enemy)
-{
-	SpawnedEntities.Remove(enemy);
-
-	if (SpawnedEntities.Num() < MaxEntities && MaxEntities != -1 && !bIsSpawnEnabled && 
-		!GetWorld()->GetTimerManager().IsTimerActive(SpawnTimerHandle))
-	{
-
-		bIsSpawnEnabled = true;
-
-		GetWorld()->GetTimerManager().SetTimer(
-			SpawnTimerHandle,
-			this,
-			&AAFSSpawnZone::SpawnEnemy,
-			SpawnCooldown,
-			bIsSpawnEnabled
-		);
-	}
 }
