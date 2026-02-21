@@ -41,6 +41,11 @@ public:
 	/** Adds flow when the player lands a hit. Amount depends on the attack performed. */
 	void AddFlow(float Amount);
 
+	/** Removes flow either when the player gets hit
+	* or when the player stops attacking during a specific amount of time
+	*/
+	void RemoveFlow(float amount);
+
 	/** Voluntarily consumes flow to trigger a special attack. */
 	void ConsumeFlow(float Amount);
 
@@ -75,6 +80,8 @@ protected:
 
 	virtual void BeginPlay() override;
 
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
 private:
 
 	/** Maximum flow value. Defines the 100% cap. */
@@ -90,12 +97,15 @@ private:
 	float DecayRate{ 8.f };
 
 	/** Delay in seconds before passive decay starts after the last successful hit. */
-	float DecayGracePeriod{ 2.f };
+	float DecayGracePeriod{ 5.f };
 
 	/** Duration of the immunity window at Max tier when the player is hit.
 	 * During this window, flow loss is deferred. Resets if the player lands a hit.
 	 */
 	float ImmunityDuration{ 3.f };
+
+	/** Whether passive decay is currently active. Set to true when DecayGraceTimer expires. */
+	bool bIsDecaying{ false };
 
 	/** Started after each successful hit. Triggers passive decay on expiry. */
 	FTimerHandle DecayGraceTimer;
