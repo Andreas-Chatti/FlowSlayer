@@ -1,6 +1,9 @@
 # Visual Studio 2015 user specific files
 .vs/
 
+# Visual Studio encoding detection temp folder
+enc_temp_folder/
+
 # Compiled Object files
 *.slo
 *.lo
