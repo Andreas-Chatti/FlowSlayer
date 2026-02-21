@@ -116,6 +116,7 @@ void AFlowSlayerCharacter::Die()
 	bIsDead = true;
 
 	DisableAllInputs();
+
 }
 
 void AFlowSlayerCharacter::Ragdoll()
