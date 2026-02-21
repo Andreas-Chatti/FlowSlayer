@@ -2,9 +2,17 @@
 
 UFSFlowComponent::UFSFlowComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick = true;
 }
 
+
+void UFSFlowComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	if (bIsDecaying)
+		RemoveFlow(DecayRate * DeltaTime);
+}
 
 void UFSFlowComponent::OnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward)
 {
@@ -38,20 +46,36 @@ void UFSFlowComponent::AddFlow(float amount)
 	CurrentFlow = FMath::Clamp(CurrentFlow + amount, 0.f, MaxFlow);
 
 	FlowChanged.Broadcast(CurrentFlow, MaxFlow);
+
+	// Stop any active decay and reset the grace period
+	bIsDecaying = false;
+	GetWorld()->GetTimerManager().ClearTimer(DecayGraceTimer);
+	GetWorld()->GetTimerManager().SetTimer(
+		DecayGraceTimer,
+		[this]() { bIsDecaying = true; },
+		DecayGracePeriod,
+		false
+	);
 }
 
-void UFSFlowComponent::ConsumeFlow(float amount)
+void UFSFlowComponent::RemoveFlow(float amount)
 {
 	CurrentFlow = FMath::Clamp(CurrentFlow - amount, 0.f, MaxFlow);
 
 	FlowChanged.Broadcast(CurrentFlow, MaxFlow);
+
+	if (CurrentFlow <= 0.f)
+		bIsDecaying = false;
+}
+
+void UFSFlowComponent::ConsumeFlow(float amount)
+{
+	RemoveFlow(amount);
 }
 
 void UFSFlowComponent::OnPlayerHit(float damageAmount, AActor* damageDealer)
 {
-	CurrentFlow = FMath::Clamp(CurrentFlow - (damageAmount / 2.f), 0.f, MaxFlow);
-
-	FlowChanged.Broadcast(CurrentFlow, MaxFlow);
+	RemoveFlow(damageAmount / 2.f);
 }
 
 EFlowTier UFSFlowComponent::GetFlowTier() const
