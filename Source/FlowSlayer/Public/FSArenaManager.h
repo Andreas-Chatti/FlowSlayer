@@ -119,6 +119,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Arena|SpawnTiming")
 	float MaxSpawnCooldown{ 3.f };
 
+	UPROPERTY(EditAnywhere, Category = "Arena | Debug")
+	bool bForceActivate{ false };
+
 	// ==================== RUNTIME STATE ====================
 
 	/** Whether the arena encounter is currently running */

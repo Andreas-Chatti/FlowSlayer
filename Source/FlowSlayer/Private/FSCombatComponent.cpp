@@ -100,16 +100,19 @@ void UFSCombatComponent::InitializeComboAttackData()
     // Attack 1
     StandingLightCombo.Attacks[0].Damage = 50.f;
     StandingLightCombo.Attacks[0].KnockbackForce = 100.f;
+    StandingLightCombo.Attacks[0].FlowReward = 4.f;
     StandingLightCombo.Attacks[0].AttackType = EAttackType::StandingLight;
 
     // Attack 2
     StandingLightCombo.Attacks[1].Damage = 55.f;
     StandingLightCombo.Attacks[1].KnockbackForce = 120.f;
+    StandingLightCombo.Attacks[1].FlowReward = 5.f;
     StandingLightCombo.Attacks[1].AttackType = EAttackType::StandingLight;
 
     // Attack 3 (final) - Only this one has ChainableAttacks
     StandingLightCombo.Attacks[2].Damage = 60.f;
     StandingLightCombo.Attacks[2].KnockbackForce = 150.f;
+    StandingLightCombo.Attacks[2].FlowReward = 6.f;
     StandingLightCombo.Attacks[2].AttackType = EAttackType::StandingLight;
     StandingLightCombo.Attacks[2].ChainableAttacks = {
         EAttackType::StandingHeavy,
@@ -127,21 +130,25 @@ void UFSCombatComponent::InitializeComboAttackData()
     // Attack 1
     StandingHeavyCombo.Attacks[0].Damage = 70.f;
     StandingHeavyCombo.Attacks[0].KnockbackForce = 250.f;
+    StandingHeavyCombo.Attacks[0].FlowReward = 10.f;
     StandingHeavyCombo.Attacks[0].AttackType = EAttackType::StandingHeavy;
 
     // Attack 2
     StandingHeavyCombo.Attacks[1].Damage = 75.f;
     StandingHeavyCombo.Attacks[1].KnockbackForce = 280.f;
+    StandingHeavyCombo.Attacks[1].FlowReward = 12.f;
     StandingHeavyCombo.Attacks[1].AttackType = EAttackType::StandingHeavy;
 
     // Attack 3
     StandingHeavyCombo.Attacks[2].Damage = 80.f;
     StandingHeavyCombo.Attacks[2].KnockbackForce = 320.f;
+    StandingHeavyCombo.Attacks[2].FlowReward = 14.f;
     StandingHeavyCombo.Attacks[2].AttackType = EAttackType::StandingHeavy;
 
     // Attack 4 (final) - Only this one has ChainableAttacks
     StandingHeavyCombo.Attacks[3].Damage = 90.f;
     StandingHeavyCombo.Attacks[3].KnockbackForce = 400.f;
+    StandingHeavyCombo.Attacks[3].FlowReward = 18.f;
     StandingHeavyCombo.Attacks[3].AttackType = EAttackType::StandingHeavy;
     StandingHeavyCombo.Attacks[3].ChainableAttacks = {
         EAttackType::StandingLight,
@@ -159,36 +166,43 @@ void UFSCombatComponent::InitializeComboAttackData()
         // Attack 1
         RunningLightCombo.Attacks[0].Damage = 50.f;
         RunningLightCombo.Attacks[0].KnockbackForce = 120.f;
+        RunningLightCombo.Attacks[0].FlowReward = 3.f;
         RunningLightCombo.Attacks[0].AttackType = EAttackType::RunningLight;
 
         // Attack 2
         RunningLightCombo.Attacks[1].Damage = 52.f;
         RunningLightCombo.Attacks[1].KnockbackForce = 130.f;
+        RunningLightCombo.Attacks[1].FlowReward = 3.f;
         RunningLightCombo.Attacks[1].AttackType = EAttackType::RunningLight;
 
         // Attack 3
         RunningLightCombo.Attacks[2].Damage = 55.f;
         RunningLightCombo.Attacks[2].KnockbackForce = 140.f;
+        RunningLightCombo.Attacks[2].FlowReward = 3.f;
         RunningLightCombo.Attacks[2].AttackType = EAttackType::RunningLight;
 
         // Attack 4
         RunningLightCombo.Attacks[3].Damage = 58.f;
         RunningLightCombo.Attacks[3].KnockbackForce = 150.f;
+        RunningLightCombo.Attacks[3].FlowReward = 3.f;
         RunningLightCombo.Attacks[3].AttackType = EAttackType::RunningLight;
 
         // Attack 5
         RunningLightCombo.Attacks[4].Damage = 60.f;
         RunningLightCombo.Attacks[4].KnockbackForce = 160.f;
+        RunningLightCombo.Attacks[4].FlowReward = 4.f;
         RunningLightCombo.Attacks[4].AttackType = EAttackType::RunningLight;
 
         // Attack 6
         RunningLightCombo.Attacks[5].Damage = 65.f;
         RunningLightCombo.Attacks[5].KnockbackForce = 180.f;
+        RunningLightCombo.Attacks[5].FlowReward = 4.f;
         RunningLightCombo.Attacks[5].AttackType = EAttackType::RunningLight;
 
         // Attack 7 (final) - Only this one has ChainableAttacks
         RunningLightCombo.Attacks[6].Damage = 70.f;
         RunningLightCombo.Attacks[6].KnockbackForce = 200.f;
+        RunningLightCombo.Attacks[6].FlowReward = 5.f;
         RunningLightCombo.Attacks[6].AttackType = EAttackType::RunningLight;
         RunningLightCombo.Attacks[6].ChainableAttacks = {
             EAttackType::RunningHeavy,
@@ -208,21 +222,25 @@ void UFSCombatComponent::InitializeComboAttackData()
         // Attack 1
         RunningHeavyCombo.Attacks[0].Damage = 75.f;
         RunningHeavyCombo.Attacks[0].KnockbackForce = 300.f;
+        RunningHeavyCombo.Attacks[0].FlowReward = 10.f;
         RunningHeavyCombo.Attacks[0].AttackType = EAttackType::RunningHeavy;
 
         // Attack 2
         RunningHeavyCombo.Attacks[1].Damage = 80.f;
         RunningHeavyCombo.Attacks[1].KnockbackForce = 320.f;
+        RunningHeavyCombo.Attacks[1].FlowReward = 12.f;
         RunningHeavyCombo.Attacks[1].AttackType = EAttackType::RunningHeavy;
 
         // Attack 3
         RunningHeavyCombo.Attacks[2].Damage = 85.f;
         RunningHeavyCombo.Attacks[2].KnockbackForce = 350.f;
+        RunningHeavyCombo.Attacks[2].FlowReward = 14.f;
         RunningHeavyCombo.Attacks[2].AttackType = EAttackType::RunningHeavy;
 
         // Attack 4 (final) - Only this one has ChainableAttacks
         RunningHeavyCombo.Attacks[3].Damage = 95.f;
         RunningHeavyCombo.Attacks[3].KnockbackForce = 420.f;
+        RunningHeavyCombo.Attacks[3].FlowReward = 18.f;
         RunningHeavyCombo.Attacks[3].AttackType = EAttackType::RunningHeavy;
         RunningHeavyCombo.Attacks[3].ChainableAttacks = {
             EAttackType::StandingHeavy,
@@ -240,6 +258,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         DashPierceAttack.Attacks[0].Damage = 70.f;
         DashPierceAttack.Attacks[0].KnockbackForce = 200.f;
+        DashPierceAttack.Attacks[0].FlowReward = 8.f;
         DashPierceAttack.Attacks[0].AttackType = EAttackType::DashPierce;
         DashPierceAttack.Attacks[0].ChainableAttacks = {
             EAttackType::RunningLight,
@@ -264,6 +283,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         DashSpinningSlashAttack.Attacks[0].Damage = 75.f;
         DashSpinningSlashAttack.Attacks[0].KnockbackForce = 250.f;
+        DashSpinningSlashAttack.Attacks[0].FlowReward = 8.f;
         DashSpinningSlashAttack.Attacks[0].AttackType = EAttackType::DashSpinningSlash;
         DashSpinningSlashAttack.Attacks[0].ChainableAttacks = {
             EAttackType::RunningLight,
@@ -290,6 +310,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         DashDoubleSlashAttack.Attacks[0].Damage = 90.f;
         DashDoubleSlashAttack.Attacks[0].KnockbackForce = 300.f;
+        DashDoubleSlashAttack.Attacks[0].FlowReward = 10.f;
         DashDoubleSlashAttack.Attacks[0].AttackType = EAttackType::DashDoubleSlash;
         DashDoubleSlashAttack.Attacks[0].ChainableAttacks = {
             EAttackType::RunningHeavy,
@@ -304,6 +325,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         DashBackSlashAttack.Attacks[0].Damage = 80.f;
         DashBackSlashAttack.Attacks[0].KnockbackForce = 400.f;
+        DashBackSlashAttack.Attacks[0].FlowReward = 7.f;
         DashBackSlashAttack.Attacks[0].AttackType = EAttackType::DashBackSlash;
         DashBackSlashAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -321,6 +343,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         JumpSlamAttack.Attacks[0].Damage = 100.f;
         JumpSlamAttack.Attacks[0].KnockbackForce = 400.f;
         JumpSlamAttack.Attacks[0].KnockbackUpForce = 200.f;
+        JumpSlamAttack.Attacks[0].FlowReward = 12.f;
         JumpSlamAttack.Attacks[0].AttackType = EAttackType::JumpSlam;
         JumpSlamAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -337,6 +360,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         JumpForwardSlamAttack.Attacks[0].Damage = 105.f;
         JumpForwardSlamAttack.Attacks[0].KnockbackForce = 450.f;
         JumpForwardSlamAttack.Attacks[0].KnockbackUpForce = 250.f;
+        JumpForwardSlamAttack.Attacks[0].FlowReward = 13.f;
         JumpForwardSlamAttack.Attacks[0].AttackType = EAttackType::JumpForwardSlam;
         JumpForwardSlamAttack.Attacks[0].ChainableAttacks = {
             EAttackType::RunningLight,
@@ -353,6 +377,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         JumpUpperSlamComboAttack.Attacks[0].Damage = 110.f;
         JumpUpperSlamComboAttack.Attacks[0].KnockbackForce = 500.f;
         JumpUpperSlamComboAttack.Attacks[0].KnockbackUpForce = 300.f;
+        JumpUpperSlamComboAttack.Attacks[0].FlowReward = 14.f;
         JumpUpperSlamComboAttack.Attacks[0].AttackType = EAttackType::JumpUpperSlam;
         JumpUpperSlamComboAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -370,6 +395,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         LauncherAttack.Attacks[0].Damage = 60.f;
         LauncherAttack.Attacks[0].KnockbackForce = 200.f;
         LauncherAttack.Attacks[0].KnockbackUpForce = 800.f;
+        LauncherAttack.Attacks[0].FlowReward = 8.f;
         LauncherAttack.Attacks[0].AttackType = EAttackType::Launcher;
         LauncherAttack.Attacks[0].ChainableAttacks = {
             EAttackType::AirCombo,
@@ -400,6 +426,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         PowerLauncherAttack.Attacks[0].Damage = 80.f;
         PowerLauncherAttack.Attacks[0].KnockbackForce = 250.f;
         PowerLauncherAttack.Attacks[0].KnockbackUpForce = 1000.f;
+        PowerLauncherAttack.Attacks[0].FlowReward = 10.f;
         PowerLauncherAttack.Attacks[0].AttackType = EAttackType::PowerLauncher;
         PowerLauncherAttack.Attacks[0].ChainableAttacks = {
             EAttackType::AirCombo,
@@ -428,6 +455,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         SpinAttack.Attacks[0].Damage = 65.f;
         SpinAttack.Attacks[0].KnockbackForce = 200.f;
+        SpinAttack.Attacks[0].FlowReward = 8.f;
         SpinAttack.Attacks[0].AttackType = EAttackType::SpinAttack;
         SpinAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -444,6 +472,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         HorizontalSweepAttack.Attacks[0].Damage = 75.f;
         HorizontalSweepAttack.Attacks[0].KnockbackForce = 250.f;
+        HorizontalSweepAttack.Attacks[0].FlowReward = 10.f;
         HorizontalSweepAttack.Attacks[0].AttackType = EAttackType::HorizontalSweep;
         HorizontalSweepAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingHeavy,
@@ -468,6 +497,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         PierceThrustAttack.Attacks[0].Damage = 90.f;
         PierceThrustAttack.Attacks[0].KnockbackForce = 350.f;
+        PierceThrustAttack.Attacks[0].FlowReward = 10.f;
         PierceThrustAttack.Attacks[0].AttackType = EAttackType::PierceThrust;
         PierceThrustAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -492,6 +522,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         PowerSlashAttack.Attacks[0].Damage = 120.f;
         PowerSlashAttack.Attacks[0].KnockbackForce = 500.f;
+        PowerSlashAttack.Attacks[0].FlowReward = 18.f;
         PowerSlashAttack.Attacks[0].AttackType = EAttackType::PowerSlash;
         PowerSlashAttack.Attacks[0].ChainableAttacks = {
             EAttackType::RunningHeavy,
@@ -506,6 +537,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     {
         DiagonalRetourneAttack.Attacks[0].Damage = 85.f;
         DiagonalRetourneAttack.Attacks[0].KnockbackForce = 400.f;
+        DiagonalRetourneAttack.Attacks[0].FlowReward = 10.f;
         DiagonalRetourneAttack.Attacks[0].AttackType = EAttackType::DiagonalRetourne;
         DiagonalRetourneAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -532,6 +564,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         GroundSlamAttack.Attacks[0].Damage = 130.f;
         GroundSlamAttack.Attacks[0].KnockbackForce = 600.f;
         GroundSlamAttack.Attacks[0].KnockbackUpForce = 300.f;
+        GroundSlamAttack.Attacks[0].FlowReward = 20.f;
         GroundSlamAttack.Attacks[0].AttackType = EAttackType::GroundSlam;
         GroundSlamAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingHeavy,
@@ -554,6 +587,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         // Attack 1
         AirCombo.Attacks[0].Damage = 50.f;
         AirCombo.Attacks[0].KnockbackForce = 80.f;
+        AirCombo.Attacks[0].FlowReward = 4.f;
         AirCombo.Attacks[0].AttackType = EAttackType::AirCombo;
         AirCombo.Attacks[0].OnAttackExecuted.BindLambda([this]() 
             { 
@@ -568,6 +602,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         // Attack 2
         AirCombo.Attacks[1].Damage = 55.f;
         AirCombo.Attacks[1].KnockbackForce = 100.f;
+        AirCombo.Attacks[1].FlowReward = 5.f;
         AirCombo.Attacks[1].AttackType = EAttackType::AirCombo;
         AirCombo.Attacks[1].OnAttackExecuted.BindLambda([this]() 
             { 
@@ -582,6 +617,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         // Attack 3 (final) - Only this one has ChainableAttacks
         AirCombo.Attacks[2].Damage = 60.f;
         AirCombo.Attacks[2].KnockbackForce = 120.f;
+        AirCombo.Attacks[2].FlowReward = 6.f;
         AirCombo.Attacks[2].AttackType = EAttackType::AirCombo;
         AirCombo.Attacks[2].ChainableAttacks = { EAttackType::AerialSlam };
         AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]() 
@@ -601,6 +637,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         AerialSlamAttack.Attacks[0].Damage = 110.f;
         AerialSlamAttack.Attacks[0].KnockbackForce = 500.f;
         AerialSlamAttack.Attacks[0].KnockbackUpForce = -1500.f;
+        AerialSlamAttack.Attacks[0].FlowReward = 15.f;
         AerialSlamAttack.Attacks[0].AttackType = EAttackType::AerialSlam;
         AerialSlamAttack.Attacks[0].ChainableAttacks = {
             EAttackType::StandingLight,
@@ -1115,6 +1152,8 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     const FAttackData* currentAttack{ OngoingCombo->GetAttackAt(ComboIndex - 1) };
     if (!currentAttack)
         return;
+
+    OnHitLandedNotify.Broadcast(hitActor, hitLocation, currentAttack->Damage, currentAttack->FlowReward);
 
     if (currentAttack->OnAttackHit.IsBound())
         currentAttack->OnAttackHit.Execute(hitActor);
