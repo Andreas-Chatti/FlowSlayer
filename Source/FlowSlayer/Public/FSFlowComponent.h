@@ -102,7 +102,7 @@ private:
 	/** Duration of the immunity window at Max tier when the player is hit.
 	 * During this window, flow loss is deferred. Resets if the player lands a hit.
 	 */
-	float ImmunityDuration{ 3.f };
+	float ImmunityDuration{ 5.f };
 
 	/** Whether passive decay is currently active. Set to true when DecayGraceTimer expires. */
 	bool bIsDecaying{ false };

@@ -103,9 +103,10 @@ void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDeale
 
 	OnDamageTaken.Broadcast(DamageAmount, DamageDealer);
 
+	if (bInvincibility)
+		return;
+
     CurrentHealth -= DamageAmount;
-    //UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
-      //  *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
 
     if (CurrentHealth <= 0.f)
         Die();
