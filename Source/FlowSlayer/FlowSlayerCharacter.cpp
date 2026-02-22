@@ -59,6 +59,9 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
 	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
 
+	FlowComponent = CreateDefaultSubobject<UFSFlowComponent>(TEXT("FlowComponent"));
+	checkf(FlowComponent, TEXT("FATAL: FlowComponent is NULL or INVALID !"));
+
 	JumpMaxCount = 2;
 	CurrentHealth = MaxHealth;
 }
@@ -73,6 +76,9 @@ void AFlowSlayerCharacter::BeginPlay()
 
 	AnimInstance = GetMesh()->GetAnimInstance();
 	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
+
+	CombatComponent->OnHitLandedNotify.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnHitLanded);
+	OnDamageTaken.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnPlayerHit);
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
 	Tags.Add("Player");
@@ -95,9 +101,12 @@ void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDeale
 	if (bIsDead)
 		return;
 
+	OnDamageTaken.Broadcast(DamageAmount, DamageDealer);
+
+	if (bInvincibility)
+		return;
+
     CurrentHealth -= DamageAmount;
-    //UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
-      //  *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
 
     if (CurrentHealth <= 0.f)
         Die();

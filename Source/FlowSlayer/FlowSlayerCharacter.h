@@ -18,6 +18,7 @@
 #include "Public/FSDamageable.h"
 #include "Public/FSCombatComponent.h"
 #include "Public/FSLockOnComponent.h"
+#include "Public/FSFlowComponent.h"
 #include "Components/WidgetComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
@@ -41,6 +42,9 @@ namespace FlowSlayerInput
 /** Delegate for animations cancel window OPEN and CLOSE */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, FlowSlayerInput::EActionType actionType);
 
+/* Delegate for handling damage taken from any source */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamageTaken, float, damageAmount, AActor*, damageDealer);
+
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
 UCLASS(config=Game)
@@ -52,6 +56,9 @@ public:
 
 	/** Called during an animation cancel window if the player has tried to dash or jump */
 	FOnAnimationCanceled OnAnimationCanceled;
+
+	/** Broadcasted when the player has received damage */
+	FOnDamageTaken OnDamageTaken;
 
 private:
 
@@ -66,6 +73,10 @@ private:
 	/** Combat component class */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	UFSCombatComponent* CombatComponent;
+
+	/** Flow component class */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UFSFlowComponent* FlowComponent;
 
 	/** Lock-On component class */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
@@ -235,6 +246,9 @@ public:
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
+	float MaxFlow{ 100.f };
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
 	float MaxHealth{ 100.f };
 
 	/** Can Player use Dash ? */
@@ -371,6 +385,13 @@ private:
 	virtual void Jump() override;
 
 	bool bHasPressedJump{ false };
+
+	/* 
+	* Make the player not take any damage
+	* FOR DUBUG / TESTING ONLY
+	*/
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bInvincibility{ false };
 
 	UFUNCTION()
 	virtual void Falling() override;

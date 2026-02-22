@@ -75,6 +75,9 @@ DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
 DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
 
+/** Delegate broadcasted when a successfull hit landed on an enemy target */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnHitLanded, AActor*, actorHit, const FVector&, hitLocation, float, damageAmount, float, flowReward);
+
 
 /** Single attack data within a combo */
 USTRUCT(BlueprintType)
@@ -103,6 +106,9 @@ struct FAttackData
      * Configured via InitializeComboAttackData()
      */
     float KnockbackUpForce{ 0.f };
+
+    /** Flow reward on attack successfully hit target */
+    float FlowReward{ 5.f };
 
     /** Attack type needed to launch this attack
      * This data is based from the inputs actions in AFlowSlayerCharacter class
@@ -191,6 +197,11 @@ public:
     */
     FOnAirStallStarted OnAirStallStarted;
     FOnAirStallFinished OnAirStallFinished;
+
+    /* Hit landed delegate 
+    * Broadcasted by OnHitLanded() when an sucessfull hit has been landed on an enemy target
+    */
+    FOnHitLanded OnHitLandedNotify;
 
     /** Called for attacking input */
     void Attack(EAttackType attackType, bool isMoving, bool isFalling);
