@@ -31,6 +31,25 @@ void UFSFlowComponent::OnFlowChanged(float currentFlow, float maxFlow)
 void UFSFlowComponent::OnFlowTierChanged(EFlowTier newTier, EFlowTier oldTier)
 {
 	CurrentTier = newTier;
+
+	if (CurrentTier == EFlowTier::Max)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(DecayGraceTimer);
+		bIsDecaying = false;
+
+		GetWorld()->GetTimerManager().SetTimer(
+			ImmunityTimer,
+			[this]() { 	
+				GetWorld()->GetTimerManager().SetTimer(
+				DecayGraceTimer,
+				[this]() { bIsDecaying = true; },
+				DecayGracePeriod,
+				false
+			); },
+			ImmunityDuration,
+			false
+		);
+	}
 }
 
 void UFSFlowComponent::BeginPlay()
@@ -47,6 +66,10 @@ void UFSFlowComponent::AddFlow(float amount)
 
 	FlowChanged.Broadcast(CurrentFlow, MaxFlow);
 
+	// During immunity, the ImmunityTimer is in charge of restarting the decay grace period
+	if (GetWorld()->GetTimerManager().IsTimerActive(ImmunityTimer))
+		return;
+
 	// Stop any active decay and reset the grace period
 	bIsDecaying = false;
 	GetWorld()->GetTimerManager().ClearTimer(DecayGraceTimer);
@@ -60,6 +83,9 @@ void UFSFlowComponent::AddFlow(float amount)
 
 void UFSFlowComponent::RemoveFlow(float amount)
 {
+	if (GetWorld()->GetTimerManager().IsTimerActive(ImmunityTimer))
+		return;
+
 	CurrentFlow = FMath::Clamp(CurrentFlow - amount, 0.f, MaxFlow);
 
 	FlowChanged.Broadcast(CurrentFlow, MaxFlow);

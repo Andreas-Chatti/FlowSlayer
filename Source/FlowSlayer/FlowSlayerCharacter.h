@@ -375,8 +375,6 @@ protected:
 
 private:
 
-	float CurrentFlow{};
-
 	float CurrentHealth{};
 
 	/** Minimum velocity required in order to use Dash */
@@ -387,6 +385,13 @@ private:
 	virtual void Jump() override;
 
 	bool bHasPressedJump{ false };
+
+	/* 
+	* Make the player not take any damage
+	* FOR DUBUG / TESTING ONLY
+	*/
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bInvincibility{ false };
 
 	UFUNCTION()
 	virtual void Falling() override;
