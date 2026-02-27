@@ -2,7 +2,20 @@
 
 UFSCombatComponent::UFSCombatComponent()
 {
-    PrimaryComponentTick.bCanEverTick = false;
+    PrimaryComponentTick.bCanEverTick = true;
+}
+
+void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+    if (!bComboCounterActive)
+        return;
+
+    ComboTimeRemaining -= DeltaTime;
+
+    if (ComboTimeRemaining <= 0)
+        ResetComboCounter();
 }
 
 void UFSCombatComponent::BeginPlay()
@@ -1146,6 +1159,17 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
 {
     if (!hitActor || Cast<IFSDamageable>(hitActor)->IsDead())
         return;
+
+    ++ComboHitCount;
+    ComboTimeRemaining = ComboCounterTimerDuration;
+
+    if (!bComboCounterActive && ComboHitCount >= 2)
+    {
+        bComboCounterActive = true;
+        OnComboCounterStarted.Broadcast();
+    }
+
+    OnComboCountChanged.Broadcast(ComboHitCount);
     
     // NOTE: ComboIndex has already been incremented at this point, 
     // so the actual ComboIndex to this attack that hit the enemy here is : ComboIndex - 1
@@ -1341,4 +1365,20 @@ AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool
     }
 
     return nearestEnemy;
+}
+
+void UFSCombatComponent::ResetComboCounter()
+{
+    ComboHitCount = 0;
+    ComboTimeRemaining = 0.f;
+    bComboCounterActive = false;
+    OnComboCounterEnded.Broadcast();
+}
+
+float UFSCombatComponent::GetComboTimeRatio() const
+{
+    if (ComboCounterTimerDuration <= 0.f)
+        return 0.f;
+
+    return FMath::Clamp(ComboTimeRemaining / ComboCounterTimerDuration, 0.f, 1.f);
 }
