@@ -176,6 +176,10 @@ struct FCombo
     }
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnComboCounterStarted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComboCountChanged, int32, HitCount);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnComboCounterEnded);
+
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class FLOWSLAYER_API UFSCombatComponent : public UActorComponent
 {
@@ -198,10 +202,47 @@ public:
     FOnAirStallStarted OnAirStallStarted;
     FOnAirStallFinished OnAirStallFinished;
 
-    /* Hit landed delegate 
+    /** Hit landed delegate 
     * Broadcasted by OnHitLanded() when an sucessfull hit has been landed on an enemy target
     */
+    UPROPERTY(BlueprintAssignable)
     FOnHitLanded OnHitLandedNotify;
+
+    /** Broadcasted when a new hit streak begins (first hit) */
+    UPROPERTY(BlueprintAssignable)
+    FOnComboCounterStarted OnComboCounterStarted;
+
+    /** Broadcasted each time a hit is added to the streak */
+    UPROPERTY(BlueprintAssignable)
+    FOnComboCountChanged OnComboCountChanged;
+
+    /** Broadcasted when the streak timer expires (combo ended) */
+    UPROPERTY(BlueprintAssignable)
+    FOnComboCounterEnded OnComboCounterEnded;
+
+    /** Returns the timer ratio (1.0 = full, 0.0 = expired) for the UI bar */
+    UFUNCTION(BlueprintCallable, Category = "Combat|Combo Counter")
+    float GetComboTimeRatio() const;
+
+private:
+
+    /** Duration of the combo streak timer — resets on each hit */
+    UPROPERTY(EditDefaultsOnly, Category = "Combat|Combo Counter")
+    float ComboCounterTimerDuration{ 1.5f };
+
+    /** Number of hits in the current streak */
+    int32 ComboHitCount{ 0 };
+
+    /** Remaining time before the streak ends */
+    float ComboTimeRemaining{ 0.f };
+
+    /** Whether a streak is currently active */
+    bool bComboCounterActive{ false };
+
+    /** Resets all combo counter state and broadcasts OnComboCounterEnded */
+    void ResetComboCounter();
+
+public:
 
     /** Called for attacking input */
     void Attack(EAttackType attackType, bool isMoving, bool isFalling);
@@ -220,6 +261,8 @@ public:
 protected:
 
     virtual void BeginPlay() override;
+
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     TSubclassOf<AFSWeapon> weaponClass;
