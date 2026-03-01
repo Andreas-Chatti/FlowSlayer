@@ -78,6 +78,7 @@ void AFlowSlayerCharacter::BeginPlay()
 	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
 
 	CombatComponent->OnHitLandedNotify.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnHitLanded);
+	AnimInstance->OnMontageEnded.AddDynamic(this, &AFlowSlayerCharacter::OnMontageEnded);
 	OnDamageTaken.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnPlayerHit);
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
@@ -380,48 +381,10 @@ bool AFlowSlayerCharacter::GetInputKeyState(FKey inputKey) const
 	return PlayerController->WasInputKeyJustPressed(inputKey) || PlayerController->IsInputKeyDown(inputKey);
 }
 
-void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
+void AFlowSlayerCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-	if (!Controller)
-		return;
-
-	GetCharacterMovement()->bOrientRotationToMovement = false;
-	GetCharacterMovement()->bUseControllerDesiredRotation = true;
-
-	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
-	const float rotationDuration{ 0.3f };
-	FTimerHandle myTimer;
-	GetWorld()->GetTimerManager().SetTimer(
-		myTimer,
-		[WeakThis]()
-		{
-			if (WeakThis.IsValid())
-			{
-				WeakThis->GetCharacterMovement()->bUseControllerDesiredRotation = false;
-				WeakThis->GetCharacterMovement()->bOrientRotationToMovement = true;
-			}
-		},
-		rotationDuration,
-		false);
-}
-
-void AFlowSlayerCharacter::TriggerAttackWithBuffer(EAttackType attackType)
-{
-	if (attackType == EAttackType::None)
-		return;
-
-	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[WeakThis, attackType]()
-		{
-			if (WeakThis.IsValid())
-				WeakThis->OnAttackTriggered(attackType);
-		},
-		InputBufferDelay,
-		false
-	);
+	if (!CombatComponent->isAttacking())
+		GetCharacterMovement()->bOrientRotationToMovement = true;
 }
 
 void AFlowSlayerCharacter::Jump()
@@ -453,9 +416,6 @@ void AFlowSlayerCharacter::Falling()
 
 void AFlowSlayerCharacter::OnAttackTriggered(EAttackType attackType)
 {
-	if (!CombatComponent->isAttacking() && !AnimInstance->IsAnyMontagePlaying())
-		RotatePlayerToCameraDirection();
-
 	CombatComponent->Attack(attackType, IsMoving(), GetCharacterMovement()->IsFalling());
 }
 
@@ -551,7 +511,8 @@ void AFlowSlayerCharacter::OnDashAttackActionStarted()
 	if (bIsDashing)
 		StopAnimMontage(GetCurrentMontage() == FwdDashAnim ? FwdDashAnim : BwdDashAnim);
 
-	TriggerAttackWithBuffer(attackType);
+	//TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnJumpAttackActionStarted()
@@ -580,7 +541,7 @@ void AFlowSlayerCharacter::OnJumpAttackActionStarted()
 			attackType = EAttackType::AerialSlam;
 	}
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnLauncherActionStarted(const FInputActionInstance& Value)
@@ -597,7 +558,7 @@ void AFlowSlayerCharacter::OnLauncherActionStarted(const FInputActionInstance& V
 	else if (isRMBPressed)
 		attackType = EAttackType::PowerLauncher;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance& Value)
@@ -614,7 +575,7 @@ void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance&
 	else if (isRMBPressed)
 		attackType = EAttackType::HorizontalSweep;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstance& Value)
@@ -632,7 +593,7 @@ void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstanc
 	else if (GetInputKeyState(EKeys::S))
 		attackType = EAttackType::PowerSlash;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnSlamActionStarted()
@@ -649,5 +610,5 @@ void AFlowSlayerCharacter::OnSlamActionStarted()
 	else if (isRMBPressed)
 		attackType = EAttackType::GroundSlam;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
