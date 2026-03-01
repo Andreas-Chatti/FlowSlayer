@@ -396,16 +396,9 @@ private:
 	UFUNCTION()
 	virtual void Falling() override;
 
-	/** Simple function helper to rotate the character to where player is looking
-	* Smooth transition during local variable rotationDuration (0.3f default)
-	*/
-	void RotatePlayerToCameraDirection();
-
-	/** Helper to trigger an attack with input buffer delay
-	* Eliminates code duplication across all attack input handlers
-	* @param attackType The type of attack to trigger after buffer delay
-	*/
-	void TriggerAttackWithBuffer(EAttackType attackType);
+	/** Restores movement rotation settings after an attack montage ends */
+	UFUNCTION()
+	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 
 	/** Initialize Player HUD on BeginPlay */

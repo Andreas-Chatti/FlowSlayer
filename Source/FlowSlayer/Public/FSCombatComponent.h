@@ -85,6 +85,7 @@ struct FAttackData
 {
     GENERATED_BODY()
 
+    DECLARE_DELEGATE(FOnBeforeAttack);
     DECLARE_DELEGATE(FOnAttackExecuted);
     DECLARE_DELEGATE_OneParam(FOnAttackHit, AActor* hitActor);
 
@@ -120,6 +121,12 @@ struct FAttackData
      * Configured via InitializeComboAttackData()
      */
     TSet<EAttackType> ChainableAttacks;
+
+    /* Called just before the attack animation plays
+    * Use for setup logic: rotation, VFX prep, state changes, etc.
+    * Can be empty
+    */
+    FOnBeforeAttack OnBeforeAttack;
 
     /* Attack side effect 
     * An attack can have a specific effect
@@ -612,4 +619,6 @@ private:
     */
     void ChainingToNextCombo();
 
+    /** Rotate the player character to where camera is looking at */
+    void RotatePlayerToPlayerView();
 };

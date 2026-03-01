@@ -137,6 +137,9 @@ void UFSCombatComponent::InitializeComboAttackData()
         EAttackType::DashPierce
     };
 
+    for (auto& attack : StandingLightCombo.Attacks)
+        attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+
     // === STANDING HEAVY COMBO (4 attacks) ===
     StandingHeavyCombo.Attacks.SetNum(4);
 
@@ -172,6 +175,9 @@ void UFSCombatComponent::InitializeComboAttackData()
         EAttackType::Launcher,
         EAttackType::PowerLauncher
     };
+
+    for (auto& attack : StandingHeavyCombo.Attacks)
+        attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === RUNNING LIGHT COMBO (7 attacks) ===
     RunningLightCombo.Attacks.SetNum(7);
@@ -227,6 +233,9 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::DashPierce,
             EAttackType::DashDoubleSlash
         };
+
+        for (auto& attack : RunningLightCombo.Attacks)
+            attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
     // === RUNNING HEAVY COMBO (4 attacks) ===
@@ -264,6 +273,9 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::PowerLauncher,
             EAttackType::DashDoubleSlash
         };
+
+        for (auto& attack : RunningHeavyCombo.Attacks)
+            attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
     // === DASH PIERCE ===
@@ -281,13 +293,16 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::PierceThrust,
             EAttackType::SpinAttack
         };
+        DashPierceAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         DashPierceAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
             { 
                 const FName warpTargetName{ "DashIn" };
                 constexpr float notifyStart{ 0.09f };
                 constexpr float notifyEnd{ 0.52f };
                 constexpr float searchRadius{ 600.f };
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+
+                if (LockedOnTarget)
+                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
             });
     }
 
@@ -308,13 +323,16 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::PowerSlash,
             EAttackType::Launcher
         };
+        DashSpinningSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         DashSpinningSlashAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
             {
                 const FName warpTargetName{ "DashIn" };
                 constexpr float notifyStart{ 0.16f };
                 constexpr float notifyEnd{ 0.51f };
                 constexpr float searchRadius{ 600.f };
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+
+                if (LockedOnTarget)
+                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
             });
     }
 
@@ -365,6 +383,7 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::SpinAttack,
             EAttackType::Launcher
         };
+        JumpSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
     // === JUMP FORWARD SLAM ===
@@ -382,6 +401,7 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::PowerSlash
         };
+        JumpForwardSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
     // === JUMP UPPER SLAM ===
@@ -400,6 +420,7 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::GroundSlam,
             EAttackType::SpinAttack
         };
+        JumpUpperSlamComboAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
     // === LAUNCHER ===
@@ -495,13 +516,16 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::PowerSlash
         };
+        HorizontalSweepAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         HorizontalSweepAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
             {
                 const FName warpTargetName{ "Rotate" };
                 constexpr float notifyStart{ 0.f };
                 constexpr float notifyEnd{ 0.24f };
                 constexpr float searchRadius{ 300.f };
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+
+                if (LockedOnTarget)
+                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
             });
     }
 
@@ -520,6 +544,7 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::SpinAttack
         };
+        PierceThrustAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         PierceThrustAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
             {
                 const FName warpTargetName{ "Rotate" };
@@ -543,6 +568,7 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::DiagonalRetourne
         };
+        PowerSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
     // === DIAGONAL RETOURNE ===
@@ -561,13 +587,16 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::HorizontalSweep,
             EAttackType::JumpSlam
         };
+        DiagonalRetourneAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         DiagonalRetourneAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
             {
                 const FName warpTargetName{ "Rotate" };
                 constexpr float notifyStart{ 0.f };
                 constexpr float notifyEnd{ 0.62f };
                 constexpr float searchRadius{ 300.f };
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+
+                if (LockedOnTarget)
+                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
             });
     }
 
@@ -584,13 +613,16 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::Launcher,
             EAttackType::PowerSlash
         };
+        GroundSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         GroundSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
             {
                 const FName warpTargetName{ "Rotate" };
                 constexpr float notifyStart{ 0.f };
                 constexpr float notifyEnd{ 0.37f };
                 constexpr float searchRadius{ 250.f };
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+
+                if (LockedOnTarget)
+                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
             });
     }
 
@@ -660,13 +692,16 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::GroundSlam,
             EAttackType::SpinAttack
         };
+        AerialSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         AerialSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
             {
                 const FName airWarpTargetName{ "AttackTarget" };
                 constexpr float airNotifyStart{ 0.12f };
                 constexpr float airNotifyEnd{ 0.51f };
                 constexpr float airSearchRadius{ 250.f };
-                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+
+                if (LockedOnTarget)
+                    SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
             });
     }
 }
@@ -731,6 +766,9 @@ void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFa
         bIsAttacking = false;
         return;
     }
+
+    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.IsBound())
+        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.Execute();
 
     PlayerOwner->PlayAnimMontage(nextAnimAttack);
 
@@ -969,10 +1007,19 @@ void UFSCombatComponent::ChainingToNextCombo()
     if (!firstAttack)
         return;
 
+    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.IsBound())
+        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.Execute();
+
     PlayerOwner->PlayAnimMontage(firstAttack);
 
     if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.IsBound())
         OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
+}
+
+void UFSCombatComponent::RotatePlayerToPlayerView()
+{
+    PlayerOwner->SetActorRotation(FRotator(0.f, PlayerOwner->GetControlRotation().Yaw, 0.f), ETeleportType::TeleportPhysics);
+    PlayerOwner->GetCharacterMovement()->bOrientRotationToMovement = false;
 }
 
 void UFSCombatComponent::ContinueCombo()
@@ -994,6 +1041,9 @@ void UFSCombatComponent::ContinueCombo()
     UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
     if (!nextAnimAttack)
         return;
+
+    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.IsBound())
+        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.Execute();
 
     PlayerOwner->PlayAnimMontage(nextAnimAttack);
 
