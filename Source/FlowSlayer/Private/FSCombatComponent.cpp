@@ -776,9 +776,9 @@ void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFa
         OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
 }
 
-void UFSCombatComponent::CancelAttack()
+void UFSCombatComponent::CancelAttack(float blendOutTime)
 {
-    AnimInstance->StopAllMontages(0.2f);
+    AnimInstance->StopAllMontages(blendOutTime);
     ResetComboState();
     equippedWeapon->DeactivateHitbox();
 }

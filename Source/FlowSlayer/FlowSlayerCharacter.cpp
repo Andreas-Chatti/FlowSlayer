@@ -169,7 +169,8 @@ void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
 
 void AFlowSlayerCharacter::HandleOnAnimationCanceled(FlowSlayerInput::EActionType actionType)
 {
-	CombatComponent->CancelAttack();
+	float blendOutTime{ actionType == FlowSlayerInput::EActionType::Move ? 0.05f : 0.2f };
+	CombatComponent->CancelAttack(blendOutTime);
 
 	switch (actionType)
 	{
@@ -180,6 +181,8 @@ void AFlowSlayerCharacter::HandleOnAnimationCanceled(FlowSlayerInput::EActionTyp
 	case FlowSlayerInput::EActionType::Dash:
 		Dash(FInputActionValue::Axis1D(1.f));
 		break;
+	case FlowSlayerInput::EActionType::Move:
+		Move(FInputActionValue::Axis2D(MoveInputAxis));
 	}
 }
 
@@ -244,13 +247,10 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 {
-	if (CombatComponent->isAttacking())
-		return;
+	MoveInputAxis = Value.Get<FVector2D>();
+	bHasMovementInput = MoveInputAxis.SquaredLength() > 0.01f;
 
-	FVector2D MovementVector = Value.Get<FVector2D>();
-	bHasMovementInput = MovementVector.SquaredLength() > 0.01f;
-
-	if (!Controller)
+	if (!Controller || CombatComponent->isAttacking())
 		return;
 
 	// === MODE LOCK-ON ===
@@ -260,10 +260,9 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 		const FVector Forward{ GetActorForwardVector() };
 		const FVector Right{ GetActorRightVector() };
 
-		AddMovementInput(Forward, MovementVector.Y);
-		AddMovementInput(Right, MovementVector.X);
+		AddMovementInput(Forward, MoveInputAxis.Y);
+		AddMovementInput(Right, MoveInputAxis.X);
 
-		MoveInputAxis = MovementVector;
 		return;
 	}
 
@@ -274,10 +273,8 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-	AddMovementInput(ForwardDirection, MovementVector.Y);
-	AddMovementInput(RightDirection, MovementVector.X);
-
-	MoveInputAxis = MovementVector;
+	AddMovementInput(ForwardDirection, MoveInputAxis.Y);
+	AddMovementInput(RightDirection, MoveInputAxis.X);
 }
 
 void AFlowSlayerCharacter::StopMoving(const FInputActionValue& Value)
