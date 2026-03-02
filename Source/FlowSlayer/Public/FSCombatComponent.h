@@ -263,7 +263,7 @@ public:
     bool GetChainingToNewCombo() const { return bChainingToNewCombo; }
 
     /** Set all combos and combat states back to default and stops the current attack animation */
-    void CancelAttack();
+    void CancelAttack(float blendOutTime = 0.2f);
 
 protected:
 

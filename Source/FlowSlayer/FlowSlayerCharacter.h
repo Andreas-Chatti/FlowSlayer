@@ -35,7 +35,8 @@ namespace FlowSlayerInput
 	{
 		NONE,
 		Jump,
-		Dash
+		Dash,
+		Move
 	};
 }
 
