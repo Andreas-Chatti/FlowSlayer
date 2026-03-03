@@ -107,34 +107,59 @@ void UFSCombatComponent::InitializeComboLookupTable()
 
 void UFSCombatComponent::InitializeComboAttackData()
 {
-    // === STANDING LIGHT COMBO (3 attacks) ===
-    StandingLightCombo.Attacks.SetNum(3);
+    // === STANDING LIGHT COMBO (7 attacks) ===
+    StandingLightCombo.Attacks.SetNum(7);
 
     // Attack 1
     StandingLightCombo.Attacks[0].Damage = 50.f;
-    StandingLightCombo.Attacks[0].KnockbackForce = 100.f;
-    StandingLightCombo.Attacks[0].FlowReward = 4.f;
+    StandingLightCombo.Attacks[0].KnockbackForce = 120.f;
+    StandingLightCombo.Attacks[0].FlowReward = 3.f;
     StandingLightCombo.Attacks[0].AttackType = EAttackType::StandingLight;
 
     // Attack 2
-    StandingLightCombo.Attacks[1].Damage = 55.f;
-    StandingLightCombo.Attacks[1].KnockbackForce = 120.f;
-    StandingLightCombo.Attacks[1].FlowReward = 5.f;
+    StandingLightCombo.Attacks[1].Damage = 52.f;
+    StandingLightCombo.Attacks[1].KnockbackForce = 130.f;
+    StandingLightCombo.Attacks[1].FlowReward = 3.f;
     StandingLightCombo.Attacks[1].AttackType = EAttackType::StandingLight;
 
-    // Attack 3 (final) - Only this one has ChainableAttacks
-    StandingLightCombo.Attacks[2].Damage = 60.f;
-    StandingLightCombo.Attacks[2].KnockbackForce = 150.f;
-    StandingLightCombo.Attacks[2].FlowReward = 6.f;
+    // Attack 3
+    StandingLightCombo.Attacks[2].Damage = 55.f;
+    StandingLightCombo.Attacks[2].KnockbackForce = 140.f;
+    StandingLightCombo.Attacks[2].FlowReward = 3.f;
     StandingLightCombo.Attacks[2].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[2].ChainableAttacks = {
-        EAttackType::StandingHeavy,
-        EAttackType::RunningLight,
+
+    // Attack 4
+    StandingLightCombo.Attacks[3].Damage = 58.f;
+    StandingLightCombo.Attacks[3].KnockbackForce = 150.f;
+    StandingLightCombo.Attacks[3].FlowReward = 3.f;
+    StandingLightCombo.Attacks[3].AttackType = EAttackType::StandingLight;
+
+    // Attack 5
+    StandingLightCombo.Attacks[4].Damage = 60.f;
+    StandingLightCombo.Attacks[4].KnockbackForce = 160.f;
+    StandingLightCombo.Attacks[4].FlowReward = 4.f;
+    StandingLightCombo.Attacks[4].AttackType = EAttackType::StandingLight;
+
+    // Attack 6
+    StandingLightCombo.Attacks[5].Damage = 65.f;
+    StandingLightCombo.Attacks[5].KnockbackForce = 180.f;
+    StandingLightCombo.Attacks[5].FlowReward = 4.f;
+    StandingLightCombo.Attacks[5].AttackType = EAttackType::StandingLight;
+
+    // Attack 7 (final) - Only this one has ChainableAttacks
+    StandingLightCombo.Attacks[6].Damage = 70.f;
+    StandingLightCombo.Attacks[6].KnockbackForce = 200.f;
+    StandingLightCombo.Attacks[6].FlowReward = 5.f;
+    StandingLightCombo.Attacks[6].AttackType = EAttackType::StandingLight;
+    StandingLightCombo.Attacks[6].ChainableAttacks = {
         EAttackType::RunningHeavy,
+        EAttackType::StandingHeavy,
         EAttackType::Launcher,
         EAttackType::PowerLauncher,
-        EAttackType::SpinAttack,
-        EAttackType::DashPierce
+        EAttackType::PowerSlash,
+        EAttackType::PierceThrust,
+        EAttackType::DashPierce,
+        EAttackType::DashDoubleSlash
     };
 
     for (auto& attack : StandingLightCombo.Attacks)
@@ -179,67 +204,40 @@ void UFSCombatComponent::InitializeComboAttackData()
     for (auto& attack : StandingHeavyCombo.Attacks)
         attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
-    // === RUNNING LIGHT COMBO (7 attacks) ===
-    RunningLightCombo.Attacks.SetNum(7);
+    // === RUNNING LIGHT COMBO (3 attacks) ===
+    RunningLightCombo.Attacks.SetNum(3);
     {
         // Attack 1
         RunningLightCombo.Attacks[0].Damage = 50.f;
-        RunningLightCombo.Attacks[0].KnockbackForce = 120.f;
-        RunningLightCombo.Attacks[0].FlowReward = 3.f;
+        RunningLightCombo.Attacks[0].KnockbackForce = 100.f;
+        RunningLightCombo.Attacks[0].FlowReward = 4.f;
         RunningLightCombo.Attacks[0].AttackType = EAttackType::RunningLight;
 
         // Attack 2
-        RunningLightCombo.Attacks[1].Damage = 52.f;
-        RunningLightCombo.Attacks[1].KnockbackForce = 130.f;
-        RunningLightCombo.Attacks[1].FlowReward = 3.f;
+        RunningLightCombo.Attacks[1].Damage = 55.f;
+        RunningLightCombo.Attacks[1].KnockbackForce = 120.f;
+        RunningLightCombo.Attacks[1].FlowReward = 5.f;
         RunningLightCombo.Attacks[1].AttackType = EAttackType::RunningLight;
 
-        // Attack 3
-        RunningLightCombo.Attacks[2].Damage = 55.f;
-        RunningLightCombo.Attacks[2].KnockbackForce = 140.f;
-        RunningLightCombo.Attacks[2].FlowReward = 3.f;
+        // Attack 3 (final) - Only this one has ChainableAttacks
+        RunningLightCombo.Attacks[2].Damage = 60.f;
+        RunningLightCombo.Attacks[2].KnockbackForce = 150.f;
+        RunningLightCombo.Attacks[2].FlowReward = 6.f;
         RunningLightCombo.Attacks[2].AttackType = EAttackType::RunningLight;
-
-        // Attack 4
-        RunningLightCombo.Attacks[3].Damage = 58.f;
-        RunningLightCombo.Attacks[3].KnockbackForce = 150.f;
-        RunningLightCombo.Attacks[3].FlowReward = 3.f;
-        RunningLightCombo.Attacks[3].AttackType = EAttackType::RunningLight;
-
-        // Attack 5
-        RunningLightCombo.Attacks[4].Damage = 60.f;
-        RunningLightCombo.Attacks[4].KnockbackForce = 160.f;
-        RunningLightCombo.Attacks[4].FlowReward = 4.f;
-        RunningLightCombo.Attacks[4].AttackType = EAttackType::RunningLight;
-
-        // Attack 6
-        RunningLightCombo.Attacks[5].Damage = 65.f;
-        RunningLightCombo.Attacks[5].KnockbackForce = 180.f;
-        RunningLightCombo.Attacks[5].FlowReward = 4.f;
-        RunningLightCombo.Attacks[5].AttackType = EAttackType::RunningLight;
-
-        // Attack 7 (final) - Only this one has ChainableAttacks
-        RunningLightCombo.Attacks[6].Damage = 70.f;
-        RunningLightCombo.Attacks[6].KnockbackForce = 200.f;
-        RunningLightCombo.Attacks[6].FlowReward = 5.f;
-        RunningLightCombo.Attacks[6].AttackType = EAttackType::RunningLight;
-        RunningLightCombo.Attacks[6].ChainableAttacks = {
-            EAttackType::RunningHeavy,
+        RunningLightCombo.Attacks[2].ChainableAttacks = {
             EAttackType::StandingHeavy,
+            EAttackType::StandingLight,
+            EAttackType::RunningHeavy,
             EAttackType::Launcher,
             EAttackType::PowerLauncher,
-            EAttackType::PowerSlash,
-            EAttackType::PierceThrust,
-            EAttackType::DashPierce,
-            EAttackType::DashDoubleSlash
+            EAttackType::SpinAttack,
+            EAttackType::DashPierce
         };
-
-        for (auto& attack : RunningLightCombo.Attacks)
-            attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+        RunningLightCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
-    // === RUNNING HEAVY COMBO (4 attacks) ===
-    RunningHeavyCombo.Attacks.SetNum(4);
+    // === RUNNING HEAVY COMBO (3 attacks) ===
+    RunningHeavyCombo.Attacks.SetNum(3);
     {
         // Attack 1
         RunningHeavyCombo.Attacks[0].Damage = 75.f;
@@ -254,17 +252,11 @@ void UFSCombatComponent::InitializeComboAttackData()
         RunningHeavyCombo.Attacks[1].AttackType = EAttackType::RunningHeavy;
 
         // Attack 3
-        RunningHeavyCombo.Attacks[2].Damage = 85.f;
-        RunningHeavyCombo.Attacks[2].KnockbackForce = 350.f;
-        RunningHeavyCombo.Attacks[2].FlowReward = 14.f;
+        RunningHeavyCombo.Attacks[2].Damage = 95.f;
+        RunningHeavyCombo.Attacks[2].KnockbackForce = 420.f;
+        RunningHeavyCombo.Attacks[2].FlowReward = 18.f;
         RunningHeavyCombo.Attacks[2].AttackType = EAttackType::RunningHeavy;
-
-        // Attack 4 (final) - Only this one has ChainableAttacks
-        RunningHeavyCombo.Attacks[3].Damage = 95.f;
-        RunningHeavyCombo.Attacks[3].KnockbackForce = 420.f;
-        RunningHeavyCombo.Attacks[3].FlowReward = 18.f;
-        RunningHeavyCombo.Attacks[3].AttackType = EAttackType::RunningHeavy;
-        RunningHeavyCombo.Attacks[3].ChainableAttacks = {
+        RunningHeavyCombo.Attacks[2].ChainableAttacks = {
             EAttackType::StandingHeavy,
             EAttackType::RunningLight,
             EAttackType::GroundSlam,
@@ -273,9 +265,7 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::PowerLauncher,
             EAttackType::DashDoubleSlash
         };
-
-        for (auto& attack : RunningHeavyCombo.Attacks)
-            attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+        RunningHeavyCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     }
 
     // === DASH PIERCE ===
@@ -499,6 +489,21 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::PowerSlash,
             EAttackType::Launcher
         };
+
+        TSharedPtr<FTimerHandle> spinAttackTimer{ MakeShared<FTimerHandle>() };
+        SpinAttack.Attacks[0].OnAttackExecuted.BindLambda([this, spinAttackTimer]() {
+            constexpr float spinAttackMaxWalkSpeed{ 300.f };
+            constexpr float walkSpeedDelay{ 1.09f };
+            PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = spinAttackMaxWalkSpeed;
+            constexpr float runSpeedThreshold{ 600.f };
+            constexpr float sprintSpeedThreshold{ 900.f };
+            GetWorld()->GetTimerManager().SetTimer(
+                *spinAttackTimer,
+                [this](){ PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = LockedOnTarget ? runSpeedThreshold : sprintSpeedThreshold; },
+                walkSpeedDelay,
+                false
+                );
+        });
     }
 
     // === HORIZONTAL SWEEP ===
@@ -1019,7 +1024,6 @@ void UFSCombatComponent::ChainingToNextCombo()
 void UFSCombatComponent::RotatePlayerToPlayerView()
 {
     PlayerOwner->SetActorRotation(FRotator(0.f, PlayerOwner->GetControlRotation().Yaw, 0.f), ETeleportType::TeleportPhysics);
-    PlayerOwner->GetCharacterMovement()->bOrientRotationToMovement = false;
 }
 
 void UFSCombatComponent::ContinueCombo()
