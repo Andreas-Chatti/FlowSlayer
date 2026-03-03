@@ -72,13 +72,12 @@ void AFlowSlayerCharacter::BeginPlay()
 
 	LockOnComponent->OnLockOnStarted.BindUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStarted);
 	LockOnComponent->OnLockOnStopped.AddUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStopped);
-	OnAnimationCanceled.AddUObject(this, &AFlowSlayerCharacter::HandleOnAnimationCanceled);
+	OnAnimationCanceled.AddDynamic(this, &AFlowSlayerCharacter::HandleOnAnimationCanceled);
 
 	AnimInstance = GetMesh()->GetAnimInstance();
 	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
 
 	CombatComponent->OnHitLandedNotify.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnHitLanded);
-	AnimInstance->OnMontageEnded.AddDynamic(this, &AFlowSlayerCharacter::OnMontageEnded);
 	OnDamageTaken.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnPlayerHit);
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
@@ -167,21 +166,21 @@ void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
 	GetCharacterMovement()->MaxWalkSpeed = LockOnComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
 }
 
-void AFlowSlayerCharacter::HandleOnAnimationCanceled(FlowSlayerInput::EActionType actionType)
+void AFlowSlayerCharacter::HandleOnAnimationCanceled(EActionType actionType)
 {
-	float blendOutTime{ actionType == FlowSlayerInput::EActionType::Move ? 0.05f : 0.2f };
+	float blendOutTime{ actionType == EActionType::Move ? 0.5f : 0.2f };
 	CombatComponent->CancelAttack(blendOutTime);
 
 	switch (actionType)
 	{
-	case FlowSlayerInput::EActionType::NONE: return;
-	case FlowSlayerInput::EActionType::Jump:
+	case EActionType::NONE: return;
+	case EActionType::Jump:
 		Jump();
 		break;
-	case FlowSlayerInput::EActionType::Dash:
+	case EActionType::Dash:
 		Dash(FInputActionValue::Axis1D(1.f));
 		break;
-	case FlowSlayerInput::EActionType::Move:
+	case EActionType::Move:
 		Move(FInputActionValue::Axis2D(MoveInputAxis));
 	}
 }
@@ -249,9 +248,6 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 {
 	MoveInputAxis = Value.Get<FVector2D>();
 	bHasMovementInput = MoveInputAxis.SquaredLength() > 0.01f;
-
-	if (!Controller || CombatComponent->isAttacking())
-		return;
 
 	// === MODE LOCK-ON ===
 	if (LockOnComponent->IsLockedOnTarget())
@@ -378,12 +374,6 @@ bool AFlowSlayerCharacter::GetInputKeyState(FKey inputKey) const
 	return PlayerController->WasInputKeyJustPressed(inputKey) || PlayerController->IsInputKeyDown(inputKey);
 }
 
-void AFlowSlayerCharacter::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
-{
-	if (!CombatComponent->isAttacking())
-		GetCharacterMovement()->bOrientRotationToMovement = true;
-}
-
 void AFlowSlayerCharacter::Jump()
 {
 	bWantsToJump = true;
@@ -438,14 +428,13 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 		return;
 	}
 
-	else if (GetInputKeyState(EKeys::Z))
+	else if (GetSpeed() > RunSpeedThreshold)
 		attackType = EAttackType::RunningLight;
 
 	else
 		attackType = EAttackType::StandingLight;
 
 	OnAttackTriggered(attackType);
-
 }
 
 void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value)
@@ -470,7 +459,7 @@ void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value
 		return;
 	}
 
-	else if (GetInputKeyState(EKeys::Z))
+	else if (GetSpeed() > RunSpeedThreshold)
 		attackType = EAttackType::RunningHeavy;
 
 	else
@@ -508,7 +497,6 @@ void AFlowSlayerCharacter::OnDashAttackActionStarted()
 	if (bIsDashing)
 		StopAnimMontage(GetCurrentMontage() == FwdDashAnim ? FwdDashAnim : BwdDashAnim);
 
-	//TriggerAttackWithBuffer(attackType);
 	OnAttackTriggered(attackType);
 }
 

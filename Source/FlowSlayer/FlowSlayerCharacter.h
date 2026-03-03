@@ -28,20 +28,17 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 
-namespace FlowSlayerInput
+UENUM(BlueprintType)
+	enum class EActionType : uint8
 {
-	UENUM(BlueprintType)
-		enum class EActionType : uint8
-	{
-		NONE,
-		Jump,
-		Dash,
-		Move
-	};
-}
+	NONE,
+	Jump,
+	Dash,
+	Move
+};
 
 /** Delegate for animations cancel window OPEN and CLOSE */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, FlowSlayerInput::EActionType actionType);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, EActionType, actionType);
 
 /* Delegate for handling damage taken from any source */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamageTaken, float, damageAmount, AActor*, damageDealer);
@@ -56,6 +53,7 @@ class FLOWSLAYER_API AFlowSlayerCharacter : public ACharacter, public IFSDamagea
 public:
 
 	/** Called during an animation cancel window if the player has tried to dash or jump */
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnAnimationCanceled OnAnimationCanceled;
 
 	/** Broadcasted when the player has received damage */
@@ -136,7 +134,8 @@ private:
 	UInputAction* ToggleLockOnAction;
 
 	/** Callback called when player dashed or jumped sucessfully in the animation cancel window during an attack animation */
-	void HandleOnAnimationCanceled(FlowSlayerInput::EActionType actionType);
+	UFUNCTION()
+	void HandleOnAnimationCanceled(EActionType actionType);
 
 	/** Callback called when lock-on starts */
 	void HandleOnLockOnStarted(AActor* lockedOnTarget);
@@ -192,6 +191,9 @@ public:
 
 	UFUNCTION(BlueprintCallable)
 	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
+
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	float GetSpeed() const { return GetCharacterMovement()->Velocity.Size(); }
 
 	UFUNCTION(BlueprintCallable)
 	bool HasMovementInput() const { return bHasMovementInput; }
@@ -286,6 +288,9 @@ protected:
 public:
 
 	FVector2D GetMoveInputAxis() const { return MoveInputAxis; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsAttacking() const { return CombatComponent->isAttacking(); }
 
 protected:
 
@@ -396,10 +401,6 @@ private:
 
 	UFUNCTION()
 	virtual void Falling() override;
-
-	/** Restores movement rotation settings after an attack montage ends */
-	UFUNCTION()
-	void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
 
 	/** Initialize Player HUD on BeginPlay */
