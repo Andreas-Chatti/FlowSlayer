@@ -51,6 +51,8 @@ void UFSCombatComponent::BeginPlay()
     // Cache MotionWarpingComponent reference
     MotionWarpingComponent = PlayerOwner->FindComponentByClass<UMotionWarpingComponent>();
     checkf(MotionWarpingComponent, TEXT("FATAL: MotionWarpingComponent not found on player!"));
+
+    PlayerOwner->LandedDelegate.AddDynamic(this, &UFSCombatComponent::HandleOnLanded);
 }
 
 bool UFSCombatComponent::InitializeAndAttachWeapon()
@@ -882,6 +884,25 @@ void UFSCombatComponent::HandleAirStallStarted()
 void UFSCombatComponent::HandleAirStallFinished(float gravityScale)
 {
     PlayerOwner->GetCharacterMovement()->GravityScale = gravityScale;
+}
+
+void UFSCombatComponent::HandleOnLanded(const FHitResult& Hit)
+{
+    if (!AnimInstance || !OngoingCombo)
+        return;
+    
+    const UAnimMontage* currentActiveMontage{ AnimInstance->GetCurrentActiveMontage() };
+    if (!currentActiveMontage)
+        return;
+    
+    for (const auto& airAttack : AirCombo.Attacks)
+    {
+        if (airAttack.Montage == currentActiveMontage)
+        {
+            CancelAttack(0.25f);
+            return;
+        }
+    }
 }
 
 AActor* UFSCombatComponent::GetTargetForMotionWarp(float searchRadius, bool debugLines)
