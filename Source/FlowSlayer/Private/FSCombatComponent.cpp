@@ -427,6 +427,7 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::AirCombo,
             EAttackType::AerialSlam
         };
+        LauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         LauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
             { 
             const FName warpTargetName{ "DashIn" };
@@ -458,20 +459,25 @@ void UFSCombatComponent::InitializeComboAttackData()
             EAttackType::AirCombo,
             EAttackType::AerialSlam
         };
+        PowerLauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
         PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
             { 
             const FName warpTargetName{ "DashIn" };
-            constexpr float notifyStart{ 0.3f };
-            constexpr float notifyEnd{ 0.42f };
+            constexpr float notifyStart{ 0.04f };
+            constexpr float notifyEnd{ 0.38f };
             constexpr float searchRadius{ 400.f };
             SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
 
-            const FName airWarpTargetName{ "AttackTarget" };
-            constexpr float airNotifyStart{ 0.47f };
-            constexpr float airNotifyEnd{ 0.86f };
-            constexpr float airSearchRadius{ 400.f };
-            constexpr float zOffset{ 250.f };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius, false, zOffset);
+            // No vertical Rootbone for this animation: air motion warping doesn't work for this one
+            // Need to manually launch the character when the ground motion warping is finished
+            constexpr double zVelocity{ 1400.0 };
+            FTimerHandle launchTimer;
+            GetWorld()->GetTimerManager().SetTimer(
+            launchTimer,
+                [this](){ PlayerOwner->LaunchCharacter(FVector{ 0.0, 0.0, zVelocity }, false, true) ; },
+                notifyEnd + 0.1f,
+                false
+                );
             });
         PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
     }
@@ -921,42 +927,83 @@ AActor* UFSCombatComponent::GetTargetForMotionWarp(float searchRadius, bool debu
 void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float zOffset, float forwardOffset)
 {
     AActor* nearestEnemy{ GetTargetForMotionWarp(searchRadius, debugLines) };
-    if (!MotionWarpingComponent || !nearestEnemy)
+    if (!MotionWarpingComponent)
         return;
 
     TWeakObjectPtr<AActor> weakEnemy{ nearestEnemy };
     TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MotionWarpingComponent };
 
     FTimerHandle flyingStartTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        flyingStartTimer,
-        [this, weakEnemy, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName]()
-        {
-            if (!weakEnemy.IsValid() || !weakMotionWarp.IsValid())
-                return;
+    if (nearestEnemy)
+    {
+        GetWorld()->GetTimerManager().SetTimer(
+            flyingStartTimer,
+            [this, weakEnemy, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName]()
+            {
+                if (!weakEnemy.IsValid() || !weakMotionWarp.IsValid())
+                    return;
 
-            FVector playerLocation{ PlayerOwner->GetActorLocation() };
-            FVector enemyLocation{ weakEnemy->GetActorLocation() };
+                FVector playerLocation{ PlayerOwner->GetActorLocation() };
+                FVector enemyLocation{ weakEnemy->GetActorLocation() };
 
-            FVector directionToEnemy{ (enemyLocation - playerLocation).GetSafeNormal() };
+                FVector directionToEnemy{ (enemyLocation - playerLocation).GetSafeNormal() };
 
-            FVector targetLocation{ enemyLocation };
-            targetLocation.Z += zOffset;
-            targetLocation -= directionToEnemy * forwardOffset; 
+                FVector targetLocation{ enemyLocation };
+                targetLocation.Z += zOffset;
+                targetLocation -= directionToEnemy * forwardOffset;
 
-            FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
+                FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
 
-            FMotionWarpingTarget target;
-            target.Name = motionWarpingTargetName;
-            target.Location = targetLocation;
-            target.Rotation = lookAtRotation;
+                FMotionWarpingTarget target;
+                target.Name = motionWarpingTargetName;
+                target.Location = targetLocation;
+                target.Rotation = lookAtRotation;
 
-            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-            weakMotionWarp->AddOrUpdateWarpTarget(target);
-        },
-        notifyStartTime,
-        false
-    );
+                PlayerOwner->SetActorRotation(FRotator(0.f, lookAtRotation.Yaw, 0.f), ETeleportType::TeleportPhysics);
+                PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+                weakMotionWarp->AddOrUpdateWarpTarget(target);
+            },
+            notifyStartTime,
+            false
+        );
+    }
+
+    else
+    {
+        GetWorld()->GetTimerManager().SetTimer(
+            flyingStartTimer,
+            [this, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName, debugLines]()
+            {
+                if (!weakMotionWarp.IsValid())
+                    return;
+
+                FVector playerLocation{ PlayerOwner->GetActorLocation() };
+
+                FRotator controlYaw{ 0.f, PlayerOwner->GetControlRotation().Yaw, 0.f };
+                FVector cameraForward{ FRotationMatrix(controlYaw).GetUnitAxis(EAxis::X) };
+
+                FVector targetLocation{ playerLocation + cameraForward * forwardOffset + FVector{0.f, 0.f, zOffset} };
+
+                if (debugLines)
+                {
+                    DrawDebugSphere(
+                        GetWorld(),
+                        targetLocation,
+                        20.f,
+                        12,
+                        FColor::Emerald,
+                        false,
+                        3.f
+                    );
+                }
+
+                PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+                weakMotionWarp->AddOrUpdateWarpTargetFromLocation(motionWarpingTargetName, targetLocation);
+            },
+            notifyStartTime,
+            false
+        );
+    }
 
     FTimerHandle flyingEndTimer;
     GetWorld()->GetTimerManager().SetTimer(
@@ -1083,8 +1130,12 @@ void UFSCombatComponent::ContinueCombo()
 
 void UFSCombatComponent::ResetComboState()
 {
+    // If the player is not falling or flying during a reset, that means he was ground attacking
+    // so there's no need to prevent player from air attacking
+    if (PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying())
+        bCanAirAttack = false;
+
     ComboIndex = 0;
-    bCanAirAttack = false;
     bIsAttacking = false;
     bContinueCombo = false;
     bComboWindowOpened = false;
