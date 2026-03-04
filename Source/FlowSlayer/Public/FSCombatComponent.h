@@ -564,6 +564,10 @@ private:
     */
     void HandleAirStallFinished(float gravityScale);
 
+    /** Called when the character has landed on the ground */
+    UFUNCTION()
+    void HandleOnLanded(const FHitResult& Hit);
+
     /** GravityScale during air stall
     * Lower value means less gravity = player staying in the air longer
     */

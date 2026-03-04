@@ -25,14 +25,14 @@ void UAnimNotifyState_AnimCancelWindow::NotifyTick(USkeletalMeshComponent* MeshC
 
 	else if (FSCharacter->WantsToJump() || FSCharacter->WantsToDash() || FSCharacter->HasMovementInput())
 	{
-		FlowSlayerInput::EActionType actionType{ FlowSlayerInput::EActionType::NONE };
+		EActionType actionType{ EActionType::NONE };
 
 		if (FSCharacter->WantsToJump())
-			actionType = FlowSlayerInput::EActionType::Jump;
+			actionType = EActionType::Jump;
 		else if (FSCharacter->WantsToDash())
-			actionType = FlowSlayerInput::EActionType::Dash;
+			actionType = EActionType::Dash;
 		else if (FSCharacter->HasMovementInput())
-			actionType = FlowSlayerInput::EActionType::Move;
+			actionType = EActionType::Move;
 
 		FSCharacter->OnAnimationCanceled.Broadcast(actionType);
 	}
