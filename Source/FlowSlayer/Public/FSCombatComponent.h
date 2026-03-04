@@ -231,6 +231,15 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Combo Counter")
     float GetComboTimeRatio() const;
 
+    /** Whether the play can do an Air attack while in the air
+    * 
+    * Used mainly to track if the player already did an air attack
+    * 
+    * @return true if the player can do an air attack, false otherwise
+    */
+    UFUNCTION(BlueprintPure, Category = "Combat|Combo Counter")
+    bool CanAirAttack() const { return bCanAirAttack; }
+
 private:
 
     /** Duration of the combo streak timer — resets on each hit */
@@ -573,6 +582,12 @@ private:
     */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     float AirStallGravity{ 0.3f };
+
+    /** Whether the play can do an Air attack while in the air
+    * Used mainly to track if the player already did an air attack
+    * Prevent from spamming multiple air attacks
+    */
+    bool bCanAirAttack{ true };
 
     /** Helper to get the target for motion warping
     * Prioritizes locked-on target if within radius, otherwise finds nearest enemy

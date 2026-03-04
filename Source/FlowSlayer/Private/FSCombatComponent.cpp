@@ -679,6 +679,8 @@ void UFSCombatComponent::InitializeComboAttackData()
                 constexpr float airNotifyEnd{ 0.28f };
                 constexpr float airSearchRadius{ 250.f };
                 SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+
+                bCanAirAttack = false;
             });
         AirCombo.Attacks[2].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
     }
@@ -888,6 +890,8 @@ void UFSCombatComponent::HandleAirStallFinished(float gravityScale)
 
 void UFSCombatComponent::HandleOnLanded(const FHitResult& Hit)
 {
+    bCanAirAttack = true;
+
     if (!AnimInstance || !OngoingCombo)
         return;
     
@@ -900,7 +904,8 @@ void UFSCombatComponent::HandleOnLanded(const FHitResult& Hit)
         if (airAttack.Montage == currentActiveMontage)
         {
             CancelAttack(0.25f);
-            return;
+            bCanAirAttack = true;
+            break;
         }
     }
 }
@@ -1079,6 +1084,7 @@ void UFSCombatComponent::ContinueCombo()
 void UFSCombatComponent::ResetComboState()
 {
     ComboIndex = 0;
+    bCanAirAttack = false;
     bIsAttacking = false;
     bContinueCombo = false;
     bComboWindowOpened = false;

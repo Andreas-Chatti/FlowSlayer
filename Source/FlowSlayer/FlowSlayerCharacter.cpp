@@ -410,7 +410,7 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 {
 	EAttackType attackType{ EAttackType::StandingLight };
 
-	if (GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar) || GetCharacterMovement()->IsFlying())
+	if (CombatComponent->CanAirAttack() && (GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar) || GetCharacterMovement()->IsFlying()))
 	{
 		OnJumpAttackActionStarted();
 		return;
