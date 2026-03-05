@@ -111,6 +111,9 @@ struct FAttackData
     /** Flow reward on attack successfully hit target */
     float FlowReward{ 5.f };
 
+    /** How long the player has to launch the next attack after a hit to successfully continue a true combo */
+    float ComboWindowDuration{ 0.1f };
+
     /** Attack type needed to launch this attack
      * This data is based from the inputs actions in AFlowSlayerCharacter class
      * Configured via InitializeComboAttackData()
@@ -243,8 +246,7 @@ public:
 private:
 
     /** Duration of the combo streak timer — resets on each hit */
-    UPROPERTY(EditDefaultsOnly, Category = "Combat|Combo Counter")
-    float ComboCounterTimerDuration{ 1.5f };
+    float OngoingAttackComboWindowDuration{ 0.f };
 
     /** Number of hits in the current streak */
     int32 ComboHitCount{ 0 };

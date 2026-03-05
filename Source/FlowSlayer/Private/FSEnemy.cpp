@@ -53,6 +53,10 @@ void AFSEnemy::BeginPlay()
         AnimInstance->OnMontageEnded.AddDynamic(this, &AFSEnemy::OnAttackMontageEnded);
 
     InitializeLifeBarWidgetRef();
+
+    // Ignoring Player's camera collision to avoid weird camera snap
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+    GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 }
 
 void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
