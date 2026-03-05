@@ -325,6 +325,26 @@ public:
 
     void ApplyHitstop(AActor* hitActor);
 
+    /** Applies hit shake to a specific target */
+    void ApplyHitShake(USkeletalMeshComponent* hitActorMesh, float shakeSpeed, float shakeAmplitude);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
+    float ShakeSpeed{ 30.f };
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
+    float EnemyShakeAmplitude{ 20.f };
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
+    float PlayerShakeAmplitude{ 1.f };
+
+    /** Player HitShake Timer */
+    UPROPERTY()
+    FTimerHandle PlayerHitShakeTimer;
+
+    /** Enemy HitShake Timer */
+    UPROPERTY()
+    FTimerHandle EnemyHitShakeTimer;
+
     // === VFX ===
 
     /** Hit Particules VFX */

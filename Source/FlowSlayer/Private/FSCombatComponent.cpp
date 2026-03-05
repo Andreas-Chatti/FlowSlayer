@@ -1320,6 +1320,8 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     ApplyDamage(hitActor, equippedWeapon, currentAttack->Damage);
     ApplyKnockback(hitActor, currentAttack->KnockbackForce, currentAttack->KnockbackUpForce);
     ApplyHitstop(hitActor);
+    ApplyHitShake(hitActor->FindComponentByClass<USkeletalMeshComponent>(), ShakeSpeed, EnemyShakeAmplitude);
+    ApplyHitShake(PlayerOwner->GetMesh(), ShakeSpeed, PlayerShakeAmplitude);
     SpawnHitVFX(hitLocation);
     PlayHitSound(hitLocation);
     ApplyCameraShake();
@@ -1359,6 +1361,62 @@ void UFSCombatComponent::ApplyHitstop(AActor* hitActor)
     GetWorld()->GetTimerManager().SetTimer(
         actorHitstopTimer,
         [this, weakHitActor]() { ResetTimeDilation(weakHitActor); },
+        hitstopDuration,
+        false
+    );
+}
+
+void UFSCombatComponent::ApplyHitShake(USkeletalMeshComponent* targetMesh, float shakeSpeed, float shakeAmplitude)
+{
+    if (!targetMesh)
+        return;
+
+    shakeSpeed = 1.f / shakeSpeed;
+    FVector targetMeshDefaultRelativeLoc{ targetMesh->GetRelativeLocation() };
+    FTimerHandle* hitShakeTimer{ shakeAmplitude == PlayerShakeAmplitude ? &PlayerHitShakeTimer : &EnemyHitShakeTimer };
+    if (!hitShakeTimer)
+        return;
+
+    float HitShakeOffsetDirection{ 1.f };
+    TWeakObjectPtr<USkeletalMeshComponent> weakTargetMesh{ targetMesh };
+    GetWorld()->GetTimerManager().SetTimer(
+        *hitShakeTimer,
+        [weakTargetMesh, shakeAmplitude, targetMeshDefaultRelativeLoc, HitShakeOffsetDirection, this]() mutable {
+
+            if (!weakTargetMesh.IsValid())
+                return;
+
+            FVector cameraRightVectorWorld{ GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetActorRightVector() };
+            FTransform playerTransform{ PlayerOwner->GetActorTransform() };
+            FVector cameraRightVectorLocal{ UKismetMathLibrary::InverseTransformDirection(playerTransform, cameraRightVectorWorld) };
+            cameraRightVectorLocal.Z = 0.0;
+
+            float f = shakeAmplitude * HitShakeOffsetDirection;
+            cameraRightVectorLocal *= f;
+            FVector newLoc{ targetMeshDefaultRelativeLoc + cameraRightVectorLocal };
+
+            weakTargetMesh->SetRelativeLocation(newLoc, false, nullptr, ETeleportType::TeleportPhysics);
+
+            HitShakeOffsetDirection *= -1.f;
+        },
+        shakeSpeed,
+        true
+    );
+
+    FTimerHandle hitShakeStopTimer;
+    GetWorld()->GetTimerManager().SetTimer(
+        hitShakeStopTimer,
+        [weakTargetMesh, targetMeshDefaultRelativeLoc, this]() {
+
+            for (FTimerHandle* timer : TArray<FTimerHandle*>{ &EnemyHitShakeTimer, &PlayerHitShakeTimer })
+            {
+                if (timer)
+                    GetWorld()->GetTimerManager().ClearTimer(*timer);
+            }
+
+            if (weakTargetMesh.IsValid())
+                weakTargetMesh->SetRelativeLocation(targetMeshDefaultRelativeLoc);
+        },
         hitstopDuration,
         false
     );
