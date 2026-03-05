@@ -53,6 +53,9 @@ void UFSCombatComponent::BeginPlay()
     checkf(MotionWarpingComponent, TEXT("FATAL: MotionWarpingComponent not found on player!"));
 
     PlayerOwner->LandedDelegate.AddDynamic(this, &UFSCombatComponent::HandleOnLanded);
+
+    if (HitFlashMaterial)
+        HitFlashMaterial->GetMaterial()->SetScalarParameterValueEditorOnly("Speed", 20.f);
 }
 
 bool UFSCombatComponent::InitializeAndAttachWeapon()
@@ -1316,7 +1319,7 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
 
     ApplyDamage(hitActor, equippedWeapon, currentAttack->Damage);
     ApplyKnockback(hitActor, currentAttack->KnockbackForce, currentAttack->KnockbackUpForce);
-    ApplyHitstop();
+    ApplyHitstop(hitActor);
     SpawnHitVFX(hitLocation);
     PlayHitSound(hitLocation);
     ApplyCameraShake();
@@ -1344,24 +1347,29 @@ void UFSCombatComponent::ApplyKnockback(AActor* target, float KnockbackForce, fl
     HitCharacter->LaunchCharacter(KnockbackVelocity, true, true);
 }
 
-void UFSCombatComponent::ApplyHitstop()
+void UFSCombatComponent::ApplyHitstop(AActor* hitActor)
 {
-    // Ralentit le temps globalement
-    UGameplayStatics::SetGlobalTimeDilation(GetWorld(), hitstopTimeDilation);
+    PlayerOwner->CustomTimeDilation = PlayerHitstopTimeDilation;
+    hitActor->CustomTimeDilation = EnemyHitstopTimeDilation;
 
-    // Reset après la durée
+    TWeakObjectPtr<AActor> weakHitActor{ hitActor };
+    TWeakObjectPtr<ACharacter> weakPlayer{ PlayerOwner };
+
+    FTimerHandle actorHitstopTimer;
     GetWorld()->GetTimerManager().SetTimer(
-        hitstopTimerHandle,
-        this,
-        &UFSCombatComponent::ResetTimeDilation,
-        hitstopDuration * hitstopTimeDilation,
+        actorHitstopTimer,
+        [this, weakHitActor]() { ResetTimeDilation(weakHitActor); },
+        hitstopDuration,
         false
     );
 }
 
-void UFSCombatComponent::ResetTimeDilation()
+void UFSCombatComponent::ResetTimeDilation(TWeakObjectPtr<AActor> hitActor)
 {
-    UGameplayStatics::SetGlobalTimeDilation(GetWorld(), 1.0f);
+    if (hitActor.IsValid())
+        hitActor->CustomTimeDilation = 1.f;
+    if (PlayerOwner)
+        PlayerOwner->CustomTimeDilation = 1.f;
 }
 
 void UFSCombatComponent::SpawnHitVFX(const FVector& location)
@@ -1420,28 +1428,14 @@ void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
     if (!enemyMesh)
         return;
 
-    TArray<UMaterialInterface*> ogMats;
-    for (int32 i{}; i < enemyMesh->GetNumMaterials(); i++)
-    {
-        ogMats.Add(enemyMesh->GetMaterials()[i]);
-        enemyMesh->SetMaterial(i, HitFlashMaterial);
-    }
+    enemyMesh->SetOverlayMaterial(HitFlashMaterial);
 
     TWeakObjectPtr<USkeletalMeshComponent> weakEnemyMesh{ enemyMesh };
-
-    FTimerHandle flashTimerHandle;
+    FTimerHandle hitFlashTimer;
     GetWorld()->GetTimerManager().SetTimer(
-        flashTimerHandle,
-        [weakEnemyMesh, ogMats]()
-        {
-            if (!weakEnemyMesh.IsValid())
-                return;
-
-            for (int32 i{}; i < weakEnemyMesh->GetNumMaterials(); i++)
-                if (ogMats.IsValidIndex(i))
-                    weakEnemyMesh->SetMaterial(i, ogMats[i]);
-        },
-        hitFlashDuration,
+        hitFlashTimer,
+        [weakEnemyMesh]() { weakEnemyMesh->SetOverlayMaterial(nullptr); },
+        hitstopDuration,
         false
     );
 }
