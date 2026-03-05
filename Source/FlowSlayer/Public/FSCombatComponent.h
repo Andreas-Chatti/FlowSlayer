@@ -284,10 +284,8 @@ protected:
     TSubclassOf<AFSWeapon> weaponClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat VFX")
-    float hitFlashDuration{ 0.15f };
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat VFX")
     UMaterialInterface* HitFlashMaterial;
+
     void ApplyHitFlash(AActor* hitActor);
 
 public:
@@ -315,13 +313,17 @@ public:
 
     /** Freeze duration */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopDuration{ 0.08f };
+    float hitstopDuration{ 0.25f };
 
-    /** Slowness (0 = total freeze) */
+    /** Player Hitstop dilation on hit */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopTimeDilation{ 0.05f }; // Ralentissement (0 = freeze total)
+    float PlayerHitstopTimeDilation{ 0.75f };
 
-    void ApplyHitstop();
+    /** Enemy Hitstop dilation on hit */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
+    float EnemyHitstopTimeDilation{ 0.35f };
+
+    void ApplyHitstop(AActor* hitActor);
 
     // === VFX ===
 
@@ -381,7 +383,7 @@ private:
     UFUNCTION()
     void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-    void ResetTimeDilation();
+    void ResetTimeDilation(TWeakObjectPtr<AActor> hitActor);
 
     bool InitializeAndAttachWeapon();
 
