@@ -410,7 +410,7 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 {
 	EAttackType attackType{ EAttackType::StandingLight };
 
-	if (CombatComponent->CanAirAttack() && (GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar) || GetCharacterMovement()->IsFlying()))
+	if ((GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar) || GetCharacterMovement()->IsFlying()))
 	{
 		OnJumpAttackActionStarted();
 		return;
@@ -506,18 +506,20 @@ void AFlowSlayerCharacter::OnJumpAttackActionStarted()
 
 	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
 
-	// LMB: JumpSlam (no direction) or JumpForwardSlam (forward)
+	// LMB: JumpSlam (backward) or JumpForwardSlam (forward)
 	if (isLMBPressed)
 	{
 		if (GetInputKeyState(EKeys::S))
 			attackType = EAttackType::JumpSlam;
 		else if (GetInputKeyState(EKeys::Z))
 			attackType = EAttackType::JumpForwardSlam;
-		else
+		else if (CombatComponent->CanAirAttack())
 			attackType = EAttackType::AirCombo;
+		else
+			return;
 	}
 
-	// RMB: JumpUpperSlam combo
+	// RMB: JumpUpperSlam attack
 	else if (isRMBPressed)
 	{
 		if (GetInputKeyState(EKeys::Z))
