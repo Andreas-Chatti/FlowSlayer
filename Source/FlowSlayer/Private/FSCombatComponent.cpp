@@ -964,27 +964,12 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     if (!hitActor || Cast<IFSDamageable>(hitActor)->IsDead())
         return;
 
-    // DEBUG, DELETE AFTER
-    if (ComboHitCount > 0)
-    {
-        const FAttackData* previousAttack{ OngoingCombo->GetAttackAt(ComboIndex - 2) };
-
-        const bool bSweetSpot{ ComboTimeRemaining >= 0.08f && ComboTimeRemaining <= 0.14f };
-        const FColor debugColor{ bSweetSpot ? FColor::Green : FColor::Orange };
-
-        FString attackName{ previousAttack ? previousAttack->Name.ToString() : "Last Combo attack: " };
-        const FString debugMsg{ FString::Printf(TEXT("[%s] Remaining: %.3f"),
-            *attackName, ComboTimeRemaining) };
-
-        GEngine->AddOnScreenDebugMessage(-1, 30.f, debugColor, debugMsg);
-    }
-
     ++ComboHitCount;
-    // To Activate the decreasing combo time remaining in Tick()
+    // Activate the decreasing combo time remaining in Tick()
     if (ComboHitCount >= 1)
         bComboCounterActive = true;
 
-    // Mostly to render the combo count to screen
+    // Render combo counter to screen
     if (ComboHitCount >= 2)
         OnComboCounterStarted.Broadcast();
 
