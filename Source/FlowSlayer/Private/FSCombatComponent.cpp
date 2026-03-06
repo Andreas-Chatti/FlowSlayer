@@ -114,422 +114,147 @@ void UFSCombatComponent::InitializeComboAttackData()
 {
     // === STANDING LIGHT COMBO (7 attacks) ===
     StandingLightCombo.Attacks.SetNum(7);
-
-    // Attack 1
-    StandingLightCombo.Attacks[0].Damage = 50.f;
-    StandingLightCombo.Attacks[0].KnockbackForce = 120.f;
-    StandingLightCombo.Attacks[0].FlowReward = 3.f;
-    StandingLightCombo.Attacks[0].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[0].ComboWindowDuration = 0.7f;
-
-    // Attack 2
-    StandingLightCombo.Attacks[1].Damage = 52.f;
-    StandingLightCombo.Attacks[1].KnockbackForce = 130.f;
-    StandingLightCombo.Attacks[1].FlowReward = 3.f;
-    StandingLightCombo.Attacks[1].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[1].ComboWindowDuration = 0.7f;
-
-    // Attack 3
-    StandingLightCombo.Attacks[2].Damage = 55.f;
-    StandingLightCombo.Attacks[2].KnockbackForce = 140.f;
-    StandingLightCombo.Attacks[2].FlowReward = 3.f;
-    StandingLightCombo.Attacks[2].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[2].ComboWindowDuration = 0.1f;
-
-    // Attack 4
-    StandingLightCombo.Attacks[3].Damage = 58.f;
-    StandingLightCombo.Attacks[3].KnockbackForce = 150.f;
-    StandingLightCombo.Attacks[3].FlowReward = 3.f;
-    StandingLightCombo.Attacks[3].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[3].ComboWindowDuration = 0.1f;
-
-    // Attack 5
-    StandingLightCombo.Attacks[4].Damage = 60.f;
-    StandingLightCombo.Attacks[4].KnockbackForce = 160.f;
-    StandingLightCombo.Attacks[4].FlowReward = 4.f;
-    StandingLightCombo.Attacks[4].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[4].ComboWindowDuration = 0.1f;
-
-    // Attack 6
-    StandingLightCombo.Attacks[5].Damage = 65.f;
-    StandingLightCombo.Attacks[5].KnockbackForce = 180.f;
-    StandingLightCombo.Attacks[5].FlowReward = 4.f;
-    StandingLightCombo.Attacks[5].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[5].ComboWindowDuration = 0.1f;
-
-    // Attack 7 (final) - Only this one has ChainableAttacks
-    StandingLightCombo.Attacks[6].Damage = 70.f;
-    StandingLightCombo.Attacks[6].KnockbackForce = 200.f;
-    StandingLightCombo.Attacks[6].FlowReward = 5.f;
-    StandingLightCombo.Attacks[6].AttackType = EAttackType::StandingLight;
-    StandingLightCombo.Attacks[6].ComboWindowDuration = 0.1f;
-    StandingLightCombo.Attacks[6].ChainableAttacks = {
-        EAttackType::RunningHeavy,
-        EAttackType::StandingHeavy,
-        EAttackType::Launcher,
-        EAttackType::PowerLauncher,
-        EAttackType::PowerSlash,
-        EAttackType::PierceThrust,
-        EAttackType::DashPierce,
-        EAttackType::DashDoubleSlash
-    };
+    StandingLightCombo.Attacks[0] = *GetAttackData("StandingLight_0");
+    StandingLightCombo.Attacks[1] = *GetAttackData("StandingLight_1");
+    StandingLightCombo.Attacks[2] = *GetAttackData("StandingLight_2");
+    StandingLightCombo.Attacks[3] = *GetAttackData("StandingLight_3");
+    StandingLightCombo.Attacks[4] = *GetAttackData("StandingLight_4");
+    StandingLightCombo.Attacks[5] = *GetAttackData("StandingLight_5");
+    StandingLightCombo.Attacks[6] = *GetAttackData("StandingLight_6");
 
     for (auto& attack : StandingLightCombo.Attacks)
         attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === STANDING HEAVY COMBO (4 attacks) ===
     StandingHeavyCombo.Attacks.SetNum(4);
-
-    // Attack 1
-    StandingHeavyCombo.Attacks[0].Damage = 70.f;
-    StandingHeavyCombo.Attacks[0].KnockbackForce = 250.f;
-    StandingHeavyCombo.Attacks[0].FlowReward = 10.f;
-    StandingHeavyCombo.Attacks[0].AttackType = EAttackType::StandingHeavy;
-    StandingHeavyCombo.Attacks[0].ComboWindowDuration = 0.1f;
-
-    // Attack 2
-    StandingHeavyCombo.Attacks[1].Damage = 75.f;
-    StandingHeavyCombo.Attacks[1].KnockbackForce = 280.f;
-    StandingHeavyCombo.Attacks[1].FlowReward = 12.f;
-    StandingHeavyCombo.Attacks[1].AttackType = EAttackType::StandingHeavy;
-    StandingHeavyCombo.Attacks[1].ComboWindowDuration = 0.1f;
-
-    // Attack 3
-    StandingHeavyCombo.Attacks[2].Damage = 80.f;
-    StandingHeavyCombo.Attacks[2].KnockbackForce = 320.f;
-    StandingHeavyCombo.Attacks[2].FlowReward = 14.f;
-    StandingHeavyCombo.Attacks[2].AttackType = EAttackType::StandingHeavy;
-    StandingHeavyCombo.Attacks[2].ComboWindowDuration = 0.1f;
-
-    // Attack 4 (final) - Only this one has ChainableAttacks
-    StandingHeavyCombo.Attacks[3].Damage = 90.f;
-    StandingHeavyCombo.Attacks[3].KnockbackForce = 400.f;
-    StandingHeavyCombo.Attacks[3].FlowReward = 18.f;
-    StandingHeavyCombo.Attacks[3].AttackType = EAttackType::StandingHeavy;
-    StandingHeavyCombo.Attacks[3].ComboWindowDuration = 0.1f;
-    StandingHeavyCombo.Attacks[3].ChainableAttacks = {
-        EAttackType::StandingLight,
-        EAttackType::RunningHeavy,
-        EAttackType::RunningLight,
-        EAttackType::GroundSlam,
-        EAttackType::PowerSlash,
-        EAttackType::Launcher,
-        EAttackType::PowerLauncher
-    };
+    StandingHeavyCombo.Attacks[0] = *GetAttackData("StandingHeavy_0");
+    StandingHeavyCombo.Attacks[1] = *GetAttackData("StandingHeavy_1");
+    StandingHeavyCombo.Attacks[2] = *GetAttackData("StandingHeavy_2");
+    StandingHeavyCombo.Attacks[3] = *GetAttackData("StandingHeavy_3");
 
     for (auto& attack : StandingHeavyCombo.Attacks)
         attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === RUNNING LIGHT COMBO (3 attacks) ===
     RunningLightCombo.Attacks.SetNum(3);
-    {
-        // Attack 1
-        RunningLightCombo.Attacks[0].Damage = 50.f;
-        RunningLightCombo.Attacks[0].KnockbackForce = 100.f;
-        RunningLightCombo.Attacks[0].FlowReward = 4.f;
-        RunningLightCombo.Attacks[0].AttackType = EAttackType::RunningLight;
-        RunningLightCombo.Attacks[0].ComboWindowDuration = 0.1f;
+    RunningLightCombo.Attacks[0] = *GetAttackData("RunningLight_0");
+    RunningLightCombo.Attacks[1] = *GetAttackData("RunningLight_1");
+    RunningLightCombo.Attacks[2] = *GetAttackData("RunningLight_2");
 
-        // Attack 2
-        RunningLightCombo.Attacks[1].Damage = 55.f;
-        RunningLightCombo.Attacks[1].KnockbackForce = 120.f;
-        RunningLightCombo.Attacks[1].FlowReward = 5.f;
-        RunningLightCombo.Attacks[1].AttackType = EAttackType::RunningLight;
-        RunningLightCombo.Attacks[1].ComboWindowDuration = 0.1f;
-
-        // Attack 3 (final) - Only this one has ChainableAttacks
-        RunningLightCombo.Attacks[2].Damage = 60.f;
-        RunningLightCombo.Attacks[2].KnockbackForce = 150.f;
-        RunningLightCombo.Attacks[2].FlowReward = 6.f;
-        RunningLightCombo.Attacks[2].AttackType = EAttackType::RunningLight;
-        RunningLightCombo.Attacks[2].ComboWindowDuration = 0.1f;
-        RunningLightCombo.Attacks[2].ChainableAttacks = {
-            EAttackType::StandingHeavy,
-            EAttackType::StandingLight,
-            EAttackType::RunningHeavy,
-            EAttackType::Launcher,
-            EAttackType::PowerLauncher,
-            EAttackType::SpinAttack,
-            EAttackType::DashPierce
-        };
-        RunningLightCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    }
+    RunningLightCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === RUNNING HEAVY COMBO (3 attacks) ===
     RunningHeavyCombo.Attacks.SetNum(3);
-    {
-        // Attack 1
-        RunningHeavyCombo.Attacks[0].Damage = 75.f;
-        RunningHeavyCombo.Attacks[0].KnockbackForce = 300.f;
-        RunningHeavyCombo.Attacks[0].FlowReward = 10.f;
-        RunningHeavyCombo.Attacks[0].AttackType = EAttackType::RunningHeavy;
-        RunningHeavyCombo.Attacks[0].ComboWindowDuration = 0.1f;
+    RunningHeavyCombo.Attacks[0] = *GetAttackData("RunningHeavy_0");
+    RunningHeavyCombo.Attacks[1] = *GetAttackData("RunningHeavy_1");
+    RunningHeavyCombo.Attacks[2] = *GetAttackData("RunningHeavy_2");
 
-        // Attack 2
-        RunningHeavyCombo.Attacks[1].Damage = 80.f;
-        RunningHeavyCombo.Attacks[1].KnockbackForce = 320.f;
-        RunningHeavyCombo.Attacks[1].FlowReward = 12.f;
-        RunningHeavyCombo.Attacks[1].AttackType = EAttackType::RunningHeavy;
-        RunningHeavyCombo.Attacks[1].ComboWindowDuration = 0.1f;
-
-        // Attack 3
-        RunningHeavyCombo.Attacks[2].Damage = 95.f;
-        RunningHeavyCombo.Attacks[2].KnockbackForce = 420.f;
-        RunningHeavyCombo.Attacks[2].FlowReward = 18.f;
-        RunningHeavyCombo.Attacks[2].AttackType = EAttackType::RunningHeavy;
-        RunningHeavyCombo.Attacks[2].ComboWindowDuration = 0.1f;
-        RunningHeavyCombo.Attacks[2].ChainableAttacks = {
-            EAttackType::StandingHeavy,
-            EAttackType::RunningLight,
-            EAttackType::GroundSlam,
-            EAttackType::PowerSlash,
-            EAttackType::Launcher,
-            EAttackType::PowerLauncher,
-            EAttackType::DashDoubleSlash
-        };
-        RunningHeavyCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    }
+    RunningHeavyCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === DASH PIERCE ===
     DashPierceAttack.Attacks.SetNum(1);
-    {
-        DashPierceAttack.Attacks[0].Damage = 70.f;
-        DashPierceAttack.Attacks[0].KnockbackForce = 200.f;
-        DashPierceAttack.Attacks[0].FlowReward = 8.f;
-        DashPierceAttack.Attacks[0].AttackType = EAttackType::DashPierce;
-        DashPierceAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        DashPierceAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::RunningLight,
-            EAttackType::StandingLight,
-            EAttackType::Launcher,
-            EAttackType::PowerLauncher,
-            EAttackType::PierceThrust,
-            EAttackType::SpinAttack
-        };
-        DashPierceAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        DashPierceAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
-            { 
-                const FName warpTargetName{ "DashIn" };
-                constexpr float notifyStart{ 0.09f };
-                constexpr float notifyEnd{ 0.52f };
-                constexpr float searchRadius{ 600.f };
+    DashPierceAttack.Attacks[0] = *GetAttackData("DashPierce");
+    DashPierceAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    DashPierceAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName warpTargetName{ "DashIn" };
+            constexpr float notifyStart{ 0.09f };
+            constexpr float notifyEnd{ 0.52f };
+            constexpr float searchRadius{ 600.f };
 
-                if (LockedOnTarget)
-                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-            });
-    }
+            if (LockedOnTarget)
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+        });
 
     // === DASH SPINNING SLASH ===
     DashSpinningSlashAttack.Attacks.SetNum(1);
-    {
-        DashSpinningSlashAttack.Attacks[0].Damage = 75.f;
-        DashSpinningSlashAttack.Attacks[0].KnockbackForce = 250.f;
-        DashSpinningSlashAttack.Attacks[0].FlowReward = 8.f;
-        DashSpinningSlashAttack.Attacks[0].AttackType = EAttackType::DashSpinningSlash;
-        DashSpinningSlashAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        DashSpinningSlashAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::RunningLight,
-            EAttackType::RunningHeavy,
-            EAttackType::StandingLight,
-            EAttackType::StandingHeavy,
-            EAttackType::HorizontalSweep,
-            EAttackType::SpinAttack,
-            EAttackType::PowerSlash,
-            EAttackType::Launcher
-        };
-        DashSpinningSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        DashSpinningSlashAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-            {
-                const FName warpTargetName{ "DashIn" };
-                constexpr float notifyStart{ 0.16f };
-                constexpr float notifyEnd{ 0.51f };
-                constexpr float searchRadius{ 600.f };
+    DashSpinningSlashAttack.Attacks[0] = *GetAttackData("DashSpinningSlash");
+    DashSpinningSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    DashSpinningSlashAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName warpTargetName{ "DashIn" };
+            constexpr float notifyStart{ 0.16f };
+            constexpr float notifyEnd{ 0.51f };
+            constexpr float searchRadius{ 600.f };
 
-                if (LockedOnTarget)
-                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-            });
-    }
+            if (LockedOnTarget)
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+        });
 
     // === DASH DOUBLE SLASH ===
     DashDoubleSlashAttack.Attacks.SetNum(1);
-    {
-        DashDoubleSlashAttack.Attacks[0].Damage = 90.f;
-        DashDoubleSlashAttack.Attacks[0].KnockbackForce = 300.f;
-        DashDoubleSlashAttack.Attacks[0].FlowReward = 10.f;
-        DashDoubleSlashAttack.Attacks[0].AttackType = EAttackType::DashDoubleSlash;
-        DashDoubleSlashAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        DashDoubleSlashAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::RunningHeavy,
-            EAttackType::PowerSlash,
-            EAttackType::GroundSlam,
-            EAttackType::Launcher
-        };
-    }
+    DashDoubleSlashAttack.Attacks[0] = *GetAttackData("DashDoubleSlash");
 
     // === DASH BACK SLASH ===
     DashBackSlashAttack.Attacks.SetNum(1);
-    {
-        DashBackSlashAttack.Attacks[0].Damage = 80.f;
-        DashBackSlashAttack.Attacks[0].KnockbackForce = 400.f;
-        DashBackSlashAttack.Attacks[0].FlowReward = 7.f;
-        DashBackSlashAttack.Attacks[0].AttackType = EAttackType::DashBackSlash;
-        DashBackSlashAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        DashBackSlashAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingLight,
-            EAttackType::StandingHeavy,
-            EAttackType::DiagonalRetourne,
-            EAttackType::JumpSlam,
-            EAttackType::JumpForwardSlam,
-            EAttackType::SpinAttack
-        };
-    }
+    DashBackSlashAttack.Attacks[0] = *GetAttackData("DashBackSlash");
 
     // === JUMP SLAM ===
     JumpSlamAttack.Attacks.SetNum(1);
-    {
-        JumpSlamAttack.Attacks[0].Damage = 100.f;
-        JumpSlamAttack.Attacks[0].KnockbackForce = 400.f;
-        JumpSlamAttack.Attacks[0].KnockbackUpForce = 200.f;
-        JumpSlamAttack.Attacks[0].FlowReward = 12.f;
-        JumpSlamAttack.Attacks[0].AttackType = EAttackType::JumpSlam;
-        JumpSlamAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        JumpSlamAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingLight,
-            EAttackType::RunningLight,
-            EAttackType::StandingHeavy,
-            EAttackType::SpinAttack,
-            EAttackType::Launcher
-        };
-        JumpSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    }
+    JumpSlamAttack.Attacks[0] = *GetAttackData("JumpSlam");
+    JumpSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === JUMP FORWARD SLAM ===
     JumpForwardSlamAttack.Attacks.SetNum(1);
-    {
-        JumpForwardSlamAttack.Attacks[0].Damage = 105.f;
-        JumpForwardSlamAttack.Attacks[0].KnockbackForce = 450.f;
-        JumpForwardSlamAttack.Attacks[0].KnockbackUpForce = 250.f;
-        JumpForwardSlamAttack.Attacks[0].FlowReward = 13.f;
-        JumpForwardSlamAttack.Attacks[0].AttackType = EAttackType::JumpForwardSlam;
-        JumpForwardSlamAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        JumpForwardSlamAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::RunningLight,
-            EAttackType::RunningHeavy,
-            EAttackType::DashPierce,
-            EAttackType::Launcher,
-            EAttackType::PowerSlash
-        };
-        JumpForwardSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    }
+    JumpForwardSlamAttack.Attacks[0] = *GetAttackData("JumpForwardSlam");
+    JumpForwardSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === JUMP UPPER SLAM ===
     JumpUpperSlamComboAttack.Attacks.SetNum(1);
-    {
-        JumpUpperSlamComboAttack.Attacks[0].Damage = 110.f;
-        JumpUpperSlamComboAttack.Attacks[0].KnockbackForce = 500.f;
-        JumpUpperSlamComboAttack.Attacks[0].KnockbackUpForce = 300.f;
-        JumpUpperSlamComboAttack.Attacks[0].FlowReward = 14.f;
-        JumpUpperSlamComboAttack.Attacks[0].AttackType = EAttackType::JumpUpperSlam;
-        JumpUpperSlamComboAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        JumpUpperSlamComboAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingLight,
-            EAttackType::StandingHeavy,
-            EAttackType::RunningLight,
-            EAttackType::Launcher,
-            EAttackType::GroundSlam,
-            EAttackType::SpinAttack
-        };
-        JumpUpperSlamComboAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    }
+    JumpUpperSlamComboAttack.Attacks[0] = *GetAttackData("JumpUpperSlam");
+    JumpUpperSlamComboAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === LAUNCHER ===
     LauncherAttack.Attacks.SetNum(1);
-    {
-        LauncherAttack.Attacks[0].Damage = 60.f;
-        LauncherAttack.Attacks[0].KnockbackForce = 200.f;
-        LauncherAttack.Attacks[0].KnockbackUpForce = 800.f;
-        LauncherAttack.Attacks[0].FlowReward = 8.f;
-        LauncherAttack.Attacks[0].AttackType = EAttackType::Launcher;
-        LauncherAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        LauncherAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::AirCombo,
-            EAttackType::AerialSlam
-        };
-        LauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        LauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
-            { 
+    LauncherAttack.Attacks[0] = *GetAttackData("Launcher");
+    LauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    LauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
             const FName warpTargetName{ "DashIn" };
             constexpr float notifyStart{ 0.1f };
             constexpr float notifyEnd{ 0.35f };
             constexpr float searchRadius{ 400.f };
             SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
 
-
             const FName airWarpTargetName{ "AttackTarget" };
             constexpr float airNotifyStart{ 0.4f };
             constexpr float airNotifyEnd{ 0.82f };
             constexpr float airSearchRadius{ 400.f };
             constexpr float zOffset{ 150.f };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius, false, zOffset); 
-            });
-        LauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
-    }
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius, false, zOffset);
+        });
+    LauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
 
     // === POWER LAUNCHER ===
     PowerLauncherAttack.Attacks.SetNum(1);
-    {
-        PowerLauncherAttack.Attacks[0].Damage = 80.f;
-        PowerLauncherAttack.Attacks[0].KnockbackForce = 250.f;
-        PowerLauncherAttack.Attacks[0].KnockbackUpForce = 1000.f;
-        PowerLauncherAttack.Attacks[0].FlowReward = 10.f;
-        PowerLauncherAttack.Attacks[0].AttackType = EAttackType::PowerLauncher;
-        PowerLauncherAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        PowerLauncherAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::AirCombo,
-            EAttackType::AerialSlam
-        };
-        PowerLauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]() 
-            { 
+    PowerLauncherAttack.Attacks[0] = *GetAttackData("PowerLauncher");
+    PowerLauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
             const FName warpTargetName{ "DashIn" };
             constexpr float notifyStart{ 0.04f };
             constexpr float notifyEnd{ 0.38f };
             constexpr float searchRadius{ 400.f };
             SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
 
-            // No vertical Rootbone for this animation: air motion warping doesn't work for this one
-            // Need to manually launch the character when the ground motion warping is finished
             constexpr double zVelocity{ 1400.0 };
             FTimerHandle launchTimer;
             GetWorld()->GetTimerManager().SetTimer(
-            launchTimer,
-                [this](){ PlayerOwner->LaunchCharacter(FVector{ 0.0, 0.0, zVelocity }, false, true) ; },
+                launchTimer,
+                [this]() { PlayerOwner->LaunchCharacter(FVector{ 0.0, 0.0, zVelocity }, false, true); },
                 notifyEnd + 0.1f,
                 false
-                );
-            });
-        PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
-    }
+            );
+        });
+    PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
 
     // === SPIN ATTACK ===
     SpinAttack.Attacks.SetNum(1);
-    {
-        SpinAttack.Attacks[0].Damage = 65.f;
-        SpinAttack.Attacks[0].KnockbackForce = 200.f;
-        SpinAttack.Attacks[0].FlowReward = 8.f;
-        SpinAttack.Attacks[0].AttackType = EAttackType::SpinAttack;
-        SpinAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        SpinAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingLight,
-            EAttackType::StandingHeavy,
-            EAttackType::HorizontalSweep,
-            EAttackType::GroundSlam,
-            EAttackType::PowerSlash,
-            EAttackType::Launcher
-        };
+    SpinAttack.Attacks[0] = *GetAttackData("SpinAttack");
 
-        TSharedPtr<FTimerHandle> spinAttackTimer{ MakeShared<FTimerHandle>() };
-        SpinAttack.Attacks[0].OnAttackExecuted.BindLambda([this, spinAttackTimer]() {
+    TSharedPtr<FTimerHandle> spinAttackTimer{ MakeShared<FTimerHandle>() };
+    SpinAttack.Attacks[0].OnAttackExecuted.BindLambda([this, spinAttackTimer]()
+        {
             constexpr float spinAttackMaxWalkSpeed{ 300.f };
             constexpr float walkSpeedDelay{ 1.09f };
             PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = spinAttackMaxWalkSpeed;
@@ -537,227 +262,127 @@ void UFSCombatComponent::InitializeComboAttackData()
             constexpr float sprintSpeedThreshold{ 900.f };
             GetWorld()->GetTimerManager().SetTimer(
                 *spinAttackTimer,
-                [this](){ PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = LockedOnTarget ? runSpeedThreshold : sprintSpeedThreshold; },
+                [this]() { PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = LockedOnTarget ? runSpeedThreshold : sprintSpeedThreshold; },
                 walkSpeedDelay,
                 false
-                );
+            );
         });
-    }
 
     // === HORIZONTAL SWEEP ===
     HorizontalSweepAttack.Attacks.SetNum(1);
-    {
-        HorizontalSweepAttack.Attacks[0].Damage = 75.f;
-        HorizontalSweepAttack.Attacks[0].KnockbackForce = 250.f;
-        HorizontalSweepAttack.Attacks[0].FlowReward = 10.f;
-        HorizontalSweepAttack.Attacks[0].AttackType = EAttackType::HorizontalSweep;
-        HorizontalSweepAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        HorizontalSweepAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingHeavy,
-            EAttackType::RunningHeavy,
-            EAttackType::GroundSlam,
-            EAttackType::SpinAttack,
-            EAttackType::Launcher,
-            EAttackType::PowerSlash
-        };
-        HorizontalSweepAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        HorizontalSweepAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-            {
-                const FName warpTargetName{ "Rotate" };
-                constexpr float notifyStart{ 0.f };
-                constexpr float notifyEnd{ 0.24f };
-                constexpr float searchRadius{ 300.f };
+    HorizontalSweepAttack.Attacks[0] = *GetAttackData("HorizontalSweep");
+    HorizontalSweepAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    HorizontalSweepAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName warpTargetName{ "Rotate" };
+            constexpr float notifyStart{ 0.f };
+            constexpr float notifyEnd{ 0.24f };
+            constexpr float searchRadius{ 300.f };
 
-                if (LockedOnTarget)
-                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-            });
-    }
+            if (LockedOnTarget)
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+        });
 
     // === PIERCE THRUST ===
     PierceThrustAttack.Attacks.SetNum(1);
-    {
-        PierceThrustAttack.Attacks[0].Damage = 90.f;
-        PierceThrustAttack.Attacks[0].KnockbackForce = 350.f;
-        PierceThrustAttack.Attacks[0].FlowReward = 10.f;
-        PierceThrustAttack.Attacks[0].AttackType = EAttackType::PierceThrust;
-        PierceThrustAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        PierceThrustAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingLight,
-            EAttackType::RunningLight,
-            EAttackType::PowerSlash,
-            EAttackType::DashPierce,
-            EAttackType::Launcher,
-            EAttackType::SpinAttack
-        };
-        PierceThrustAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        PierceThrustAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-            {
-                const FName warpTargetName{ "Rotate" };
-                constexpr float notifyStart{ 0.f };
-                constexpr float notifyEnd{ 0.36f };
-                constexpr float searchRadius{ 300.f };
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-            });
-    }
+    PierceThrustAttack.Attacks[0] = *GetAttackData("PierceThrust");
+    PierceThrustAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    PierceThrustAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName warpTargetName{ "Rotate" };
+            constexpr float notifyStart{ 0.f };
+            constexpr float notifyEnd{ 0.36f };
+            constexpr float searchRadius{ 300.f };
+            SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+        });
 
     // === POWER SLASH ===
     PowerSlashAttack.Attacks.SetNum(1);
-    {
-        PowerSlashAttack.Attacks[0].Damage = 120.f;
-        PowerSlashAttack.Attacks[0].KnockbackForce = 500.f;
-        PowerSlashAttack.Attacks[0].FlowReward = 18.f;
-        PowerSlashAttack.Attacks[0].AttackType = EAttackType::PowerSlash;
-        PowerSlashAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        PowerSlashAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::RunningHeavy,
-            EAttackType::GroundSlam,
-            EAttackType::Launcher,
-            EAttackType::DiagonalRetourne
-        };
-        PowerSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    }
+    PowerSlashAttack.Attacks[0] = *GetAttackData("PowerSlash");
+    PowerSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === DIAGONAL RETOURNE ===
     DiagonalRetourneAttack.Attacks.SetNum(1);
-    {
-        DiagonalRetourneAttack.Attacks[0].Damage = 85.f;
-        DiagonalRetourneAttack.Attacks[0].KnockbackForce = 400.f;
-        DiagonalRetourneAttack.Attacks[0].FlowReward = 10.f;
-        DiagonalRetourneAttack.Attacks[0].AttackType = EAttackType::DiagonalRetourne;
-        DiagonalRetourneAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        DiagonalRetourneAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingLight,
-            EAttackType::StandingHeavy,
-            EAttackType::RunningHeavy,
-            EAttackType::DashBackSlash,
-            EAttackType::SpinAttack,
-            EAttackType::HorizontalSweep,
-            EAttackType::JumpSlam
-        };
-        DiagonalRetourneAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        DiagonalRetourneAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-            {
-                const FName warpTargetName{ "Rotate" };
-                constexpr float notifyStart{ 0.f };
-                constexpr float notifyEnd{ 0.62f };
-                constexpr float searchRadius{ 300.f };
+    DiagonalRetourneAttack.Attacks[0] = *GetAttackData("DiagonalRetourne");
+    DiagonalRetourneAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    DiagonalRetourneAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName warpTargetName{ "Rotate" };
+            constexpr float notifyStart{ 0.f };
+            constexpr float notifyEnd{ 0.62f };
+            constexpr float searchRadius{ 300.f };
 
-                if (LockedOnTarget)
-                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-            });
-    }
+            if (LockedOnTarget)
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+        });
 
     // === GROUND SLAM ===
     GroundSlamAttack.Attacks.SetNum(1);
-    {
-        GroundSlamAttack.Attacks[0].Damage = 130.f;
-        GroundSlamAttack.Attacks[0].KnockbackForce = 600.f;
-        GroundSlamAttack.Attacks[0].KnockbackUpForce = 300.f;
-        GroundSlamAttack.Attacks[0].FlowReward = 20.f;
-        GroundSlamAttack.Attacks[0].AttackType = EAttackType::GroundSlam;
-        GroundSlamAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        GroundSlamAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingHeavy,
-            EAttackType::Launcher,
-            EAttackType::PowerSlash
-        };
-        GroundSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        GroundSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-            {
-                const FName warpTargetName{ "Rotate" };
-                constexpr float notifyStart{ 0.f };
-                constexpr float notifyEnd{ 0.37f };
-                constexpr float searchRadius{ 250.f };
+    GroundSlamAttack.Attacks[0] = *GetAttackData("GroundSlam");
+    GroundSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    GroundSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName warpTargetName{ "Rotate" };
+            constexpr float notifyStart{ 0.f };
+            constexpr float notifyEnd{ 0.37f };
+            constexpr float searchRadius{ 250.f };
 
-                if (LockedOnTarget)
-                    SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-            });
-    }
+            if (LockedOnTarget)
+                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
+        });
 
     // === AIR COMBO (3 attacks) ===
     AirCombo.Attacks.SetNum(3);
-    {
-        // Attack 1
-        AirCombo.Attacks[0].Damage = 50.f;
-        AirCombo.Attacks[0].KnockbackForce = 80.f;
-        AirCombo.Attacks[0].FlowReward = 4.f;
-        AirCombo.Attacks[0].AttackType = EAttackType::AirCombo;
-        AirCombo.Attacks[0].ComboWindowDuration = 0.1f;
-        AirCombo.Attacks[0].OnAttackExecuted.BindLambda([this]() 
-            { 
-                const FName airWarpTargetName{ "AttackTarget" };
-                constexpr float airNotifyStart{ 0.15f };
-                constexpr float airNotifyEnd{ 0.34f };
-                constexpr float airSearchRadius{ 250.f };
-                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
-            });
-        AirCombo.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
+    AirCombo.Attacks[0] = *GetAttackData("AirCombo_0");
+    AirCombo.Attacks[1] = *GetAttackData("AirCombo_1");
+    AirCombo.Attacks[2] = *GetAttackData("AirCombo_2");
 
-        // Attack 2
-        AirCombo.Attacks[1].Damage = 55.f;
-        AirCombo.Attacks[1].KnockbackForce = 100.f;
-        AirCombo.Attacks[1].FlowReward = 5.f;
-        AirCombo.Attacks[1].AttackType = EAttackType::AirCombo;
-        AirCombo.Attacks[1].ComboWindowDuration = 0.1f;
-        AirCombo.Attacks[1].OnAttackExecuted.BindLambda([this]() 
-            { 
-                const FName airWarpTargetName{ "AttackTarget" };
-                constexpr float airNotifyStart{ 0.33f };
-                constexpr float airNotifyEnd{ 0.52f };
-                constexpr float airSearchRadius{ 250.f };
-                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
-            });
-        AirCombo.Attacks[1].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
+    AirCombo.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName airWarpTargetName{ "AttackTarget" };
+            constexpr float airNotifyStart{ 0.15f };
+            constexpr float airNotifyEnd{ 0.34f };
+            constexpr float airSearchRadius{ 250.f };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+        });
+    AirCombo.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
-        // Attack 3 (final) - Only this one has ChainableAttacks
-        AirCombo.Attacks[2].Damage = 60.f;
-        AirCombo.Attacks[2].KnockbackForce = 120.f;
-        AirCombo.Attacks[2].FlowReward = 6.f;
-        AirCombo.Attacks[2].AttackType = EAttackType::AirCombo;
-        AirCombo.Attacks[2].ComboWindowDuration = 0.1f;
-        AirCombo.Attacks[2].ChainableAttacks = { EAttackType::AerialSlam };
-        AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]() 
-            { 
-                const FName airWarpTargetName{ "AttackTarget" };
-                constexpr float airNotifyStart{ 0.14f };
-                constexpr float airNotifyEnd{ 0.28f };
-                constexpr float airSearchRadius{ 250.f };
-                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+    AirCombo.Attacks[1].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName airWarpTargetName{ "AttackTarget" };
+            constexpr float airNotifyStart{ 0.33f };
+            constexpr float airNotifyEnd{ 0.52f };
+            constexpr float airSearchRadius{ 250.f };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+        });
+    AirCombo.Attacks[1].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
-                bCanAirAttack = false;
-            });
-        AirCombo.Attacks[2].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
-    }
+    AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName airWarpTargetName{ "AttackTarget" };
+            constexpr float airNotifyStart{ 0.14f };
+            constexpr float airNotifyEnd{ 0.28f };
+            constexpr float airSearchRadius{ 250.f };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+
+            bCanAirAttack = false;
+        });
+    AirCombo.Attacks[2].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
     // === AERIAL SLAM ===
     AerialSlamAttack.Attacks.SetNum(1);
-    {
-        AerialSlamAttack.Attacks[0].Damage = 110.f;
-        AerialSlamAttack.Attacks[0].KnockbackForce = 500.f;
-        AerialSlamAttack.Attacks[0].KnockbackUpForce = -1500.f;
-        AerialSlamAttack.Attacks[0].FlowReward = 15.f;
-        AerialSlamAttack.Attacks[0].AttackType = EAttackType::AerialSlam;
-        AerialSlamAttack.Attacks[0].ComboWindowDuration = 0.1f;
-        AerialSlamAttack.Attacks[0].ChainableAttacks = {
-            EAttackType::StandingLight,
-            EAttackType::RunningLight,
-            EAttackType::StandingHeavy,
-            EAttackType::Launcher,
-            EAttackType::GroundSlam,
-            EAttackType::SpinAttack
-        };
-        AerialSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-        AerialSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-            {
-                const FName airWarpTargetName{ "AttackTarget" };
-                constexpr float airNotifyStart{ 0.12f };
-                constexpr float airNotifyEnd{ 0.51f };
-                constexpr float airSearchRadius{ 250.f };
+    AerialSlamAttack.Attacks[0] = *GetAttackData("AerialSlam");
+    AerialSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    AerialSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            const FName airWarpTargetName{ "AttackTarget" };
+            constexpr float airNotifyStart{ 0.12f };
+            constexpr float airNotifyEnd{ 0.51f };
+            constexpr float airSearchRadius{ 250.f };
 
-                if (LockedOnTarget)
-                    SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
-            });
-    }
+            if (LockedOnTarget)
+                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+        });
 }
 
 
@@ -835,6 +460,14 @@ void UFSCombatComponent::CancelAttack(float blendOutTime)
     AnimInstance->StopAllMontages(blendOutTime);
     ResetComboState();
     equippedWeapon->DeactivateHitbox();
+}
+
+FAttackData* UFSCombatComponent::GetAttackData(FName rowName) const
+{
+    if (!AttackDataTable)
+        return nullptr;
+
+    return AttackDataTable->FindRow<FAttackData>(rowName, TEXT("GetAttackData"));
 }
 
 FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackType, bool isMoving, bool isFalling)
@@ -1331,13 +964,29 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     if (!hitActor || Cast<IFSDamageable>(hitActor)->IsDead())
         return;
 
-    ++ComboHitCount;
-
-    if (!bComboCounterActive && ComboHitCount >= 2)
+    // DEBUG, DELETE AFTER
+    if (ComboHitCount > 0)
     {
-        bComboCounterActive = true;
-        OnComboCounterStarted.Broadcast();
+        const FAttackData* previousAttack{ OngoingCombo->GetAttackAt(ComboIndex - 2) };
+
+        const bool bSweetSpot{ ComboTimeRemaining >= 0.08f && ComboTimeRemaining <= 0.14f };
+        const FColor debugColor{ bSweetSpot ? FColor::Green : FColor::Orange };
+
+        FString attackName{ previousAttack ? previousAttack->Name.ToString() : "Last Combo attack: " };
+        const FString debugMsg{ FString::Printf(TEXT("[%s] Remaining: %.3f"),
+            *attackName, ComboTimeRemaining) };
+
+        GEngine->AddOnScreenDebugMessage(-1, 30.f, debugColor, debugMsg);
     }
+
+    ++ComboHitCount;
+    // To Activate the decreasing combo time remaining in Tick()
+    if (ComboHitCount >= 1)
+        bComboCounterActive = true;
+
+    // Mostly to render the combo count to screen
+    if (ComboHitCount >= 2)
+        OnComboCounterStarted.Broadcast();
 
     OnComboCountChanged.Broadcast(ComboHitCount);
     
@@ -1591,9 +1240,10 @@ AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool
 
 void UFSCombatComponent::ResetComboCounter()
 {
+    UE_LOG(LogTemp, Warning, TEXT("Reset Combo. ComboHitCount = %d"), ComboHitCount);
     ComboHitCount = 0;
-    ComboTimeRemaining = 0.f;
     bComboCounterActive = false;
+    ComboTimeRemaining = 0.f;
     OnComboCounterEnded.Broadcast();
 }
 
