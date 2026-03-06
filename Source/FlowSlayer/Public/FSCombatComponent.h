@@ -81,7 +81,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnHitLanded, AActor*, actorHit, c
 
 /** Single attack data within a combo */
 USTRUCT(BlueprintType)
-struct FAttackData
+struct FAttackData : public FTableRowBase
 {
     GENERATED_BODY()
 
@@ -89,40 +89,53 @@ struct FAttackData
     DECLARE_DELEGATE(FOnAttackExecuted);
     DECLARE_DELEGATE_OneParam(FOnAttackHit, AActor* hitActor);
 
+    /** Name of the attack 
+    * Used mostly for debugging
+    */
+    UPROPERTY(EditDefaultsOnly)
+    FName Name{ "" };
+
     /** Animation montage for this attack */
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
+    UPROPERTY(EditDefaultsOnly)
     UAnimMontage* Montage{ nullptr };
 
     /** Damage dealt by this attack
      * Configured via InitializeComboAttackData()
      */
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
     float Damage{ 50.f };
 
     /** Knockback force applied to enemy (0 = no knockback)
      * Configured via InitializeComboAttackData()
      */
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
     float KnockbackForce{ 0.f };
 
     /** Vertical knockback component (adds upward velocity)
      * Configured via InitializeComboAttackData()
      */
+    UPROPERTY(EditAnywhere)
     float KnockbackUpForce{ 0.f };
 
     /** Flow reward on attack successfully hit target */
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
     float FlowReward{ 5.f };
 
     /** How long the player has to launch the next attack after a hit to successfully continue a true combo */
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
     float ComboWindowDuration{ 0.1f };
 
     /** Attack type needed to launch this attack
      * This data is based from the inputs actions in AFlowSlayerCharacter class
      * Configured via InitializeComboAttackData()
      */
+    UPROPERTY(EditAnywhere)
     EAttackType AttackType{ EAttackType::None };
 
     /** Chainable attacks from this attack
      * Configured via InitializeComboAttackData()
      */
+    UPROPERTY(EditAnywhere)
     TSet<EAttackType> ChainableAttacks;
 
     /* Called just before the attack animation plays
@@ -276,6 +289,9 @@ public:
     /** Set all combos and combat states back to default and stops the current attack animation */
     void CancelAttack(float blendOutTime = 0.2f);
 
+    /** Return all datas of a specific attack */
+    FAttackData* GetAttackData(FName rowName) const;
+
 protected:
 
     virtual void BeginPlay() override;
@@ -289,6 +305,9 @@ protected:
     UMaterialInterface* HitFlashMaterial;
 
     void ApplyHitFlash(AActor* hitActor);
+
+    UPROPERTY(EditDefaultsOnly)
+    UDataTable* AttackDataTable;
 
 public:
 
@@ -412,39 +431,39 @@ private:
     // === COMBAT - COMBO SYSTEM ===
 
     /** Standing light attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo StandingLightCombo;
 
     /** Standing heavy attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo StandingHeavyCombo;
 
     /** Running light attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo RunningLightCombo;
 
     /** Running heavy attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo RunningHeavyCombo;
 
     /** Dash Pierce attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashPierceAttack;
 
     /** Dash Spinning slash attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashSpinningSlashAttack;
 
     /** Dash Double slash attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashDoubleSlashAttack;
 
     /** Dash back slash attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashBackSlashAttack;
 
     /** LMB Air attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
 
     /** Called when an air attack hits an enemy
@@ -473,19 +492,19 @@ private:
     void FreezeEnemyAtTrajectoryPeak(AActor* enemy, UCharacterMovementComponent* enemyMovement, float maxHeight, float freezeDuration);
 
     /** SPACE + LMB air attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpSlamAttack;
 
     /** SPACE + Z + LMB jump forward slam */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpForwardSlamAttack;
 
     /** SPACE + RMB jump upper + slam combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpUpperSlamComboAttack;
 
     /** A + LMB clean launcher */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo LauncherAttack;
 
     /** Called when launcher attack hits an enemy
@@ -495,35 +514,35 @@ private:
     void OnLauncherAttackHit(AActor* hitEnemy);
 
     /** A + RMB power launcher */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo PowerLauncherAttack;
 
     /** E multi-hit spin attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo SpinAttack;
 
     /** E + RMB horizontal sweep */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo HorizontalSweepAttack;
 
     /** Z + Hold RMB power slash */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo PowerSlashAttack;
 
     /** Z + LMB (double tap) pierce thrust */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo PierceThrustAttack;
 
     /** S + RMB ground slam */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo GroundSlamAttack;
 
     /** S + LMB diagonal retourné */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DiagonalRetourneAttack;
 
     /** RMB (airborne) aerial slam follow-up */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AerialSlamAttack;
 
     /** Currently active combo (pointer to one of the above combos) */
