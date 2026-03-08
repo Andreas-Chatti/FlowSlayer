@@ -19,6 +19,11 @@ void UFSFlowComponent::OnHitLanded(AActor* actorHit, const FVector& hitLocation,
 	AddFlow(flowReward);
 }
 
+bool UFSFlowComponent::HasEnoughFlow(float flowCost) const
+{
+	return CurrentFlow >= flowCost;
+}
+
 void UFSFlowComponent::OnFlowChanged(float currentFlow, float maxFlow)
 {
 	EFlowTier newTier{ GetFlowTier() };

@@ -76,6 +76,10 @@ public:
 	UFUNCTION()
 	void OnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward);
 
+	/** Check if the player has enough flow based on the flow cost of an ability */
+	UFUNCTION(BlueprintPure)
+	bool HasEnoughFlow(float flowCost) const;
+
 protected:
 
 	virtual void BeginPlay() override;

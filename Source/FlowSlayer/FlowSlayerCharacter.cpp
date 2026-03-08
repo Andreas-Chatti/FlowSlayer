@@ -62,6 +62,11 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	FlowComponent = CreateDefaultSubobject<UFSFlowComponent>(TEXT("FlowComponent"));
 	checkf(FlowComponent, TEXT("FATAL: FlowComponent is NULL or INVALID !"));
 
+	DashComponent = CreateDefaultSubobject<UDashComponent>(TEXT("DashComponent"));
+	checkf(DashComponent, TEXT("FATAL: DashComponent is NULL or INVALID !"));
+	DashComponent->OnDashStarted.AddUObject(FlowComponent, &UFSFlowComponent::RemoveFlow);
+	DashComponent->CanAffordDash.BindUObject(FlowComponent, &UFSFlowComponent::HasEnoughFlow);
+
 	JumpMaxCount = 2;
 	CurrentHealth = MaxHealth;
 }
@@ -78,6 +83,8 @@ void AFlowSlayerCharacter::BeginPlay()
 	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
 
 	CombatComponent->OnHitLandedNotify.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnHitLanded);
+	CombatComponent->OnAttackingStarted.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingStarted);
+	CombatComponent->OnAttackingEnded.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingEnded);
 	OnDamageTaken.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnPlayerHit);
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
@@ -298,17 +305,6 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 
 void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 {
-	bWantsToDash = true;
-
-	GetWorld()->GetTimerManager().ClearTimer(DashInputWindowTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		DashInputWindowTimer,
-		this,
-		&AFlowSlayerCharacter::ClearDashInput,
-		DashInputWindowDuration,
-		false
-	);
-
 	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
 	if (isLMBPressed || isRMBPressed)
 	{
@@ -316,43 +312,7 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 		return;
 	}
 
-	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling() || !bCanDash || bIsDashing || MoveInputAxis.IsNearlyZero())
-		return;
-
-	if (MoveInputAxis.Y >= 0.1 && FwdDashAnim)
-		AnimInstance->Montage_Play(FwdDashAnim, 1.0f);
-	else if (MoveInputAxis.Y <= -0.1 && BwdDashAnim)
-		AnimInstance->Montage_Play(BwdDashAnim, 1.0f);
-
-	bCanDash = false;
-	bIsDashing = true;
-
-	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
-	float dashDuration{ FwdDashAnim->GetPlayLength() };
-	FTimerHandle dashingStateTimer;
-	GetWorldTimerManager().SetTimer(
-		dashingStateTimer,
-		[WeakThis]()
-		{
-			if (WeakThis.IsValid())
-				WeakThis->bIsDashing = false;
-		},
-		dashDuration,
-		false
-	);
-
-	float totalDashCooldown{ dashDuration + dashCooldown };
-	FTimerHandle dashCooldownTimer;
-	GetWorldTimerManager().SetTimer(
-		dashCooldownTimer,
-		[WeakThis]()
-		{
-			if (WeakThis.IsValid())
-				WeakThis->bCanDash = true;
-		},
-		totalDashCooldown,
-		false
-	);
+	DashComponent->StartDash(MoveInputAxis);
 }
 
 TPair<bool, bool> AFlowSlayerCharacter::GetMouseButtonStates() const
@@ -493,9 +453,6 @@ void AFlowSlayerCharacter::OnDashAttackActionStarted()
 
 	if (attackType == EAttackType::None)
 		return;
-
-	if (bIsDashing)
-		StopAnimMontage(GetCurrentMontage() == FwdDashAnim ? FwdDashAnim : BwdDashAnim);
 
 	OnAttackTriggered(attackType);
 }

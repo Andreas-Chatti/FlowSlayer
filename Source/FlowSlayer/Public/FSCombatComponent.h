@@ -78,6 +78,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
 /** Delegate broadcasted when a successfull hit landed on an enemy target */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnHitLanded, AActor*, actorHit, const FVector&, hitLocation, float, damageAmount, float, flowReward);
 
+/** Delegate broadcasted when any attack starts or ends */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingStarted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingEnded);
 
 /** Single attack data within a combo */
 USTRUCT(BlueprintType)
@@ -211,6 +214,20 @@ class FLOWSLAYER_API UFSCombatComponent : public UActorComponent
 public:
 
     UFSCombatComponent();
+
+    /* Attacking started delegate
+    * Broadcasted by UFSCombatComponent
+    * On any attack started
+    */
+    UPROPERTY(BlueprintAssignable)
+    FOnAttackingStarted OnAttackingStarted;
+
+    /* Attacking ended delegate
+    * Broadcasted by UFSCombatComponent
+    * On any attack ended
+    */
+    UPROPERTY(BlueprintAssignable)
+    FOnAttackingEnded OnAttackingEnded;
 
     /** Combo window delegates
     * Broadcasted by ComboWindow notify state class to notify combo window open/close events

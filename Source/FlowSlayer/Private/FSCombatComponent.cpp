@@ -446,6 +446,8 @@ void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFa
         return;
     }
 
+    OnAttackingStarted.Broadcast();
+
     if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.IsBound())
         OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.Execute();
 
@@ -814,6 +816,8 @@ void UFSCombatComponent::ResetComboState()
     bChainingToNewCombo = false;
     OngoingCombo = nullptr;
     PendingCombo = nullptr;
+
+    OnAttackingEnded.Broadcast();
 }
 
 void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
@@ -1129,14 +1133,14 @@ void UFSCombatComponent::SpawnHitVFX(const FVector& location)
 
 void UFSCombatComponent::PlayHitSound(const FVector& location)
 {
-    if (hitSound)
-    {
-        UGameplayStatics::PlaySoundAtLocation(
-            GetWorld(),
-            hitSound,
-            location
-        );
-    }
+    if (!hitSound)
+        return;
+
+    UGameplayStatics::PlaySoundAtLocation(
+        GetWorld(),
+        hitSound,
+        location
+    );
 }
 
 void UFSCombatComponent::ApplyCameraShake()
@@ -1225,7 +1229,6 @@ AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool
 
 void UFSCombatComponent::ResetComboCounter()
 {
-    UE_LOG(LogTemp, Warning, TEXT("Reset Combo. ComboHitCount = %d"), ComboHitCount);
     ComboHitCount = 0;
     bComboCounterActive = false;
     ComboTimeRemaining = 0.f;
