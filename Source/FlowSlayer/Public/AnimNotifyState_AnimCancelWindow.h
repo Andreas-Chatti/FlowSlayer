@@ -19,7 +19,6 @@ public:
 
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
-	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
 private:
 
@@ -27,7 +26,6 @@ private:
 	UPROPERTY()
 	const AFlowSlayerCharacter* FSCharacter { nullptr };
 
-	/** Cached reference to the character's combat component */
-	UPROPERTY()
-	const UFSCombatComponent* CombatComp { nullptr };
+	/** Whether the player tried to dash during a cancel window */
+	bool bDashInputPressed{ false };
 };

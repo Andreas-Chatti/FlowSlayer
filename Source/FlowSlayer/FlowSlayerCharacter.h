@@ -19,6 +19,7 @@
 #include "Public/FSCombatComponent.h"
 #include "Public/FSLockOnComponent.h"
 #include "Public/FSFlowComponent.h"
+#include "Public/DashComponent.h"
 #include "Components/WidgetComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
@@ -84,6 +85,10 @@ private:
 	/** Motion warping component class */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animations, meta = (AllowPrivateAccess = "true"))
 	UMotionWarpingComponent* MotionWarpingComponent;
+
+	/** Dash component class */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UDashComponent* DashComponent;
 
 	/** Default MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -151,18 +156,6 @@ private:
 	UPROPERTY()
 	APlayerController* PlayerController{ nullptr };
 
-	/** Dash animation
-	* Forward dash
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* FwdDashAnim{ nullptr };
-
-	/** Dash animation
-	* Backward dash
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* BwdDashAnim{ nullptr };
-
 	/** Main HUD widget class */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UUserWidget> HUDWidgetClass;
@@ -198,7 +191,9 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool HasMovementInput() const { return bHasMovementInput; }
 
-	const UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
+	UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
+
+	UDashComponent* GetDashComponent() const { return DashComponent; }
 
 protected:
 
@@ -209,24 +204,6 @@ protected:
 	/** If the last fall was cause by a jump */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bWasJumpFall{ false };
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
-	float dashDistance{ 1250.0f };
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
-	float dashCooldown{ 0.3f };
-
-	/** Was dash input pressed recently? (cleared after short delay) */
-	bool bWantsToDash{ false };
-
-	/** Timer to clear bWantsToDash */
-	FTimerHandle DashInputWindowTimer;
-
-	/** How long dash input stays "active" for cancel detection */
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	float DashInputWindowDuration{ 0.2f }; // 200ms
-
-	void ClearDashInput() { bWantsToDash = false; }
 
 	/** Was jump input pressed recently? (cleared after short delay) */
 	bool bWantsToJump{ false };
@@ -242,8 +219,6 @@ protected:
 
 public:
 
-	bool WantsToDash() const { return bWantsToDash; }
-
 	bool WantsToJump() const { return bWantsToJump; }
 
 protected:
@@ -253,13 +228,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
 	float MaxHealth{ 100.f };
-
-	/** Can Player use Dash ? */
-	UPROPERTY(BlueprintReadOnly)
-	bool bCanDash{ true };
-
-	UPROPERTY(BlueprintReadOnly)
-	bool bIsDashing{ false };
 
 	/** Is Player Dead ?*/
 	UPROPERTY(BlueprintReadOnly)
@@ -401,7 +369,6 @@ private:
 
 	UFUNCTION()
 	virtual void Falling() override;
-
 
 	/** Initialize Player HUD on BeginPlay */
 	void InitializeHUD();
