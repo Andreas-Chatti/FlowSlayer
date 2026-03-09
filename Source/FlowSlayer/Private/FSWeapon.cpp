@@ -31,8 +31,8 @@ void AFSWeapon::BeginPlay()
 {
     Super::BeginPlay();
 
-    OnHitboxActivated.AddUObject(this, &AFSWeapon::ActivateHitbox);
-    OnHitboxDeactivated.AddUObject(this, &AFSWeapon::DeactivateHitbox);
+    OnActiveFrameStarted.BindUObject(this, &AFSWeapon::HandleActiveFrameStarted);
+    OnActiveFrameStopped.BindUObject(this, &AFSWeapon::HandleActiveFrameStopped);
 
     if (SwordTrailSystem && SwordTrailComponent)
         SwordTrailComponent->SetAsset(SwordTrailSystem);
@@ -41,21 +41,26 @@ void AFSWeapon::BeginPlay()
 void AFSWeapon::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
+
     if (bHitboxActive)
         UpdateDamageHitbox();
 }
 
-void AFSWeapon::ActivateHitbox()
+void AFSWeapon::HandleActiveFrameStarted(float attackRadius)
 {
+    /*
     bHitboxActive = true;
     SetActorTickEnabled(true);
     PreviousHitboxLocation = Hitbox->GetComponentLocation();
+    */
 
     if (SwordTrailComponent)
         SwordTrailComponent->Activate();
+
+    TriggerActiveFrame(attackRadius);
 }
 
-void AFSWeapon::DeactivateHitbox()
+void AFSWeapon::HandleActiveFrameStopped()
 {
     bHitboxActive = false;
     SetActorTickEnabled(false);
@@ -84,7 +89,8 @@ void AFSWeapon::UpdateDamageHitbox()
         queryParams
     );
 
-    //DrawDebugLine(GetWorld(), PreviousHitboxLocation, currentLocation, FColor::Magenta, false, 2.0f, 0, 2.0f);
+    if (DebugLines)
+        DrawDebugLine(GetWorld(), PreviousHitboxLocation, currentLocation, FColor::Magenta, false, 2.0f, 0, 2.0f);
 
     for (const FHitResult& hit : sweepResults)
     {
@@ -97,11 +103,42 @@ void AFSWeapon::UpdateDamageHitbox()
 
         ActorsHitThisAttack.Add(hitActor);
 
-        //UE_LOG(LogTemp, Warning, TEXT("⚔️ HIT: %s"), *hitActor->GetName());
-        //DrawDebugSphere(GetWorld(), hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+        if (DebugLines)
+            DrawDebugSphere(GetWorld(), hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
 
         if (hitActor->Implements<UFSDamageable>())
             OnEnemyHit.Broadcast(hitActor, hit.ImpactPoint);
     }
     PreviousHitboxLocation = currentLocation;
+}
+
+void AFSWeapon::TriggerActiveFrame(float attackRadius)
+{
+    FVector start{ WeaponMesh->GetSocketLocation(BaseSocket) };
+    FVector end{ WeaponMesh->GetSocketLocation(TipSocket) };
+
+    TArray<TEnumAsByte<EObjectTypeQuery>> objectsType{ EObjectTypeQuery::ObjectTypeQuery3 };
+    TArray<AActor*> actorsToIgnore{ GetOwner() };
+    EDrawDebugTrace::Type debugTrace{ DebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
+    TArray<FHitResult> outHits;
+
+    bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), start, end, attackRadius, objectsType, false, actorsToIgnore, debugTrace, outHits, true) };
+    
+    if (!bHit)
+        return;
+
+    for (const FHitResult& hitResult : outHits)
+    {
+        AActor* hitActor{ hitResult.GetActor() };
+        if (!hitActor)
+            continue;
+
+        else if (ActorsHitThisAttack.Contains(hitActor))
+            continue;
+
+        ActorsHitThisAttack.Add(hitActor);
+
+        if (hitActor->Implements<UFSDamageable>())
+            OnEnemyHit.Broadcast(hitActor, hitResult.ImpactPoint);
+    }
 }

@@ -461,7 +461,7 @@ void UFSCombatComponent::CancelAttack(float blendOutTime)
 {
     AnimInstance->StopAllMontages(blendOutTime);
     ResetComboState();
-    equippedWeapon->DeactivateHitbox();
+    equippedWeapon->OnActiveFrameStopped.Execute();
 }
 
 FAttackData* UFSCombatComponent::GetAttackData(FName rowName) const

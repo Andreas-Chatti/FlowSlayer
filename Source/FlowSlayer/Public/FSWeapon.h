@@ -2,18 +2,20 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/BoxComponent.h"
+#include "GameFramework/Character.h"
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "FSDamageable.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Kismet/KismetSystemLibrary.h"
 #include "FSWeapon.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHit, AActor* hitActor, const FVector& hitLocation);
 
 /** Delegates used to activate and deactivate damage hitbox */
-DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
-DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
+DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, float attackRadius);
+DECLARE_DELEGATE(FOnActiveFrameStopped);
 
 class UBoxComponent;
 class UStaticMeshComponent;
@@ -28,29 +30,19 @@ public:
     /** Event delegates notify state
     * Notified during a MELEE attack Animation
     */
-    FOnHitboxActivated OnHitboxActivated;
-    FOnHitboxDeactivated OnHitboxDeactivated;
+    FOnActiveFrameStarted OnActiveFrameStarted;
+    FOnActiveFrameStopped OnActiveFrameStopped;
 
     AFSWeapon();
-
-    /** Activate the weapon hitbox and enable collision detection
-    * Called via AnimNotify during attack animations
-    * Enables tick, initializes sweep starting position, and activates sword trail VFX
-    */
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    void ActivateHitbox();
-
-    /** Deactivate the weapon hitbox and disable collision detection
-    * Called via AnimNotify at the end of attack animations
-    * Disables tick, clears hit actors list, and deactivates sword trail VFX
-    */
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    void DeactivateHitbox();
 
     /** Delegate called by equippedWeapon (AFSWeapon)
     * When an enemy is hit inside the hitbox
     */
     FOnEnemyHit OnEnemyHit;
+
+    /** Shows hit debug lines */
+    UPROPERTY(EditAnywhere, Category = "Debug")
+    bool DebugLines{ false };
 
 protected:
 
@@ -82,6 +74,30 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "VFX")
     UNiagaraSystem* SwordTrailSystem;
 
+    /* Socket name of the base weapon where the hitbox starts 
+    * Can be empty if there's no socket
+    */
+    UPROPERTY(EditDefaultsOnly, Category = "Sockets")
+    FName BaseSocket{ "S_WeaponBase" };
+
+    /* Socket name of the tip of the weapon where the hitbox ends
+    * Can be empty if there's no socket
+    */
+    UPROPERTY(EditDefaultsOnly, Category = "Sockets")
+    FName TipSocket{ "S_WeaponTip" };
+
+    /** Activate the weapon hitbox and enable collision detection
+    * Called via AnimNotify during attack animations
+    * Enables tick, initializes sweep starting position, and activates sword trail VFX
+    */
+    void HandleActiveFrameStarted(float attackRadius);
+
+    /** Deactivate the weapon hitbox and disable collision detection
+    * Called via AnimNotify at the end of attack animations
+    * Disables tick, clears hit actors list, and deactivates sword trail VFX
+    */
+    void HandleActiveFrameStopped();
+
 private:
 
     /** Track actors hit during current attack to prevent multiple hits
@@ -106,4 +122,7 @@ private:
     * Sweeps from PreviousHitboxLocation to current location to detect fast-moving hits
     */
     void UpdateDamageHitbox();
+
+
+    void TriggerActiveFrame(float attackRadius);
 };
