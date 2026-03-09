@@ -18,7 +18,7 @@ AFSEnemy::AFSEnemy()
     LifeBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("LifeBarWidget"));
     LifeBarWidget->SetupAttachment(GetMesh());
     LifeBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
-    LifeBarWidget->SetDrawSize(FVector2D(40.0f, 40.0f));
+    LifeBarWidget->SetDrawSize(FVector2D(100.f, 15.f));
     LifeBarWidget->SetVisibility(false);
 }
 
@@ -65,9 +65,10 @@ void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
         return;
 
     CurrentHealth -= DamageAmount;
+
     LifeBarWidget->SetVisibility(true);
-    //UE_LOG(LogTemp, Warning, TEXT("[%s] Received %.1f damage from %s - Health: %.1f/%.1f"),
-      //  *GetName(), DamageAmount, *DamageDealer->GetName(), CurrentHealth, MaxHealth);
+
+    OnReceiveDamage.Broadcast(CurrentHealth / MaxHealth);
 
     if (CurrentHealth <= 0.f)
         Die();
@@ -114,7 +115,6 @@ void AFSEnemy::Attack_Implementation()
 void AFSEnemy::Die()
 {
     bIsDead = true;
-    //UE_LOG(LogTemp, Warning, TEXT("[%s] DIED - Awarded %d XP"), *GetName(), XPReward);
 
     GetCapsuleComponent()->SetCollisionProfileName("Ragdoll");
     GetCharacterMovement()->DisableMovement();
