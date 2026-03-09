@@ -128,6 +128,10 @@ struct FAttackData : public FTableRowBase
     UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
     float ComboWindowDuration{ 0.1f };
 
+    /** Radius of each active frame during an attack */
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
+    float ActiveFrameRadius{ 10.f };
+
     /** Attack type needed to launch this attack
      * This data is based from the inputs actions in AFlowSlayerCharacter class
      * Configured via InitializeComboAttackData()
@@ -272,6 +276,14 @@ public:
     */
     UFUNCTION(BlueprintPure, Category = "Combat|Combo Counter")
     bool CanAirAttack() const { return bCanAirAttack; }
+
+    /** @return Current used combo 
+    * None if the player isn't attacking
+    */
+    const FCombo* GetOngoingCombo() const { return OngoingCombo; }
+
+    /** @return Current used attack in the current combo */
+    const FAttackData* GetOngoingAttack() const { return OngoingCombo->GetAttackAt(ComboIndex - 1); }
 
 private:
 

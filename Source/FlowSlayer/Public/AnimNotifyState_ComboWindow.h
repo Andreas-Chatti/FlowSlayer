@@ -18,7 +18,7 @@
  * - Start: When you want to allow player input (usually mid-attack)
  * - End: When the input window should close (usually near end of attack)
  */
-UCLASS(meta = (DisplayName = "Combo Window"))
+UCLASS(meta = (DisplayName = "Combo Input Window"))
 class FLOWSLAYER_API UAnimNotifyState_ComboWindow : public UAnimNotifyState
 {
 	GENERATED_BODY()
