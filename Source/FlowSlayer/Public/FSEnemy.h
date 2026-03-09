@@ -13,10 +13,11 @@
 #include "Components/WidgetComponent.h"
 #include "FSEnemy.generated.h"
 
-DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated)
-DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated)
-DECLARE_MULTICAST_DELEGATE(FOnProjectileSpawned)
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, AFSEnemy* enemy)
+DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
+DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
+DECLARE_MULTICAST_DELEGATE(FOnProjectileSpawned);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, AFSEnemy* enemy);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReceiveDamage, float, level);
 
 UCLASS(Abstract)
 class FLOWSLAYER_API AFSEnemy : public ACharacter, public IFSDamageable, public IFSFocusable
@@ -53,6 +54,9 @@ public:
     FOnHitboxDeactivated OnHitboxDeactivated;
     FOnProjectileSpawned OnProjectileSpawned;
     FOnEnemyDeath OnEnemyDeath;
+
+    UPROPERTY(BlueprintAssignable)
+    FOnReceiveDamage OnReceiveDamage;
 
 protected:
 
