@@ -23,7 +23,7 @@ void UAnimNotifyState_Hitbox::NotifyBegin(USkeletalMeshComponent* MeshComp, UAni
     }
 
     bool bIsPlayer{ CombatComp && PlayerWeapon && AttackData };
-    if(!bIsPlayer)
+    if (!bIsPlayer)
     {
         EnemyInstigator = Cast<AFSEnemy>(Owner);
         if (EnemyInstigator)
@@ -33,15 +33,15 @@ void UAnimNotifyState_Hitbox::NotifyBegin(USkeletalMeshComponent* MeshComp, UAni
 
 void UAnimNotifyState_Hitbox::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
-    if (PlayerWeapon)
+    if (PlayerWeapon && AttackData)
         PlayerWeapon->OnActiveFrameStarted.Execute(AttackData->ActiveFrameRadius);
 }
 
 void UAnimNotifyState_Hitbox::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-    if(CombatComp)
-        CombatComp->GetEquippedWeapon()->OnActiveFrameStopped.Execute();
+    if (PlayerWeapon)
+        PlayerWeapon->OnActiveFrameStopped.Execute();
 
-    else if(EnemyInstigator)
+    else if (EnemyInstigator)
         EnemyInstigator->OnHitboxDeactivated.Broadcast();
 }
