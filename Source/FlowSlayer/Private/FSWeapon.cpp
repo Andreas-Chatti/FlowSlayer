@@ -1,9 +1,8 @@
-#include "FSWeapon.h"
+﻿#include "FSWeapon.h"
 
 AFSWeapon::AFSWeapon()
 {
-    PrimaryActorTick.bCanEverTick = true;
-    PrimaryActorTick.bStartWithTickEnabled = false;
+    PrimaryActorTick.bCanEverTick = false;
     InitializeComponents();
 }
 
@@ -13,16 +12,13 @@ void AFSWeapon::InitializeComponents()
     RootComponent = RootComp;
 
     WeaponMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("WeaponMesh"));
+    checkf(WeaponMesh, TEXT("FATAL: WeaponMesh is NULL or INVALID !"));
     WeaponMesh->SetupAttachment(RootComponent);
     WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    Hitbox = CreateDefaultSubobject<UBoxComponent>(TEXT("Hitbox"));
-    Hitbox->SetupAttachment(RootComponent);
-    Hitbox->SetBoxExtent(DEFAULT_HITBOX_TRANSFORM);
-    Hitbox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-
     /** Trail VFX */
     SwordTrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SwordTrail"));
+    verifyf(SwordTrailComponent, TEXT("WARNING: SwordTrailComponent is NULL or INVALID !"));
     SwordTrailComponent->SetupAttachment(WeaponMesh, "S_WeaponMid");
     SwordTrailComponent->bAutoActivate = false;
 }
@@ -38,81 +34,40 @@ void AFSWeapon::BeginPlay()
         SwordTrailComponent->SetAsset(SwordTrailSystem);
 }
 
-void AFSWeapon::Tick(float DeltaTime)
+void AFSWeapon::HandleActiveFrameStarted(const FAttackData* attackData)
 {
-    Super::Tick(DeltaTime);
-
-    if (bHitboxActive)
-        UpdateDamageHitbox();
-}
-
-void AFSWeapon::HandleActiveFrameStarted(float attackRadius)
-{
-    /*
-    bHitboxActive = true;
-    SetActorTickEnabled(true);
-    PreviousHitboxLocation = Hitbox->GetComponentLocation();
-    */
-
     if (SwordTrailComponent)
         SwordTrailComponent->Activate();
 
-    TriggerActiveFrame(attackRadius);
+    if (!attackData)
+        return;
+
+    switch (attackData->HitboxShape)
+    {
+    case EHitboxShape::WeaponSweep:
+        DetectWeaponSweep(attackData->SweepSphereRadius);
+        break;
+    case EHitboxShape::Sphere:
+        DetectSphere(attackData->HitboxRange, attackData->HitboxOffset);
+        break;
+    case EHitboxShape::Cone:
+        DetectCone(attackData->HitboxRange, attackData->ConeHalfAngle, attackData->HitboxOffset);
+        break;
+    case EHitboxShape::Box:
+        DetectBox(attackData->BoxExtent, attackData->HitboxRange, attackData->HitboxOffset);
+        break;
+    }
 }
 
 void AFSWeapon::HandleActiveFrameStopped()
 {
-    bHitboxActive = false;
-    SetActorTickEnabled(false);
     ActorsHitThisAttack.Empty();
 
     if (SwordTrailComponent)
         SwordTrailComponent->Deactivate();
 }
 
-void AFSWeapon::UpdateDamageHitbox()
-{
-    TArray<FHitResult> sweepResults;
-    FCollisionQueryParams queryParams;
-    queryParams.AddIgnoredActor(GetOwner());
-    queryParams.AddIgnoredActor(this);
-
-    FVector currentLocation{ Hitbox->GetComponentLocation() };
-    FVector boxExtent{ Hitbox->GetScaledBoxExtent() };
-    GetWorld()->SweepMultiByObjectType(
-        sweepResults,
-        PreviousHitboxLocation,
-        currentLocation,
-        Hitbox->GetComponentQuat(),
-        FCollisionObjectQueryParams::AllObjects,
-        FCollisionShape::MakeBox(boxExtent),
-        queryParams
-    );
-
-    if (DebugLines)
-        DrawDebugLine(GetWorld(), PreviousHitboxLocation, currentLocation, FColor::Magenta, false, 2.0f, 0, 2.0f);
-
-    for (const FHitResult& hit : sweepResults)
-    {
-        AActor* hitActor{ hit.GetActor() };
-        if (!hitActor)
-            continue;
-
-        else if (ActorsHitThisAttack.Contains(hitActor))
-            continue;
-
-        ActorsHitThisAttack.Add(hitActor);
-
-        if (DebugLines)
-            DrawDebugSphere(GetWorld(), hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
-
-        if (hitActor->Implements<UFSDamageable>())
-            OnEnemyHit.Broadcast(hitActor, hit.ImpactPoint);
-    }
-    PreviousHitboxLocation = currentLocation;
-}
-
-void AFSWeapon::TriggerActiveFrame(float attackRadius)
+void AFSWeapon::DetectWeaponSweep(float radius)
 {
     FVector start{ WeaponMesh->GetSocketLocation(BaseSocket) };
     FVector end{ WeaponMesh->GetSocketLocation(TipSocket) };
@@ -122,18 +77,92 @@ void AFSWeapon::TriggerActiveFrame(float attackRadius)
     EDrawDebugTrace::Type debugTrace{ DebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
     TArray<FHitResult> outHits;
 
-    bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), start, end, attackRadius, objectsType, false, actorsToIgnore, debugTrace, outHits, true) };
-    
-    if (!bHit)
-        return;
+    UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), start, end, radius, objectsType, false, actorsToIgnore, debugTrace, outHits, true);
 
-    for (const FHitResult& hitResult : outHits)
+    ProcessHits(outHits);
+}
+
+void AFSWeapon::DetectSphere(float range, const FVector& offset)
+{
+    const AActor* owner{ GetOwner() };
+    FVector worldOffset{ owner->GetActorTransform().TransformVector(offset) };
+    FVector center{ owner->GetActorLocation() + worldOffset };
+
+    TArray<TEnumAsByte<EObjectTypeQuery>> objectsType{ EObjectTypeQuery::ObjectTypeQuery3 };
+    TArray<AActor*> actorsToIgnore{ GetOwner() };
+    EDrawDebugTrace::Type debugTrace{ DebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
+    TArray<FHitResult> outHits;
+
+    UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), center, center, range, objectsType, false, actorsToIgnore, debugTrace, outHits, true);
+
+    ProcessHits(outHits);
+}
+
+void AFSWeapon::DetectCone(float range, float halfAngleDeg, const FVector& offset)
+{
+    TArray<TEnumAsByte<EObjectTypeQuery>> objectsType{ EObjectTypeQuery::ObjectTypeQuery3 };
+    TArray<AActor*> actorsToIgnore{ GetOwner() };
+    TArray<FHitResult> outHits;
+
+    const AActor* owner{ GetOwner() };
+    FVector worldOffset{ owner->GetActorTransform().TransformVector(offset) };
+    FVector center{ owner->GetActorLocation() + worldOffset };
+
+    UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), center, center, range, objectsType, false, actorsToIgnore, EDrawDebugTrace::None, outHits, true);
+
+    TArray<FHitResult> coneHits;
+    const float cosHalfAngle{ FMath::Cos(FMath::DegreesToRadians(halfAngleDeg)) };
+    FVector forward{ owner->GetActorForwardVector() };
+    for (const FHitResult& hit : outHits)
     {
-        AActor* hitActor{ hitResult.GetActor() };
-        if (!hitActor)
+        if (!hit.GetActor())
             continue;
 
-        else if (ActorsHitThisAttack.Contains(hitActor))
+        FVector dirToTarget{ (hit.GetActor()->GetActorLocation() - center).GetSafeNormal() };
+        float dot{ static_cast<float>(FVector::DotProduct(forward, dirToTarget)) };
+
+        if (dot >= cosHalfAngle)
+            coneHits.Add(hit);
+    }
+
+    if (DebugLines)
+    {
+        DrawDebugCone(GetWorld(), center, forward, range, 
+            FMath::DegreesToRadians(halfAngleDeg),
+            FMath::DegreesToRadians(halfAngleDeg),
+            12, FColor::Yellow, false, 1.f);
+    }
+
+    ProcessHits(coneHits);
+}
+
+void AFSWeapon::DetectBox(const FVector& extent, float range, const FVector& offset)
+{
+    AActor* owner{ GetOwner() };
+    FVector worldOffset{ owner->GetActorTransform().TransformVector(offset) };
+    FVector center{ owner->GetActorLocation() + worldOffset + owner->GetActorForwardVector() * range };
+    FRotator rotation{ owner->GetActorRotation() };
+
+    TArray<FHitResult> outHits;
+    FCollisionQueryParams queryParams;
+    queryParams.AddIgnoredActor(owner);
+    queryParams.AddIgnoredActor(this);
+
+    GetWorld()->SweepMultiByObjectType(outHits, center, center, FQuat(rotation), FCollisionObjectQueryParams(ECollisionChannel::ECC_Pawn),
+        FCollisionShape::MakeBox(extent), queryParams);
+
+    if (DebugLines)
+        DrawDebugBox(GetWorld(), center, extent, FQuat(rotation), FColor::Blue, false, 1.f);
+
+    ProcessHits(outHits);
+}
+
+void AFSWeapon::ProcessHits(const TArray<FHitResult>& hits)
+{
+    for (const FHitResult& hitResult : hits)
+    {
+        AActor* hitActor{ hitResult.GetActor() };
+        if (!hitActor || ActorsHitThisAttack.Contains(hitActor))
             continue;
 
         ActorsHitThisAttack.Add(hitActor);
