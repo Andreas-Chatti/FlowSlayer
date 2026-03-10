@@ -48,15 +48,6 @@ enum class EAttackType : uint8
     AerialSlam            // RMB (airborne after launcher)
 };
 
-UENUM(BlueprintType)
-enum class EHitboxShape : uint8
-{
-    WeaponSweep,
-    Sphere,
-    Cone,
-    Box
-};
-
 /** Single attack data within a combo */
 USTRUCT(BlueprintType)
 struct FAttackData : public FTableRowBase
@@ -174,28 +165,4 @@ struct FCombo
     {
         return !Attacks.IsEmpty() ? &Attacks.Last() : nullptr;
     }
-};
-
-USTRUCT(BlueprintType)
-struct FHitboxProfile
-{
-    GENERATED_BODY()
-
-    UPROPERTY(EditAnywhere)
-    EHitboxShape Shape{ EHitboxShape::WeaponSweep };
-
-    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", EditCondition = "Shape == EHitboxShape::WeaponSweep"))
-    float SweepRadius{ 10.f };
-
-    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", EditCondition = "Shape != EHitboxShape::WeaponSweep"))
-    float Range{ 200.f };
-
-    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", ClampMax = "180.0", EditCondition = "Shape == EHitboxShape::Cone"))
-    float ConeHalfAngle{ 45.f };
-
-    UPROPERTY(EditAnywhere, meta = (EditCondition = "Shape == EHitboxShape::Box"))
-    FVector BoxExtent{ 100.f, 100.f, 50.f };
-
-    UPROPERTY(EditAnywhere, meta = (EditCondition = "Shape != EHitboxShape::WeaponSweep"))
-    FVector Offset{ FVector::ZeroVector };
 };

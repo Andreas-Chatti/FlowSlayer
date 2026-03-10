@@ -7,14 +7,13 @@
 #include "DrawDebugHelpers.h"
 #include "FSDamageable.h"
 #include "FSFocusable.h"
+#include "HitboxComponent.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
 #include "Components/WidgetComponent.h"
 #include "FSEnemy.generated.h"
 
-DECLARE_MULTICAST_DELEGATE(FOnHitboxActivated);
-DECLARE_MULTICAST_DELEGATE(FOnHitboxDeactivated);
 DECLARE_MULTICAST_DELEGATE(FOnProjectileSpawned);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, AFSEnemy* enemy);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReceiveDamage, float, level);
@@ -45,13 +44,11 @@ public:
 
     virtual float GetMaxHealth() const override { return MaxHealth; }
 
-    float GetAttackRange() const { return AttackRange; }
+    float GetDetectionRange() const { return DetectionRange; }
     bool IsAttacking() const { return bIsAttacking; }
 
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
 
-    FOnHitboxActivated OnHitboxActivated;
-    FOnHitboxDeactivated OnHitboxDeactivated;
     FOnProjectileSpawned OnProjectileSpawned;
     FOnEnemyDeath OnEnemyDeath;
 
@@ -77,7 +74,7 @@ protected:
     int32 XPReward{ 10 };
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
-    float AttackRange{ 150.f };
+    float DetectionRange{ 150.f };
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     float CcImuneDelay{ 6.f };
@@ -112,6 +109,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
     UWidgetComponent* LifeBarWidget{ nullptr };
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hitbox")
+    UHitboxComponent* HitboxComponent;
+
 private:
 
     static constexpr float destroyDelay{ 5.f };
@@ -125,4 +125,10 @@ private:
     * Used for now because there's no way to directly a direct reference to FSEnemy in widget blueprint
     */
     void InitializeLifeBarWidgetRef();
+
+    /** Called by HitboxComponent (UHitboxComponent)
+    * Called upon target hit
+    * Applies damage, hitstop, vfx, sfx and cameraShake
+    */
+    void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation);
 };

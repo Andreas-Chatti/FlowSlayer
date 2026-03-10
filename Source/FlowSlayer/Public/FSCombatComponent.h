@@ -11,6 +11,7 @@
 #include "FSWeapon.h"
 #include "CombatData.h"
 #include "FSDamageable.h"
+#include "HitboxComponent.h"
 #include "MotionWarpingComponent.h"
 #include "EnhancedInputLibrary.h"
 #include "NiagaraComponent.h"
@@ -153,6 +154,8 @@ public:
     /** Return all datas of a specific attack */
     FAttackData* GetAttackData(FName rowName) const;
 
+    const UHitboxComponent* GetHitboxComponent() const { return HitboxComponent; }
+
 protected:
 
     virtual void BeginPlay() override;
@@ -170,14 +173,17 @@ protected:
     UPROPERTY(EditDefaultsOnly)
     UDataTable* AttackDataTable;
 
+    UPROPERTY(VisibleAnywhere)
+    UHitboxComponent* HitboxComponent;
+
 public:
 
     AActor* GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines = false) const;
 
     // === HIT REACTION ===
 
-    /** Called by equippedWeapon (Player's weapon actor) 
-    * Called when equippedWeapon's hitbox touches at least one AFSEnemy
+    /** Called by HitboxComponent (UHitboxComponent) 
+    * Called upon target hit
     * Applies damage, hitstop, vfx, sfx and cameraShake
     */
     UFUNCTION(BlueprintCallable, Category = "Combat")

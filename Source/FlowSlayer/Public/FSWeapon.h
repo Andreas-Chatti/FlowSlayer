@@ -12,12 +12,6 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "FSWeapon.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHit, AActor* hitActor, const FVector& hitLocation);
-
-/** Delegates used to activate and deactivate damage hitbox */
-DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, const FHitboxProfile* hitboxProfile);
-DECLARE_DELEGATE(FOnActiveFrameStopped);
-
 class UBoxComponent;
 class UStaticMeshComponent;
 
@@ -30,23 +24,11 @@ public:
 
     AFSWeapon();
 
-    /** Event delegates notify state
-    * Notified during a MELEE attack Animation
-    */
-    FOnActiveFrameStarted OnActiveFrameStarted;
-    FOnActiveFrameStopped OnActiveFrameStopped;
+    void ActivateTrail() const { SwordTrailComponent->Activate(); }
+    void DeactivateTrail() const { SwordTrailComponent->Deactivate(); }
 
-    /** Delegate called by equippedWeapon (AFSWeapon)
-    * When an enemy is hit inside the hitbox
-    */
-    FOnEnemyHit OnEnemyHit;
-
-    /** Shows hit debug lines */
-    UPROPERTY(EditAnywhere, Category = "Debug")
-    bool DebugLines{ false };
-
-    UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "DebugLines"))
-    float DebugLinesDuration{ 5.f };
+    FVector GetBaseSocketLocation() const { return WeaponMesh->GetSocketLocation(BaseSocket); }
+    FVector GetTipSocketLocation() const { return WeaponMesh->GetSocketLocation(TipSocket); }
 
 protected:
 
@@ -82,35 +64,8 @@ protected:
     UPROPERTY(EditDefaultsOnly, Category = "Sockets")
     FName TipSocket{ "S_WeaponTip" };
 
-    /** Activate the weapon hitbox and enable collision detection
-    * Called via AnimNotify during attack animations
-    * Enables tick, initializes sweep starting position, and activates sword trail VFX
-    */
-    void HandleActiveFrameStarted(const FHitboxProfile* hitboxProfile);
-
-    /** Deactivate the weapon hitbox and disable collision detection
-    * Called via AnimNotify at the end of attack animations
-    * Disables tick, clears hit actors list, and deactivates sword trail VFX
-    */
-    void HandleActiveFrameStopped();
-
 private:
-
-    /** Track actors hit during current attack to prevent multiple hits
-    * Cleared when hitbox is deactivated (end of attack)
-    */
-    TSet<AActor*> ActorsHitThisAttack;
 
     /** Initialize all weapon components in constructor */
     void InitializeComponents();
-
-    void DetectWeaponSweep(float radius);
-    void DetectSphere(float range, const FVector& offset);
-    void DetectCone(float range, float halfAngleDeg, const FVector& offset);
-    void DetectBox(const FVector& extent, float range, const FVector& offset);
-
-    /** Process and adds valid damageable actors to ActorsHitThisAttack 
-    * Prevents targets from being hit multiple times during one attack
-    */
-    void ProcessHits(const TArray<FHitResult>& hits);
 };
