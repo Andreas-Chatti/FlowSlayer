@@ -6,6 +6,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "FSDamageable.h"
+#include "CombatData.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Kismet/KismetSystemLibrary.h"
@@ -14,7 +15,7 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHit, AActor* hitActor, const FVector& hitLocation);
 
 /** Delegates used to activate and deactivate damage hitbox */
-DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, float attackRadius);
+DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, const FAttackData* attackData);
 DECLARE_DELEGATE(FOnActiveFrameStopped);
 
 class UBoxComponent;
@@ -27,13 +28,13 @@ class FLOWSLAYER_API AFSWeapon : public AActor
 
 public:
 
+    AFSWeapon();
+
     /** Event delegates notify state
     * Notified during a MELEE attack Animation
     */
     FOnActiveFrameStarted OnActiveFrameStarted;
     FOnActiveFrameStopped OnActiveFrameStopped;
-
-    AFSWeapon();
 
     /** Delegate called by equippedWeapon (AFSWeapon)
     * When an enemy is hit inside the hitbox
@@ -46,8 +47,6 @@ public:
 
 protected:
 
-    virtual void Tick(float DeltaTime) override;
-
     virtual void BeginPlay() override;
 
     /** Root component for the weapon actor */
@@ -57,12 +56,6 @@ protected:
     /** Weapon mesh component */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UStaticMeshComponent* WeaponMesh;
-
-    /** Box collision component for damage detection
-    * Only active during attack animations when hitbox is enabled
-    */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    UBoxComponent* Hitbox;
 
     /** Sword trail VFX component
     * Activated/deactivated when hitbox is enabled/disabled
@@ -90,7 +83,7 @@ protected:
     * Called via AnimNotify during attack animations
     * Enables tick, initializes sweep starting position, and activates sword trail VFX
     */
-    void HandleActiveFrameStarted(float attackRadius);
+    void HandleActiveFrameStarted(const FAttackData* attackData);
 
     /** Deactivate the weapon hitbox and disable collision detection
     * Called via AnimNotify at the end of attack animations
@@ -105,24 +98,16 @@ private:
     */
     TSet<AActor*> ActorsHitThisAttack;
 
-    /** Is the hitbox currently active for damage detection? */
-    bool bHitboxActive{ false };
-
-    /** Previous hitbox location for continuous sweep collision detection */
-    FVector PreviousHitboxLocation{ FVector::ZeroVector };
-
-    /** Default hitbox extents (X, Y, Z) */
-    const FVector DEFAULT_HITBOX_TRANSFORM{ 50.0f, 20.0f, 80.0f };
-
     /** Initialize all weapon components in constructor */
     void InitializeComponents();
 
-    /** Perform continuous sweep collision detection between frames
-    * Called every tick when hitbox is active
-    * Sweeps from PreviousHitboxLocation to current location to detect fast-moving hits
+    void DetectWeaponSweep(float radius);
+    void DetectSphere(float range, const FVector& offset);
+    void DetectCone(float range, float halfAngleDeg, const FVector& offset);
+    void DetectBox(const FVector& extent, float range, const FVector& offset);
+
+    /** Process and adds valid damageable actors to ActorsHitThisAttack 
+    * Prevents targets from being hit multiple times during one attack
     */
-    void UpdateDamageHitbox();
-
-
-    void TriggerActiveFrame(float attackRadius);
+    void ProcessHits(const TArray<FHitResult>& hits);
 };

@@ -34,7 +34,7 @@ void UAnimNotifyState_Hitbox::NotifyBegin(USkeletalMeshComponent* MeshComp, UAni
 void UAnimNotifyState_Hitbox::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
     if (PlayerWeapon && AttackData)
-        PlayerWeapon->OnActiveFrameStarted.Execute(AttackData->ActiveFrameRadius);
+        PlayerWeapon->OnActiveFrameStarted.Execute(AttackData);
 }
 
 void UAnimNotifyState_Hitbox::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
