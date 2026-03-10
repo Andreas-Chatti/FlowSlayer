@@ -15,7 +15,12 @@ void UAnimNotifyState_AnimCancelWindow::NotifyBegin(USkeletalMeshComponent* Mesh
 	if (!FSCharacter)
 		return;
 
-	CombatComp = FSCharacter->GetCombatComponent();
+	UDashComponent* DashComp{ FSCharacter->GetDashComponent() };
+	if (DashComp)
+	{
+		DashComp->OnDashStarted.AddLambda([this](float flowCost) { bDashInputPressed = true; });
+		DashComp->OnDashEnded.AddLambda([this]() { bDashInputPressed = false; });
+	}
 }
 
 void UAnimNotifyState_AnimCancelWindow::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
@@ -23,19 +28,17 @@ void UAnimNotifyState_AnimCancelWindow::NotifyTick(USkeletalMeshComponent* MeshC
 	if (!FSCharacter)
 		return;
 
-	else if (FSCharacter->WantsToJump() || FSCharacter->WantsToDash())
+	else if (FSCharacter->WantsToJump() || FSCharacter->HasMovementInput() || bDashInputPressed)
 	{
-		FlowSlayerInput::EActionType actionType{ FlowSlayerInput::EActionType::NONE };
+		EActionType actionType{ EActionType::NONE };
 
 		if (FSCharacter->WantsToJump())
-			actionType = FlowSlayerInput::EActionType::Jump;
-		else if (FSCharacter->WantsToDash())
-			actionType = FlowSlayerInput::EActionType::Dash;
+			actionType = EActionType::Jump;
+		else if (bDashInputPressed)
+			actionType = EActionType::Dash;
+		else if (FSCharacter->HasMovementInput())
+			actionType = EActionType::Move;
 
 		FSCharacter->OnAnimationCanceled.Broadcast(actionType);
 	}
-}
-
-void UAnimNotifyState_AnimCancelWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
-{
 }

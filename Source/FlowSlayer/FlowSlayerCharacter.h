@@ -19,6 +19,7 @@
 #include "Public/FSCombatComponent.h"
 #include "Public/FSLockOnComponent.h"
 #include "Public/FSFlowComponent.h"
+#include "Public/DashComponent.h"
 #include "Components/WidgetComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
@@ -28,19 +29,17 @@ class UInputMappingContext;
 class UInputAction;
 struct FInputActionValue;
 
-namespace FlowSlayerInput
+UENUM(BlueprintType)
+	enum class EActionType : uint8
 {
-	UENUM(BlueprintType)
-		enum class EActionType : uint8
-	{
-		NONE,
-		Jump,
-		Dash
-	};
-}
+	NONE,
+	Jump,
+	Dash,
+	Move
+};
 
 /** Delegate for animations cancel window OPEN and CLOSE */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, FlowSlayerInput::EActionType actionType);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, EActionType, actionType);
 
 /* Delegate for handling damage taken from any source */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamageTaken, float, damageAmount, AActor*, damageDealer);
@@ -55,6 +54,7 @@ class FLOWSLAYER_API AFlowSlayerCharacter : public ACharacter, public IFSDamagea
 public:
 
 	/** Called during an animation cancel window if the player has tried to dash or jump */
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnAnimationCanceled OnAnimationCanceled;
 
 	/** Broadcasted when the player has received damage */
@@ -85,6 +85,10 @@ private:
 	/** Motion warping component class */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animations, meta = (AllowPrivateAccess = "true"))
 	UMotionWarpingComponent* MotionWarpingComponent;
+
+	/** Dash component class */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UDashComponent* DashComponent;
 
 	/** Default MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -135,7 +139,8 @@ private:
 	UInputAction* ToggleLockOnAction;
 
 	/** Callback called when player dashed or jumped sucessfully in the animation cancel window during an attack animation */
-	void HandleOnAnimationCanceled(FlowSlayerInput::EActionType actionType);
+	UFUNCTION()
+	void HandleOnAnimationCanceled(EActionType actionType);
 
 	/** Callback called when lock-on starts */
 	void HandleOnLockOnStarted(AActor* lockedOnTarget);
@@ -150,18 +155,6 @@ private:
 	/** Cached PlayerController reference */
 	UPROPERTY()
 	APlayerController* PlayerController{ nullptr };
-
-	/** Dash animation
-	* Forward dash
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* FwdDashAnim{ nullptr };
-
-	/** Dash animation
-	* Backward dash
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations", meta = (AllowPrivateAccess = "true"))
-	UAnimMontage* BwdDashAnim{ nullptr };
 
 	/** Main HUD widget class */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
@@ -192,10 +185,15 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
 
+	UFUNCTION(BlueprintPure, Category = "Movement")
+	float GetSpeed() const { return GetCharacterMovement()->Velocity.Size(); }
+
 	UFUNCTION(BlueprintCallable)
 	bool HasMovementInput() const { return bHasMovementInput; }
 
-	const UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
+	UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
+
+	UDashComponent* GetDashComponent() const { return DashComponent; }
 
 protected:
 
@@ -206,24 +204,6 @@ protected:
 	/** If the last fall was cause by a jump */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
 	bool bWasJumpFall{ false };
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
-	float dashDistance{ 1250.0f };
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movements")
-	float dashCooldown{ 0.3f };
-
-	/** Was dash input pressed recently? (cleared after short delay) */
-	bool bWantsToDash{ false };
-
-	/** Timer to clear bWantsToDash */
-	FTimerHandle DashInputWindowTimer;
-
-	/** How long dash input stays "active" for cancel detection */
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	float DashInputWindowDuration{ 0.2f }; // 200ms
-
-	void ClearDashInput() { bWantsToDash = false; }
 
 	/** Was jump input pressed recently? (cleared after short delay) */
 	bool bWantsToJump{ false };
@@ -239,8 +219,6 @@ protected:
 
 public:
 
-	bool WantsToDash() const { return bWantsToDash; }
-
 	bool WantsToJump() const { return bWantsToJump; }
 
 protected:
@@ -250,13 +228,6 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
 	float MaxHealth{ 100.f };
-
-	/** Can Player use Dash ? */
-	UPROPERTY(BlueprintReadOnly)
-	bool bCanDash{ true };
-
-	UPROPERTY(BlueprintReadOnly)
-	bool bIsDashing{ false };
 
 	/** Is Player Dead ?*/
 	UPROPERTY(BlueprintReadOnly)
@@ -285,6 +256,9 @@ protected:
 public:
 
 	FVector2D GetMoveInputAxis() const { return MoveInputAxis; }
+
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsAttacking() const { return CombatComponent->isAttacking(); }
 
 protected:
 
@@ -395,18 +369,6 @@ private:
 
 	UFUNCTION()
 	virtual void Falling() override;
-
-	/** Simple function helper to rotate the character to where player is looking
-	* Smooth transition during local variable rotationDuration (0.3f default)
-	*/
-	void RotatePlayerToCameraDirection();
-
-	/** Helper to trigger an attack with input buffer delay
-	* Eliminates code duplication across all attack input handlers
-	* @param attackType The type of attack to trigger after buffer delay
-	*/
-	void TriggerAttackWithBuffer(EAttackType attackType);
-
 
 	/** Initialize Player HUD on BeginPlay */
 	void InitializeHUD();
