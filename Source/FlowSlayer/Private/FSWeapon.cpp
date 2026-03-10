@@ -34,27 +34,27 @@ void AFSWeapon::BeginPlay()
         SwordTrailComponent->SetAsset(SwordTrailSystem);
 }
 
-void AFSWeapon::HandleActiveFrameStarted(const FAttackData* attackData)
+void AFSWeapon::HandleActiveFrameStarted(const FHitboxProfile* hitboxProfile)
 {
     if (SwordTrailComponent)
         SwordTrailComponent->Activate();
 
-    if (!attackData)
+    if (!hitboxProfile)
         return;
 
-    switch (attackData->HitboxShape)
+    switch (hitboxProfile->Shape)
     {
     case EHitboxShape::WeaponSweep:
-        DetectWeaponSweep(attackData->SweepSphereRadius);
+        DetectWeaponSweep(hitboxProfile->SweepRadius);
         break;
     case EHitboxShape::Sphere:
-        DetectSphere(attackData->HitboxRange, attackData->HitboxOffset);
+        DetectSphere(hitboxProfile->Range, hitboxProfile->Offset);
         break;
     case EHitboxShape::Cone:
-        DetectCone(attackData->HitboxRange, attackData->ConeHalfAngle, attackData->HitboxOffset);
+        DetectCone(hitboxProfile->Range, hitboxProfile->ConeHalfAngle, hitboxProfile->Offset);
         break;
     case EHitboxShape::Box:
-        DetectBox(attackData->BoxExtent, attackData->HitboxRange, attackData->HitboxOffset);
+        DetectBox(hitboxProfile->BoxExtent, hitboxProfile->Range, hitboxProfile->Offset);
         break;
     }
 }
@@ -77,7 +77,8 @@ void AFSWeapon::DetectWeaponSweep(float radius)
     EDrawDebugTrace::Type debugTrace{ DebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
     TArray<FHitResult> outHits;
 
-    UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), start, end, radius, objectsType, false, actorsToIgnore, debugTrace, outHits, true);
+    UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), start, end, radius, objectsType, false, actorsToIgnore, debugTrace, outHits, true, 
+        FLinearColor::Red, FLinearColor::Green, DebugLinesDuration);
 
     ProcessHits(outHits);
 }
@@ -93,7 +94,8 @@ void AFSWeapon::DetectSphere(float range, const FVector& offset)
     EDrawDebugTrace::Type debugTrace{ DebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
     TArray<FHitResult> outHits;
 
-    UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), center, center, range, objectsType, false, actorsToIgnore, debugTrace, outHits, true);
+    UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), center, center, range, objectsType, false, actorsToIgnore, debugTrace, outHits, true,
+        FLinearColor::Red, FLinearColor::Green, DebugLinesDuration);
 
     ProcessHits(outHits);
 }
@@ -130,7 +132,7 @@ void AFSWeapon::DetectCone(float range, float halfAngleDeg, const FVector& offse
         DrawDebugCone(GetWorld(), center, forward, range, 
             FMath::DegreesToRadians(halfAngleDeg),
             FMath::DegreesToRadians(halfAngleDeg),
-            12, FColor::Yellow, false, 1.f);
+            12, FColor::Yellow, false, DebugLinesDuration);
     }
 
     ProcessHits(coneHits);
@@ -152,7 +154,7 @@ void AFSWeapon::DetectBox(const FVector& extent, float range, const FVector& off
         FCollisionShape::MakeBox(extent), queryParams);
 
     if (DebugLines)
-        DrawDebugBox(GetWorld(), center, extent, FQuat(rotation), FColor::Blue, false, 1.f);
+        DrawDebugBox(GetWorld(), center, extent, FQuat(rotation), FColor::Blue, false, DebugLinesDuration);
 
     ProcessHits(outHits);
 }

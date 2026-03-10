@@ -20,21 +20,28 @@ class FLOWSLAYER_API UAnimNotifyState_Hitbox : public UAnimNotifyState
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
+	/** Hitbox profile of the attack occuring during this instance 
+	* Set up directly in the anim montage
+	*/
+	UPROPERTY(EditAnywhere, Category = "Hitbox")
+	FHitboxProfile HitboxProfile;
+
 	/** Player character combat component 
 	* Contains the equipped weapon actor to activate/deactivate the hitbox 
+	* nullptr if instigator is an enemy
 	*/
 	UPROPERTY()
 	UFSCombatComponent* CombatComp{ nullptr };
 
-	/** Player's weapon reference */
+	/** Player's weapon reference 
+	* nullptr if instigator is an enemy
+	*/
 	UPROPERTY()
 	const AFSWeapon* PlayerWeapon{ nullptr };
 
-	/** Attack data currently playing on this instance */
-	const FAttackData* AttackData{ nullptr };
-
 	/* EnemyInstigator (AFSEnemy) 
 	* Used if the instigator is an AFSEnemy
+	* nullptr otherwise
 	*/
 	UPROPERTY()
 	AFSEnemy* EnemyInstigator{ nullptr };

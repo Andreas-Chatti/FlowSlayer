@@ -103,31 +103,6 @@ struct FAttackData : public FTableRowBase
     UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0"))
     float ComboWindowDuration{ 0.1f };
 
-    UPROPERTY(EditAnywhere, Category = "Hitbox")
-    EHitboxShape HitboxShape{ EHitboxShape::WeaponSweep };
-
-    /** Zone offset from the player (local space) 
-    * Can be ZeroVector (center being the player)
-    */
-    UPROPERTY(EditAnywhere, Category = "Hitbox", meta = (EditCondition = "HitboxShape != EHitboxShape::WeaponSweep"))
-    FVector HitboxOffset{ FVector::ZeroVector };
-
-    /** Radius of each active frame during an sweep attack */
-    UPROPERTY(EditAnywhere, Category = "Hitbox", meta = (ClampMin = "0.0", EditCondition = "HitboxShape == EHitboxShape::WeaponSweep"))
-    float SweepSphereRadius{ 10.f };
-
-    /** Zone radius (Sphere, Cone) */
-    UPROPERTY(EditAnywhere, Category = "Hitbox", meta = (ClampMin = "0.0", EditCondition = "HitboxShape != EHitboxShape::WeaponSweep"))
-    float HitboxRange{ 200.f };
-
-    /** Demi angle of the cone in degree (only for Cone) */
-    UPROPERTY(EditAnywhere, Category = "Hitbox", meta = (ClampMin = "0.0", ClampMax = "180.0", EditCondition = "HitboxShape == EHitboxShape::Cone"))
-    float ConeHalfAngle{ 45.f };
-
-    /** Box extent (only for box) */
-    UPROPERTY(EditAnywhere, Category = "Hitbox", meta = (EditCondition = "HitboxShape == EHitboxShape::Box"))
-    FVector BoxExtent{ 100.f, 100.f, 50.f };
-
     /** Attack type needed to launch this attack
      * This data is based from the inputs actions in AFlowSlayerCharacter class
      * Configured via InitializeComboAttackData()
@@ -199,4 +174,28 @@ struct FCombo
     {
         return !Attacks.IsEmpty() ? &Attacks.Last() : nullptr;
     }
+};
+
+USTRUCT(BlueprintType)
+struct FHitboxProfile
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditAnywhere)
+    EHitboxShape Shape{ EHitboxShape::WeaponSweep };
+
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", EditCondition = "Shape == EHitboxShape::WeaponSweep"))
+    float SweepRadius{ 10.f };
+
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", EditCondition = "Shape != EHitboxShape::WeaponSweep"))
+    float Range{ 200.f };
+
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.0", ClampMax = "180.0", EditCondition = "Shape == EHitboxShape::Cone"))
+    float ConeHalfAngle{ 45.f };
+
+    UPROPERTY(EditAnywhere, meta = (EditCondition = "Shape == EHitboxShape::Box"))
+    FVector BoxExtent{ 100.f, 100.f, 50.f };
+
+    UPROPERTY(EditAnywhere, meta = (EditCondition = "Shape != EHitboxShape::WeaponSweep"))
+    FVector Offset{ FVector::ZeroVector };
 };

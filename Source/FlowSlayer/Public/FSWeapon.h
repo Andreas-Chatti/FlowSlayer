@@ -15,7 +15,7 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnEnemyHit, AActor* hitActor, const FVector& hitLocation);
 
 /** Delegates used to activate and deactivate damage hitbox */
-DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, const FAttackData* attackData);
+DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, const FHitboxProfile* hitboxProfile);
 DECLARE_DELEGATE(FOnActiveFrameStopped);
 
 class UBoxComponent;
@@ -44,6 +44,9 @@ public:
     /** Shows hit debug lines */
     UPROPERTY(EditAnywhere, Category = "Debug")
     bool DebugLines{ false };
+
+    UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "DebugLines"))
+    float DebugLinesDuration{ 5.f };
 
 protected:
 
@@ -83,7 +86,7 @@ protected:
     * Called via AnimNotify during attack animations
     * Enables tick, initializes sweep starting position, and activates sword trail VFX
     */
-    void HandleActiveFrameStarted(const FAttackData* attackData);
+    void HandleActiveFrameStarted(const FHitboxProfile* hitboxProfile);
 
     /** Deactivate the weapon hitbox and disable collision detection
     * Called via AnimNotify at the end of attack animations
