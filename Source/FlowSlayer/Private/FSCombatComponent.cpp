@@ -3,6 +3,9 @@
 UFSCombatComponent::UFSCombatComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
+
+    HitboxComponent = CreateDefaultSubobject<UHitboxComponent>(TEXT("HitboxComponent"));
+    checkf(HitboxComponent, TEXT("FATAL: HitboxComponent is NULL or INVALID !"))
 }
 
 void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -27,9 +30,10 @@ void UFSCombatComponent::BeginPlay()
     AnimInstance = PlayerOwner->GetMesh()->GetAnimInstance();
     InitializeAndAttachWeapon();
 
-    checkf(PlayerOwner && AnimInstance && equippedWeapon, TEXT("FATAL: One or more Core CombatComponent variables are NULL"));
+    checkf(PlayerOwner && AnimInstance && equippedWeapon && HitboxComponent, TEXT("FATAL: One or more Core CombatComponent variables are NULL"));
 
-    equippedWeapon->OnEnemyHit.AddUObject(this, &UFSCombatComponent::OnHitLanded);
+    HitboxComponent->OnHit.AddUObject(this, &UFSCombatComponent::OnHitLanded);
+    HitboxComponent->SetOwnerWeaponRef(equippedWeapon);
 
     // Bind combo window delegates (broadcasted by AnimNotifyState_ModularCombo)
     OnComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleComboWindowOpened);
@@ -461,7 +465,7 @@ void UFSCombatComponent::CancelAttack(float blendOutTime)
 {
     AnimInstance->StopAllMontages(blendOutTime);
     ResetComboState();
-    equippedWeapon->OnActiveFrameStopped.Execute();
+    HitboxComponent->OnActiveFrameStopped.Execute();
 }
 
 FAttackData* UFSCombatComponent::GetAttackData(FName rowName) const

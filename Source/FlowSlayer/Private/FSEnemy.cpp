@@ -20,6 +20,10 @@ AFSEnemy::AFSEnemy()
     LifeBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
     LifeBarWidget->SetDrawSize(FVector2D(100.f, 15.f));
     LifeBarWidget->SetVisibility(false);
+
+    HitboxComponent = CreateDefaultSubobject<UHitboxComponent>(TEXT("HitboxComponent"));
+    checkf(HitboxComponent, TEXT("FATAL: HitboxComponent is NULL or INVALID !"));
+    HitboxComponent->OnHit.AddUObject(this, &AFSEnemy::HandleOnHitLanded);
 }
 
 void AFSEnemy::InitializeLifeBarWidgetRef()
@@ -178,4 +182,10 @@ void AFSEnemy::DisplayAllWidgets(bool bShowWidget)
 {
     DisplayLockedOnWidget(bShowWidget);
     DisplayHealthBarWidget(bShowWidget);
+}
+
+void AFSEnemy::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
+{
+    if (hitActor->Implements<UFSDamageable>())
+        Cast<IFSDamageable>(hitActor)->ReceiveDamage(Damage, this);
 }
