@@ -527,7 +527,10 @@ private:
     * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
     *                     Defaults to 250.f. Motion warp is skipped if no enemy is found within radius.
     */
-    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines = false, float zOffset = 0.f, float forwardOffset = 0.f);
+    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, AActor* targetActor, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
+
+    /** Overload version */
+    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
 
     /** Setup motion warp for ground-based attacks (dash attacks, launcher ground phase)
     *
