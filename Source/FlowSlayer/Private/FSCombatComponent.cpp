@@ -225,7 +225,8 @@ void UFSCombatComponent::InitializeComboAttackData()
             constexpr float airNotifyEnd{ 0.82f };
             constexpr float airSearchRadius{ 400.f };
             constexpr float zOffset{ 150.f };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius, false, zOffset);
+            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target, zOffset);
         });
     LauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
 
@@ -347,7 +348,8 @@ void UFSCombatComponent::InitializeComboAttackData()
             constexpr float airNotifyStart{ 0.15f };
             constexpr float airNotifyEnd{ 0.34f };
             constexpr float airSearchRadius{ 250.f };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target);
         });
     AirCombo.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
@@ -357,7 +359,8 @@ void UFSCombatComponent::InitializeComboAttackData()
             constexpr float airNotifyStart{ 0.33f };
             constexpr float airNotifyEnd{ 0.52f };
             constexpr float airSearchRadius{ 250.f };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target);
         });
     AirCombo.Attacks[1].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
@@ -367,7 +370,8 @@ void UFSCombatComponent::InitializeComboAttackData()
             constexpr float airNotifyStart{ 0.14f };
             constexpr float airNotifyEnd{ 0.28f };
             constexpr float airSearchRadius{ 250.f };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
+            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target);
 
             bCanAirAttack = false;
         });
@@ -379,13 +383,15 @@ void UFSCombatComponent::InitializeComboAttackData()
     AerialSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     AerialSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
         {
-            const FName airWarpTargetName{ "AttackTarget" };
-            constexpr float airNotifyStart{ 0.12f };
-            constexpr float airNotifyEnd{ 0.51f };
-            constexpr float airSearchRadius{ 250.f };
-
-            if (LockedOnTarget)
-                SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, airSearchRadius);
+            constexpr float slamDownVelocity{ -2000.f };
+            constexpr float startDelay{ 0.51f };
+            FTimerHandle slamDownTimer;
+            GetWorld()->GetTimerManager().SetTimer(
+                slamDownTimer,
+                [slamDownVelocity, this]() { PlayerOwner->LaunchCharacter(FVector{ 0.f, 0.f, slamDownVelocity }, false, true); },
+                startDelay,
+                false
+            );
         });
 }
 
@@ -602,86 +608,103 @@ AActor* UFSCombatComponent::GetTargetForMotionWarp(float searchRadius, bool debu
     return GetNearestEnemyFromPlayer(searchRadius, debugLines);
 }
 
-void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float zOffset, float forwardOffset)
+void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, AActor* targetActor, float zOffset, float forwardOffset, bool debugLines)
 {
-    AActor* nearestEnemy{ GetTargetForMotionWarp(searchRadius, debugLines) };
+    if (!MotionWarpingComponent || !targetActor)
+        return;
+
+    TWeakObjectPtr<AActor> weakEnemy{ MakeWeakObjectPtr(targetActor) };
+    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MakeWeakObjectPtr(MotionWarpingComponent) };
+
+    FTimerHandle flyingStartTimer;
+    GetWorld()->GetTimerManager().SetTimer(
+        flyingStartTimer,
+        [this, weakEnemy, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName]()
+        {
+            if (!weakEnemy.IsValid() || !weakMotionWarp.IsValid())
+                return;
+
+            FVector playerLocation{ PlayerOwner->GetActorLocation() };
+            FVector enemyLocation{ weakEnemy->GetActorLocation() };
+
+            FVector directionToEnemy{ (enemyLocation - playerLocation).GetSafeNormal() };
+
+            FVector targetLocation{ enemyLocation };
+            targetLocation.Z += zOffset;
+            targetLocation -= directionToEnemy * forwardOffset;
+
+            FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
+
+            FMotionWarpingTarget target;
+            target.Name = motionWarpingTargetName;
+            target.Location = targetLocation;
+            target.Rotation = lookAtRotation;
+
+            PlayerOwner->SetActorRotation(FRotator(0.f, lookAtRotation.Yaw, 0.f), ETeleportType::TeleportPhysics);
+            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+            weakMotionWarp->AddOrUpdateWarpTarget(target);
+        },
+        notifyStartTime,
+        false
+        );
+
+    FTimerHandle flyingEndTimer;
+    GetWorld()->GetTimerManager().SetTimer(
+        flyingEndTimer,
+        [this, weakMotionWarp]()
+        {
+            if (!weakMotionWarp.IsValid())
+                return;
+
+            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
+            weakMotionWarp->RemoveAllWarpTargets();
+        },
+        notifyEndTime,
+        false
+    );
+}
+
+void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float zOffset, float forwardOffset, bool debugLines)
+{
     if (!MotionWarpingComponent)
         return;
 
-    TWeakObjectPtr<AActor> weakEnemy{ nearestEnemy };
-    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MotionWarpingComponent };
+    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MakeWeakObjectPtr(MotionWarpingComponent) };
 
     FTimerHandle flyingStartTimer;
-    if (nearestEnemy)
-    {
-        GetWorld()->GetTimerManager().SetTimer(
-            flyingStartTimer,
-            [this, weakEnemy, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName]()
+    GetWorld()->GetTimerManager().SetTimer(
+        flyingStartTimer,
+        [this, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName, debugLines]()
+        {
+            if (!weakMotionWarp.IsValid())
+                return;
+
+            FVector playerLocation{ PlayerOwner->GetActorLocation() };
+
+            FRotator controlYaw{ 0.f, PlayerOwner->GetControlRotation().Yaw, 0.f };
+            FVector cameraForward{ FRotationMatrix(controlYaw).GetUnitAxis(EAxis::X) };
+
+            FVector targetLocation{ playerLocation + cameraForward * forwardOffset + FVector{0.f, 0.f, zOffset} };
+
+            if (debugLines)
             {
-                if (!weakEnemy.IsValid() || !weakMotionWarp.IsValid())
-                    return;
+                DrawDebugSphere(
+                    GetWorld(),
+                    targetLocation,
+                    20.f,
+                    12,
+                    FColor::Emerald,
+                    false,
+                    3.f
+                );
+            }
 
-                FVector playerLocation{ PlayerOwner->GetActorLocation() };
-                FVector enemyLocation{ weakEnemy->GetActorLocation() };
-
-                FVector directionToEnemy{ (enemyLocation - playerLocation).GetSafeNormal() };
-
-                FVector targetLocation{ enemyLocation };
-                targetLocation.Z += zOffset;
-                targetLocation -= directionToEnemy * forwardOffset;
-
-                FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
-
-                FMotionWarpingTarget target;
-                target.Name = motionWarpingTargetName;
-                target.Location = targetLocation;
-                target.Rotation = lookAtRotation;
-
-                PlayerOwner->SetActorRotation(FRotator(0.f, lookAtRotation.Yaw, 0.f), ETeleportType::TeleportPhysics);
-                PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-                weakMotionWarp->AddOrUpdateWarpTarget(target);
-            },
-            notifyStartTime,
-            false
-        );
-    }
-
-    else
-    {
-        GetWorld()->GetTimerManager().SetTimer(
-            flyingStartTimer,
-            [this, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName, debugLines]()
-            {
-                if (!weakMotionWarp.IsValid())
-                    return;
-
-                FVector playerLocation{ PlayerOwner->GetActorLocation() };
-
-                FRotator controlYaw{ 0.f, PlayerOwner->GetControlRotation().Yaw, 0.f };
-                FVector cameraForward{ FRotationMatrix(controlYaw).GetUnitAxis(EAxis::X) };
-
-                FVector targetLocation{ playerLocation + cameraForward * forwardOffset + FVector{0.f, 0.f, zOffset} };
-
-                if (debugLines)
-                {
-                    DrawDebugSphere(
-                        GetWorld(),
-                        targetLocation,
-                        20.f,
-                        12,
-                        FColor::Emerald,
-                        false,
-                        3.f
-                    );
-                }
-
-                PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-                weakMotionWarp->AddOrUpdateWarpTargetFromLocation(motionWarpingTargetName, targetLocation);
-            },
-            notifyStartTime,
-            false
-        );
-    }
+            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+            weakMotionWarp->AddOrUpdateWarpTargetFromLocation(motionWarpingTargetName, targetLocation);
+        },
+        notifyStartTime,
+        false
+    );
 
     FTimerHandle flyingEndTimer;
     GetWorld()->GetTimerManager().SetTimer(
