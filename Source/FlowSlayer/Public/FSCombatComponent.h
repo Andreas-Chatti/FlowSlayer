@@ -9,7 +9,9 @@
 #include "Camera/CameraShakeBase.h"
 #include "Logging/LogMacros.h"
 #include "FSWeapon.h"
+#include "CombatData.h"
 #include "FSDamageable.h"
+#include "HitboxComponent.h"
 #include "MotionWarpingComponent.h"
 #include "EnhancedInputLibrary.h"
 #include "NiagaraComponent.h"
@@ -22,51 +24,6 @@ class USoundBase;
 class UParticleSystem;
 class UCameraShakeBase;
 
-UENUM(BlueprintType)
-enum class EAttackType : uint8
-{
-    None,
-
-    // Light combos
-    StandingLight, // LMB
-    RunningLight, // Z + LMB
-
-    // Heavy combos
-    StandingHeavy, // RMB
-    RunningHeavy, // Z + RMB
-
-    // Dash attacks
-    DashPierce,           // SHIFT + Z + LMB
-    DashSpinningSlash,    // SHIFT + Q/D + LMB
-    DashDoubleSlash,      // SHIFT + Z + RMB
-    DashBackSlash,        // SHIFT + S + RMB
-
-    // Jump attacks
-    JumpSlam,             // S + LMB (airborne)
-    JumpForwardSlam,      // Z + LMB (airborne)
-    JumpUpperSlam,        // Z + RMB (airborne)
-
-    // Launcher attacks
-    Launcher,             // A + LMB
-    PowerLauncher,        // A + RMB
-
-    // Spin attacks
-    SpinAttack,           // E + LMB
-    HorizontalSweep,      // E + RMB
-
-    // Forward power attacks
-    PowerSlash,           // F + S
-    PierceThrust,         // F + Z
-
-    // Slam attacks
-    GroundSlam,           // S + RMB
-    DiagonalRetourne,     // S + LMB
-
-    // Air attacks
-    AirCombo,             // LMB (airborne)
-    AerialSlam            // RMB (airborne after launcher)
-};
-
 /** Delegates for combo window management - broadcasted by AnimNotifyState_ComboWindow */
 DECLARE_MULTICAST_DELEGATE(FOnComboWindowOpened);
 DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
@@ -78,103 +35,9 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
 /** Delegate broadcasted when a successfull hit landed on an enemy target */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnHitLanded, AActor*, actorHit, const FVector&, hitLocation, float, damageAmount, float, flowReward);
 
-
-/** Single attack data within a combo */
-USTRUCT(BlueprintType)
-struct FAttackData
-{
-    GENERATED_BODY()
-
-    DECLARE_DELEGATE(FOnAttackExecuted);
-    DECLARE_DELEGATE_OneParam(FOnAttackHit, AActor* hitActor);
-
-    /** Animation montage for this attack */
-    UPROPERTY(EditDefaultsOnly, Category = "Attack")
-    UAnimMontage* Montage{ nullptr };
-
-    /** Damage dealt by this attack
-     * Configured via InitializeComboAttackData()
-     */
-    float Damage{ 50.f };
-
-    /** Knockback force applied to enemy (0 = no knockback)
-     * Configured via InitializeComboAttackData()
-     */
-    float KnockbackForce{ 0.f };
-
-    /** Vertical knockback component (adds upward velocity)
-     * Configured via InitializeComboAttackData()
-     */
-    float KnockbackUpForce{ 0.f };
-
-    /** Flow reward on attack successfully hit target */
-    float FlowReward{ 5.f };
-
-    /** Attack type needed to launch this attack
-     * This data is based from the inputs actions in AFlowSlayerCharacter class
-     * Configured via InitializeComboAttackData()
-     */
-    EAttackType AttackType{ EAttackType::None };
-
-    /** Chainable attacks from this attack
-     * Configured via InitializeComboAttackData()
-     */
-    TSet<EAttackType> ChainableAttacks;
-
-    /* Attack side effect 
-    * An attack can have a specific effect
-    * Called when the attack is executed
-    * Can be empty (no side effect)
-    */
-    FOnAttackExecuted OnAttackExecuted;
-
-    /* Called when attack hit an enemy
-    * Can be empty (no side effect)
-    */
-    FOnAttackHit OnAttackHit;
-
-    // === LATER (Phase 2+) ===
-    // USoundBase* HitSound;
-    // UNiagaraSystem* HitVFX;
-    // float CustomHitstop;
-    // etc.
-};
-
-
-/**
- * Combo data structure
- * Encapsulates all data related to a single combo chain.
- * Can contain one or more attacks (FAttackData)
- */
-USTRUCT(BlueprintType)
-struct FCombo
-{
-    GENERATED_BODY()
-
-    /** Array of attack animations for this combo
-     * Multiple montages (e.g., [Attack1, Attack2, Attack3])
-     */
-    UPROPERTY(EditDefaultsOnly, Category = "Combo")
-    TArray<FAttackData> Attacks;
-
-    /** Returns the maximum combo index (last attack index in the array) */
-    int32 GetMaxComboIndex() const { return FMath::Max(0, Attacks.Num() - 1); }
-
-    /** Checks if this combo data is valid and ready to use */
-    bool IsValid() const { return !Attacks.IsEmpty() && Attacks[0].Montage != nullptr; }
-
-    /** Gets an attack montage at the specified index (returns nullptr if invalid) */
-    const FAttackData* GetAttackAt(int32 Index) const
-    {
-        return Attacks.IsValidIndex(Index) ? &Attacks[Index] : nullptr;
-    }
-
-    /** Gets the last attack montage in the combo */
-    const FAttackData* GetLastAttack() const
-    {
-        return !Attacks.IsEmpty() ? &Attacks.Last() : nullptr;
-    }
-};
+/** Delegate broadcasted when any attack starts or ends */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingStarted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingEnded);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnComboCounterStarted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnComboCountChanged, int32, HitCount);
@@ -188,6 +51,20 @@ class FLOWSLAYER_API UFSCombatComponent : public UActorComponent
 public:
 
     UFSCombatComponent();
+
+    /* Attacking started delegate
+    * Broadcasted by UFSCombatComponent
+    * On any attack started
+    */
+    UPROPERTY(BlueprintAssignable)
+    FOnAttackingStarted OnAttackingStarted;
+
+    /* Attacking ended delegate
+    * Broadcasted by UFSCombatComponent
+    * On any attack ended
+    */
+    UPROPERTY(BlueprintAssignable)
+    FOnAttackingEnded OnAttackingEnded;
 
     /** Combo window delegates
     * Broadcasted by ComboWindow notify state class to notify combo window open/close events
@@ -224,11 +101,27 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat|Combo Counter")
     float GetComboTimeRatio() const;
 
+    /** Whether the play can do an Air attack while in the air
+    * 
+    * Used mainly to track if the player already did an air attack
+    * 
+    * @return true if the player can do an air attack, false otherwise
+    */
+    UFUNCTION(BlueprintPure, Category = "Combat|Combo Counter")
+    bool CanAirAttack() const { return bCanAirAttack; }
+
+    /** @return Current used combo 
+    * None if the player isn't attacking
+    */
+    const FCombo* GetOngoingCombo() const { return OngoingCombo; }
+
+    /** @return Current used attack in the current combo */
+    const FAttackData* GetOngoingAttack() const { return OngoingCombo->GetAttackAt(ComboIndex - 1); }
+
 private:
 
     /** Duration of the combo streak timer — resets on each hit */
-    UPROPERTY(EditDefaultsOnly, Category = "Combat|Combo Counter")
-    float ComboCounterTimerDuration{ 1.5f };
+    float OngoingAttackComboWindowDuration{ 0.f };
 
     /** Number of hits in the current streak */
     int32 ComboHitCount{ 0 };
@@ -256,7 +149,12 @@ public:
     bool GetChainingToNewCombo() const { return bChainingToNewCombo; }
 
     /** Set all combos and combat states back to default and stops the current attack animation */
-    void CancelAttack();
+    void CancelAttack(float blendOutTime = 0.2f);
+
+    /** Return all datas of a specific attack */
+    FAttackData* GetAttackData(FName rowName) const;
+
+    const UHitboxComponent* GetHitboxComponent() const { return HitboxComponent; }
 
 protected:
 
@@ -268,11 +166,15 @@ protected:
     TSubclassOf<AFSWeapon> weaponClass;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat VFX")
-    float hitFlashDuration{ 0.15f };
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat VFX")
     UMaterialInterface* HitFlashMaterial;
+
     void ApplyHitFlash(AActor* hitActor);
+
+    UPROPERTY(EditDefaultsOnly)
+    UDataTable* AttackDataTable;
+
+    UPROPERTY(VisibleAnywhere)
+    UHitboxComponent* HitboxComponent;
 
 public:
 
@@ -280,8 +182,8 @@ public:
 
     // === HIT REACTION ===
 
-    /** Called by equippedWeapon (Player's weapon actor) 
-    * Called when equippedWeapon's hitbox touches at least one AFSEnemy
+    /** Called by HitboxComponent (UHitboxComponent) 
+    * Called upon target hit
     * Applies damage, hitstop, vfx, sfx and cameraShake
     */
     UFUNCTION(BlueprintCallable, Category = "Combat")
@@ -299,13 +201,37 @@ public:
 
     /** Freeze duration */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopDuration{ 0.08f };
+    float hitstopDuration{ 0.25f };
 
-    /** Slowness (0 = total freeze) */
+    /** Player Hitstop dilation on hit */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopTimeDilation{ 0.05f }; // Ralentissement (0 = freeze total)
+    float PlayerHitstopTimeDilation{ 0.75f };
 
-    void ApplyHitstop();
+    /** Enemy Hitstop dilation on hit */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
+    float EnemyHitstopTimeDilation{ 0.35f };
+
+    void ApplyHitstop(AActor* hitActor);
+
+    /** Applies hit shake to a specific target */
+    void ApplyHitShake(USkeletalMeshComponent* hitActorMesh, float shakeSpeed, float shakeAmplitude);
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
+    float ShakeSpeed{ 30.f };
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
+    float EnemyShakeAmplitude{ 20.f };
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
+    float PlayerShakeAmplitude{ 1.f };
+
+    /** Player HitShake Timer */
+    UPROPERTY()
+    FTimerHandle PlayerHitShakeTimer;
+
+    /** Enemy HitShake Timer */
+    UPROPERTY()
+    FTimerHandle EnemyHitShakeTimer;
 
     // === VFX ===
 
@@ -365,46 +291,46 @@ private:
     UFUNCTION()
     void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
-    void ResetTimeDilation();
+    void ResetTimeDilation(TWeakObjectPtr<AActor> hitActor);
 
     bool InitializeAndAttachWeapon();
 
     // === COMBAT - COMBO SYSTEM ===
 
     /** Standing light attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo StandingLightCombo;
 
     /** Standing heavy attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo StandingHeavyCombo;
 
     /** Running light attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo RunningLightCombo;
 
     /** Running heavy attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo RunningHeavyCombo;
 
     /** Dash Pierce attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashPierceAttack;
 
     /** Dash Spinning slash attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashSpinningSlashAttack;
 
     /** Dash Double slash attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashDoubleSlashAttack;
 
     /** Dash back slash attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DashBackSlashAttack;
 
     /** LMB Air attack combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
 
     /** Called when an air attack hits an enemy
@@ -433,19 +359,19 @@ private:
     void FreezeEnemyAtTrajectoryPeak(AActor* enemy, UCharacterMovementComponent* enemyMovement, float maxHeight, float freezeDuration);
 
     /** SPACE + LMB air attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpSlamAttack;
 
     /** SPACE + Z + LMB jump forward slam */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpForwardSlamAttack;
 
     /** SPACE + RMB jump upper + slam combo */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpUpperSlamComboAttack;
 
     /** A + LMB clean launcher */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo LauncherAttack;
 
     /** Called when launcher attack hits an enemy
@@ -455,35 +381,35 @@ private:
     void OnLauncherAttackHit(AActor* hitEnemy);
 
     /** A + RMB power launcher */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo PowerLauncherAttack;
 
     /** E multi-hit spin attack */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo SpinAttack;
 
     /** E + RMB horizontal sweep */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo HorizontalSweepAttack;
 
     /** Z + Hold RMB power slash */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo PowerSlashAttack;
 
     /** Z + LMB (double tap) pierce thrust */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo PierceThrustAttack;
 
     /** S + RMB ground slam */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo GroundSlamAttack;
 
     /** S + LMB diagonal retourné */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo DiagonalRetourneAttack;
 
     /** RMB (airborne) aerial slam follow-up */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
+    UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AerialSlamAttack;
 
     /** Currently active combo (pointer to one of the above combos) */
@@ -557,11 +483,21 @@ private:
     */
     void HandleAirStallFinished(float gravityScale);
 
+    /** Called when the character has landed on the ground */
+    UFUNCTION()
+    void HandleOnLanded(const FHitResult& Hit);
+
     /** GravityScale during air stall
     * Lower value means less gravity = player staying in the air longer
     */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
     float AirStallGravity{ 0.3f };
+
+    /** Whether the play can do an Air attack while in the air
+    * Used mainly to track if the player already did an air attack
+    * Prevent from spamming multiple air attacks
+    */
+    bool bCanAirAttack{ true };
 
     /** Helper to get the target for motion warping
     * Prioritizes locked-on target if within radius, otherwise finds nearest enemy
@@ -591,7 +527,10 @@ private:
     * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
     *                     Defaults to 250.f. Motion warp is skipped if no enemy is found within radius.
     */
-    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines = false, float zOffset = 0.f, float forwardOffset = 0.f);
+    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, AActor* targetActor, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
+
+    /** Overload version */
+    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
 
     /** Setup motion warp for ground-based attacks (dash attacks, launcher ground phase)
     *
@@ -612,4 +551,6 @@ private:
     */
     void ChainingToNextCombo();
 
+    /** Rotate the player character to where camera is looking at */
+    void RotatePlayerToPlayerView();
 };

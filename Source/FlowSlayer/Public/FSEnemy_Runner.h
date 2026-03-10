@@ -26,6 +26,6 @@ protected:
 	TSubclassOf<AFSProjectile> ProjectileClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Projectile")
-	FName ProjectileShootSocket;
+	FName ProjectileShootSocket{"AttackProjectile"};
 };
 

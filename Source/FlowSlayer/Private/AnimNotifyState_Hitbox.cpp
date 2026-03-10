@@ -14,20 +14,17 @@ void UAnimNotifyState_Hitbox::NotifyBegin(USkeletalMeshComponent* MeshComp, UAni
     if (!Owner)
         return;
 
-    CombatComp = Owner->FindComponentByClass<UFSCombatComponent>();
-    if (CombatComp)
-        CombatComp->GetEquippedWeapon()->OnHitboxActivated.Broadcast();
+    HitboxComp = Owner->FindComponentByClass<UHitboxComponent>();
+}
 
-    EnemyInstigator = Cast<AFSEnemy>(Owner);
-    if (EnemyInstigator)
-        EnemyInstigator->OnHitboxActivated.Broadcast();
+void UAnimNotifyState_Hitbox::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
+{
+    if (HitboxComp)
+        HitboxComp->OnActiveFrameStarted.Execute(&HitboxProfile);
 }
 
 void UAnimNotifyState_Hitbox::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-    if(CombatComp)
-        CombatComp->GetEquippedWeapon()->OnHitboxDeactivated.Broadcast();
-
-    else if(EnemyInstigator)
-        EnemyInstigator->OnHitboxDeactivated.Broadcast();
+    if (HitboxComp)
+        HitboxComp->OnActiveFrameStopped.Execute();
 }

@@ -62,6 +62,11 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	FlowComponent = CreateDefaultSubobject<UFSFlowComponent>(TEXT("FlowComponent"));
 	checkf(FlowComponent, TEXT("FATAL: FlowComponent is NULL or INVALID !"));
 
+	DashComponent = CreateDefaultSubobject<UDashComponent>(TEXT("DashComponent"));
+	checkf(DashComponent, TEXT("FATAL: DashComponent is NULL or INVALID !"));
+	DashComponent->OnDashStarted.AddUObject(FlowComponent, &UFSFlowComponent::RemoveFlow);
+	DashComponent->CanAffordDash.BindUObject(FlowComponent, &UFSFlowComponent::HasEnoughFlow);
+
 	JumpMaxCount = 2;
 	CurrentHealth = MaxHealth;
 }
@@ -72,12 +77,14 @@ void AFlowSlayerCharacter::BeginPlay()
 
 	LockOnComponent->OnLockOnStarted.BindUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStarted);
 	LockOnComponent->OnLockOnStopped.AddUObject(this, &AFlowSlayerCharacter::HandleOnLockOnStopped);
-	OnAnimationCanceled.AddUObject(this, &AFlowSlayerCharacter::HandleOnAnimationCanceled);
+	OnAnimationCanceled.AddDynamic(this, &AFlowSlayerCharacter::HandleOnAnimationCanceled);
 
 	AnimInstance = GetMesh()->GetAnimInstance();
 	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
 
 	CombatComponent->OnHitLandedNotify.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnHitLanded);
+	CombatComponent->OnAttackingStarted.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingStarted);
+	CombatComponent->OnAttackingEnded.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingEnded);
 	OnDamageTaken.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnPlayerHit);
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
@@ -166,19 +173,22 @@ void AFlowSlayerCharacter::ToggleLockOn(const FInputActionInstance& Value)
 	GetCharacterMovement()->MaxWalkSpeed = LockOnComponent->IsLockedOnTarget() ? RunSpeedThreshold : SprintSpeedThreshold;
 }
 
-void AFlowSlayerCharacter::HandleOnAnimationCanceled(FlowSlayerInput::EActionType actionType)
+void AFlowSlayerCharacter::HandleOnAnimationCanceled(EActionType actionType)
 {
-	CombatComponent->CancelAttack();
+	float blendOutTime{ actionType == EActionType::Move ? 0.5f : 0.2f };
+	CombatComponent->CancelAttack(blendOutTime);
 
 	switch (actionType)
 	{
-	case FlowSlayerInput::EActionType::NONE: return;
-	case FlowSlayerInput::EActionType::Jump:
+	case EActionType::NONE: return;
+	case EActionType::Jump:
 		Jump();
 		break;
-	case FlowSlayerInput::EActionType::Dash:
+	case EActionType::Dash:
 		Dash(FInputActionValue::Axis1D(1.f));
 		break;
+	case EActionType::Move:
+		Move(FInputActionValue::Axis2D(MoveInputAxis));
 	}
 }
 
@@ -243,14 +253,8 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 
 void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 {
-	if (CombatComponent->isAttacking())
-		return;
-
-	FVector2D MovementVector = Value.Get<FVector2D>();
-	bHasMovementInput = MovementVector.SquaredLength() > 0.01f;
-
-	if (!Controller)
-		return;
+	MoveInputAxis = Value.Get<FVector2D>();
+	bHasMovementInput = MoveInputAxis.SquaredLength() > 0.01f;
 
 	// === MODE LOCK-ON ===
 	if (LockOnComponent->IsLockedOnTarget())
@@ -259,10 +263,9 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 		const FVector Forward{ GetActorForwardVector() };
 		const FVector Right{ GetActorRightVector() };
 
-		AddMovementInput(Forward, MovementVector.Y);
-		AddMovementInput(Right, MovementVector.X);
+		AddMovementInput(Forward, MoveInputAxis.Y);
+		AddMovementInput(Right, MoveInputAxis.X);
 
-		MoveInputAxis = MovementVector;
 		return;
 	}
 
@@ -273,10 +276,8 @@ void AFlowSlayerCharacter::Move(const FInputActionValue& Value)
 	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 	const FVector RightDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 
-	AddMovementInput(ForwardDirection, MovementVector.Y);
-	AddMovementInput(RightDirection, MovementVector.X);
-
-	MoveInputAxis = MovementVector;
+	AddMovementInput(ForwardDirection, MoveInputAxis.Y);
+	AddMovementInput(RightDirection, MoveInputAxis.X);
 }
 
 void AFlowSlayerCharacter::StopMoving(const FInputActionValue& Value)
@@ -304,17 +305,6 @@ void AFlowSlayerCharacter::Look(const FInputActionValue& Value)
 
 void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 {
-	bWantsToDash = true;
-
-	GetWorld()->GetTimerManager().ClearTimer(DashInputWindowTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		DashInputWindowTimer,
-		this,
-		&AFlowSlayerCharacter::ClearDashInput,
-		DashInputWindowDuration,
-		false
-	);
-
 	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
 	if (isLMBPressed || isRMBPressed)
 	{
@@ -322,43 +312,7 @@ void AFlowSlayerCharacter::Dash(const FInputActionValue& Value)
 		return;
 	}
 
-	if (CombatComponent->isAttacking() || GetCharacterMovement()->IsFalling() || !bCanDash || bIsDashing || MoveInputAxis.IsNearlyZero())
-		return;
-
-	if (MoveInputAxis.Y >= 0.1 && FwdDashAnim)
-		AnimInstance->Montage_Play(FwdDashAnim, 1.0f);
-	else if (MoveInputAxis.Y <= -0.1 && BwdDashAnim)
-		AnimInstance->Montage_Play(BwdDashAnim, 1.0f);
-
-	bCanDash = false;
-	bIsDashing = true;
-
-	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
-	float dashDuration{ FwdDashAnim->GetPlayLength() };
-	FTimerHandle dashingStateTimer;
-	GetWorldTimerManager().SetTimer(
-		dashingStateTimer,
-		[WeakThis]()
-		{
-			if (WeakThis.IsValid())
-				WeakThis->bIsDashing = false;
-		},
-		dashDuration,
-		false
-	);
-
-	float totalDashCooldown{ dashDuration + dashCooldown };
-	FTimerHandle dashCooldownTimer;
-	GetWorldTimerManager().SetTimer(
-		dashCooldownTimer,
-		[WeakThis]()
-		{
-			if (WeakThis.IsValid())
-				WeakThis->bCanDash = true;
-		},
-		totalDashCooldown,
-		false
-	);
+	DashComponent->StartDash(MoveInputAxis);
 }
 
 TPair<bool, bool> AFlowSlayerCharacter::GetMouseButtonStates() const
@@ -378,50 +332,6 @@ bool AFlowSlayerCharacter::GetInputKeyState(FKey inputKey) const
 		return false;
 
 	return PlayerController->WasInputKeyJustPressed(inputKey) || PlayerController->IsInputKeyDown(inputKey);
-}
-
-void AFlowSlayerCharacter::RotatePlayerToCameraDirection()
-{
-	if (!Controller)
-		return;
-
-	GetCharacterMovement()->bOrientRotationToMovement = false;
-	GetCharacterMovement()->bUseControllerDesiredRotation = true;
-
-	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
-	const float rotationDuration{ 0.3f };
-	FTimerHandle myTimer;
-	GetWorld()->GetTimerManager().SetTimer(
-		myTimer,
-		[WeakThis]()
-		{
-			if (WeakThis.IsValid())
-			{
-				WeakThis->GetCharacterMovement()->bUseControllerDesiredRotation = false;
-				WeakThis->GetCharacterMovement()->bOrientRotationToMovement = true;
-			}
-		},
-		rotationDuration,
-		false);
-}
-
-void AFlowSlayerCharacter::TriggerAttackWithBuffer(EAttackType attackType)
-{
-	if (attackType == EAttackType::None)
-		return;
-
-	TWeakObjectPtr<AFlowSlayerCharacter> WeakThis{ this };
-	GetWorld()->GetTimerManager().ClearTimer(InputBufferTimer);
-	GetWorld()->GetTimerManager().SetTimer(
-		InputBufferTimer,
-		[WeakThis, attackType]()
-		{
-			if (WeakThis.IsValid())
-				WeakThis->OnAttackTriggered(attackType);
-		},
-		InputBufferDelay,
-		false
-	);
 }
 
 void AFlowSlayerCharacter::Jump()
@@ -453,9 +363,6 @@ void AFlowSlayerCharacter::Falling()
 
 void AFlowSlayerCharacter::OnAttackTriggered(EAttackType attackType)
 {
-	if (!CombatComponent->isAttacking() && !AnimInstance->IsAnyMontagePlaying())
-		RotatePlayerToCameraDirection();
-
 	CombatComponent->Attack(attackType, IsMoving(), GetCharacterMovement()->IsFalling());
 }
 
@@ -463,7 +370,7 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 {
 	EAttackType attackType{ EAttackType::StandingLight };
 
-	if (GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar) || GetCharacterMovement()->IsFlying())
+	if ((GetCharacterMovement()->IsFalling() || GetInputKeyState(EKeys::SpaceBar) || GetCharacterMovement()->IsFlying()))
 	{
 		OnJumpAttackActionStarted();
 		return;
@@ -481,14 +388,13 @@ void AFlowSlayerCharacter::OnLeftClickStarted(const FInputActionInstance& Value)
 		return;
 	}
 
-	else if (GetInputKeyState(EKeys::Z))
+	else if (GetSpeed() > RunSpeedThreshold)
 		attackType = EAttackType::RunningLight;
 
 	else
 		attackType = EAttackType::StandingLight;
 
 	OnAttackTriggered(attackType);
-
 }
 
 void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value)
@@ -513,7 +419,7 @@ void AFlowSlayerCharacter::OnRightClickStarted(const FInputActionInstance& Value
 		return;
 	}
 
-	else if (GetInputKeyState(EKeys::Z))
+	else if (GetSpeed() > RunSpeedThreshold)
 		attackType = EAttackType::RunningHeavy;
 
 	else
@@ -548,10 +454,7 @@ void AFlowSlayerCharacter::OnDashAttackActionStarted()
 	if (attackType == EAttackType::None)
 		return;
 
-	if (bIsDashing)
-		StopAnimMontage(GetCurrentMontage() == FwdDashAnim ? FwdDashAnim : BwdDashAnim);
-
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnJumpAttackActionStarted()
@@ -560,18 +463,20 @@ void AFlowSlayerCharacter::OnJumpAttackActionStarted()
 
 	auto [isLMBPressed, isRMBPressed] { GetMouseButtonStates() };
 
-	// LMB: JumpSlam (no direction) or JumpForwardSlam (forward)
+	// LMB: JumpSlam (backward) or JumpForwardSlam (forward)
 	if (isLMBPressed)
 	{
 		if (GetInputKeyState(EKeys::S))
 			attackType = EAttackType::JumpSlam;
 		else if (GetInputKeyState(EKeys::Z))
 			attackType = EAttackType::JumpForwardSlam;
-		else
+		else if (CombatComponent->CanAirAttack())
 			attackType = EAttackType::AirCombo;
+		else
+			return;
 	}
 
-	// RMB: JumpUpperSlam combo
+	// RMB: JumpUpperSlam attack
 	else if (isRMBPressed)
 	{
 		if (GetInputKeyState(EKeys::Z))
@@ -580,7 +485,7 @@ void AFlowSlayerCharacter::OnJumpAttackActionStarted()
 			attackType = EAttackType::AerialSlam;
 	}
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnLauncherActionStarted(const FInputActionInstance& Value)
@@ -597,7 +502,7 @@ void AFlowSlayerCharacter::OnLauncherActionStarted(const FInputActionInstance& V
 	else if (isRMBPressed)
 		attackType = EAttackType::PowerLauncher;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance& Value)
@@ -614,7 +519,7 @@ void AFlowSlayerCharacter::OnSpinAttackActionStarted(const FInputActionInstance&
 	else if (isRMBPressed)
 		attackType = EAttackType::HorizontalSweep;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstance& Value)
@@ -632,7 +537,7 @@ void AFlowSlayerCharacter::OnForwardPowerActionStarted(const FInputActionInstanc
 	else if (GetInputKeyState(EKeys::S))
 		attackType = EAttackType::PowerSlash;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnSlamActionStarted()
@@ -649,5 +554,5 @@ void AFlowSlayerCharacter::OnSlamActionStarted()
 	else if (isRMBPressed)
 		attackType = EAttackType::GroundSlam;
 
-	TriggerAttackWithBuffer(attackType);
+	OnAttackTriggered(attackType);
 }

@@ -3,8 +3,6 @@
 AFSEnemy_Runner::AFSEnemy_Runner()
 {
 	PrimaryActorTick.bCanEverTick = false;
-
-	ProjectileShootSocket = "AttackProjectile";
 }
 
 void AFSEnemy_Runner::BeginPlay()
