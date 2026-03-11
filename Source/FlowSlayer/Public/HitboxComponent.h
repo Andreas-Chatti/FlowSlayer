@@ -37,7 +37,7 @@ struct FHitboxProfile
     FVector Offset{ FVector::ZeroVector };
 };
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHit, AActor* hitActor, const FVector& hitLocation);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnHit, AActor* hitActor, AActor* instigator, const FVector& hitLocation);
 
 /** Delegates used to activate and deactivate damage hitbox */
 DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, const FHitboxProfile* hitboxProfile);

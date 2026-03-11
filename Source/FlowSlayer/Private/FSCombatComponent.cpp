@@ -5,7 +5,10 @@ UFSCombatComponent::UFSCombatComponent()
     PrimaryComponentTick.bCanEverTick = true;
 
     HitboxComponent = CreateDefaultSubobject<UHitboxComponent>(TEXT("HitboxComponent"));
-    checkf(HitboxComponent, TEXT("FATAL: HitboxComponent is NULL or INVALID !"))
+    checkf(HitboxComponent, TEXT("FATAL: HitboxComponent is NULL or INVALID !"));
+
+    HitFeedBackComponent = CreateDefaultSubobject<UHitFeedbackComponent>(TEXT("HitFeedBackComponent"));
+    checkf(HitFeedBackComponent, TEXT("FATAL: HitFeedBackComponent is NULL or INVALID !"));
 }
 
 void UFSCombatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -52,14 +55,7 @@ void UFSCombatComponent::BeginPlay()
     // Initialize combo lookup table for fast attack selection
     InitializeComboLookupTable();
 
-    // Cache MotionWarpingComponent reference
-    MotionWarpingComponent = PlayerOwner->FindComponentByClass<UMotionWarpingComponent>();
-    checkf(MotionWarpingComponent, TEXT("FATAL: MotionWarpingComponent not found on player!"));
-
     PlayerOwner->LandedDelegate.AddDynamic(this, &UFSCombatComponent::HandleOnLanded);
-
-    if (HitFlashMaterial)
-        HitFlashMaterial->GetMaterial()->SetScalarParameterValueEditorOnly("Speed", 20.f);
 }
 
 bool UFSCombatComponent::InitializeAndAttachWeapon()
@@ -711,7 +707,7 @@ void UFSCombatComponent::OnAirAttackHit(AActor* hitEnemy)
 * VFX, SFX, Hitstop, CameraShake, etc ...
 */
 ////////////////////////////////////////////////
-void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocation)
+void UFSCombatComponent::OnHitLanded(AActor* hitActor, AActor* instigator, const FVector& hitLocation)
 {
     if (!hitActor || Cast<IFSDamageable>(hitActor)->IsDead())
         return;
@@ -741,15 +737,12 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, const FVector& hitLocatio
     if (currentAttack->OnAttackHit.IsBound())
         currentAttack->OnAttackHit.Execute(hitActor);
 
+    HitFeedBackComponent->OnLandHit(hitLocation);
+
     ApplyDamage(hitActor, equippedWeapon, currentAttack->Damage);
-    ApplyKnockback(hitActor, currentAttack->KnockbackForce, currentAttack->KnockbackUpForce);
-    ApplyHitstop(hitActor);
-    ApplyHitShake(hitActor->FindComponentByClass<USkeletalMeshComponent>(), ShakeSpeed, EnemyShakeAmplitude);
-    ApplyHitShake(PlayerOwner->GetMesh(), ShakeSpeed, PlayerShakeAmplitude);
-    SpawnHitVFX(hitLocation);
-    PlayHitSound(hitLocation);
-    ApplyCameraShake();
-    ApplyHitFlash(hitActor);
+    UHitFeedbackComponent* hitActorHitFeedbackComp{ hitActor->FindComponentByClass<UHitFeedbackComponent>() };
+    if (hitActorHitFeedbackComp)
+        hitActorHitFeedbackComp->OnReceiveHit(PlayerOwner->GetActorLocation(), currentAttack->KnockbackForce, currentAttack->KnockbackUpForce);
 }
 
 void UFSCombatComponent::ApplyDamage(AActor* target, AActor* instigator, float damageAmount)
@@ -757,169 +750,6 @@ void UFSCombatComponent::ApplyDamage(AActor* target, AActor* instigator, float d
     IFSDamageable* damageableActor{ Cast<IFSDamageable>(target) };
     if (damageableActor)
         damageableActor->ReceiveDamage(damageAmount, instigator);
-}
-
-void UFSCombatComponent::ApplyKnockback(AActor* target, float KnockbackForce, float UpKnockbackForce)
-{
-    ACharacter* HitCharacter{ Cast<ACharacter>(target) };
-    if (!HitCharacter)
-        return;
-
-    FVector PlayerLocation{ PlayerOwner->GetActorLocation() };
-    FVector EnemyLocation{ target->GetActorLocation() };
-    FVector KnockbackDirection{ (EnemyLocation - PlayerLocation).GetSafeNormal() };
-    FVector KnockbackVelocity{ KnockbackDirection * KnockbackForce + FVector(0.f, 0.f, UpKnockbackForce) };
-
-    HitCharacter->LaunchCharacter(KnockbackVelocity, true, true);
-}
-
-void UFSCombatComponent::ApplyHitstop(AActor* hitActor)
-{
-    PlayerOwner->CustomTimeDilation = PlayerHitstopTimeDilation;
-    hitActor->CustomTimeDilation = EnemyHitstopTimeDilation;
-
-    TWeakObjectPtr<AActor> weakHitActor{ hitActor };
-    TWeakObjectPtr<ACharacter> weakPlayer{ PlayerOwner };
-
-    FTimerHandle actorHitstopTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        actorHitstopTimer,
-        [this, weakHitActor]() { ResetTimeDilation(weakHitActor); },
-        hitstopDuration,
-        false
-    );
-}
-
-void UFSCombatComponent::ApplyHitShake(USkeletalMeshComponent* targetMesh, float shakeSpeed, float shakeAmplitude)
-{
-    if (!targetMesh)
-        return;
-
-    shakeSpeed = 1.f / shakeSpeed;
-    FVector targetMeshDefaultRelativeLoc{ targetMesh->GetRelativeLocation() };
-    FTimerHandle* hitShakeTimer{ shakeAmplitude == PlayerShakeAmplitude ? &PlayerHitShakeTimer : &EnemyHitShakeTimer };
-    if (!hitShakeTimer)
-        return;
-
-    float HitShakeOffsetDirection{ 1.f };
-    TWeakObjectPtr<USkeletalMeshComponent> weakTargetMesh{ targetMesh };
-    GetWorld()->GetTimerManager().SetTimer(
-        *hitShakeTimer,
-        [weakTargetMesh, shakeAmplitude, targetMeshDefaultRelativeLoc, HitShakeOffsetDirection, this]() mutable {
-
-            if (!weakTargetMesh.IsValid())
-                return;
-
-            FVector cameraRightVectorWorld{ GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetActorRightVector() };
-            FTransform playerTransform{ PlayerOwner->GetActorTransform() };
-            FVector cameraRightVectorLocal{ UKismetMathLibrary::InverseTransformDirection(playerTransform, cameraRightVectorWorld) };
-            cameraRightVectorLocal.Z = 0.0;
-
-            float f = shakeAmplitude * HitShakeOffsetDirection;
-            cameraRightVectorLocal *= f;
-            FVector newLoc{ targetMeshDefaultRelativeLoc + cameraRightVectorLocal };
-
-            weakTargetMesh->SetRelativeLocation(newLoc, false, nullptr, ETeleportType::TeleportPhysics);
-
-            HitShakeOffsetDirection *= -1.f;
-        },
-        shakeSpeed,
-        true
-    );
-
-    FTimerHandle hitShakeStopTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        hitShakeStopTimer,
-        [weakTargetMesh, targetMeshDefaultRelativeLoc, this]() {
-
-            for (FTimerHandle* timer : TArray<FTimerHandle*>{ &EnemyHitShakeTimer, &PlayerHitShakeTimer })
-            {
-                if (timer)
-                    GetWorld()->GetTimerManager().ClearTimer(*timer);
-            }
-
-            if (weakTargetMesh.IsValid())
-                weakTargetMesh->SetRelativeLocation(targetMeshDefaultRelativeLoc);
-        },
-        hitstopDuration,
-        false
-    );
-}
-
-void UFSCombatComponent::ResetTimeDilation(TWeakObjectPtr<AActor> hitActor)
-{
-    if (hitActor.IsValid())
-        hitActor->CustomTimeDilation = 1.f;
-    if (PlayerOwner)
-        PlayerOwner->CustomTimeDilation = 1.f;
-}
-
-void UFSCombatComponent::SpawnHitVFX(const FVector& location)
-{
-    if (hitParticlesSystemArray.IsEmpty())
-        return;
-
-    uint32 randIndex{ static_cast<uint32>(FMath::RandRange(0, hitParticlesSystemArray.Num() - 1)) };
-    if (!hitParticlesSystemArray.IsValidIndex(randIndex))
-        return;
-
-    UNiagaraSystem* hitParticulesSystem{ hitParticlesSystemArray[randIndex] };
-    if (hitParticulesSystem)
-    {
-        UNiagaraFunctionLibrary::SpawnSystemAtLocation(
-            GetWorld(),
-            hitParticulesSystem,
-            location,
-            FRotator::ZeroRotator,
-            FVector(1.0f),
-            true,
-            true,
-            ENCPoolMethod::None
-        );
-    }
-}
-
-void UFSCombatComponent::PlayHitSound(const FVector& location)
-{
-    if (!hitSound)
-        return;
-
-    UGameplayStatics::PlaySoundAtLocation(
-        GetWorld(),
-        hitSound,
-        location
-    );
-}
-
-void UFSCombatComponent::ApplyCameraShake()
-{
-    if (hitCameraShake)
-    {
-        APlayerController* pc{ UGameplayStatics::GetPlayerController(GetWorld(), 0) };
-        if (pc)
-            pc->ClientStartCameraShake(hitCameraShake);
-    }
-}
-
-void UFSCombatComponent::ApplyHitFlash(AActor* hitActor)
-{
-    if (!hitActor)
-        return;
-
-    USkeletalMeshComponent* enemyMesh{ hitActor->FindComponentByClass<USkeletalMeshComponent>() };
-    if (!enemyMesh)
-        return;
-
-    enemyMesh->SetOverlayMaterial(HitFlashMaterial);
-
-    TWeakObjectPtr<USkeletalMeshComponent> weakEnemyMesh{ enemyMesh };
-    FTimerHandle hitFlashTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        hitFlashTimer,
-        [weakEnemyMesh]() { weakEnemyMesh->SetOverlayMaterial(nullptr); },
-        hitstopDuration,
-        false
-    );
 }
 
 AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines) const
