@@ -6,6 +6,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "FSDamageable.h"
+#include "HitFeedbackComponent.h"
 #include "FSProjectile.generated.h"
 
 UCLASS()
@@ -61,6 +62,10 @@ private:
     * Is directly related and equal to Owner's damage
     */
     float Damage{ 0.f };
+
+    float ForwardKnockBack{ 0.f };
+
+    float UpKnockBack{ 0.f };
 
     UFUNCTION()
     void OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, 

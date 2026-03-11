@@ -77,10 +77,15 @@ void AFSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPri
     if (!OtherActor || OtherActor == Owner)
         return;
 
-    IFSDamageable* damageable{ Cast<IFSDamageable>(OtherActor) };
+    IFSDamageable* damageablePlayer{ Cast<IFSDamageable>(OtherActor) };
     bool isPlayer{ OtherActor->ActorHasTag("Player") };
-    if (damageable && isPlayer)
-        damageable->ReceiveDamage(Damage, Owner);
+    if (damageablePlayer && isPlayer)
+    {
+        damageablePlayer->ReceiveDamage(Damage, Owner);
+        UHitFeedbackComponent* playerHitFeedbackComp{ OtherActor->FindComponentByClass<UHitFeedbackComponent>() };
+        if (playerHitFeedbackComp)
+            playerHitFeedbackComp->OnReceiveHit(GetActorLocation(), ForwardKnockBack, UpKnockBack);
+    }
 
     SpawnHitVFX(Hit.ImpactPoint);
 

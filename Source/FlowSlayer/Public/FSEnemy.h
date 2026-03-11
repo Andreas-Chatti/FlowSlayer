@@ -45,7 +45,7 @@ public:
 
     virtual float GetMaxHealth() const override { return MaxHealth; }
 
-    float GetDetectionRange() const { return DetectionRange; }
+    float GetAttackRange() const { return AttackRange; }
     bool IsAttacking() const { return bIsAttacking; }
 
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
@@ -75,7 +75,7 @@ protected:
     int32 XPReward{ 10 };
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
-    float DetectionRange{ 150.f };
+    float AttackRange{ 150.f };
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     float CcImuneDelay{ 6.f };
