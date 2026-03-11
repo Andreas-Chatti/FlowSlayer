@@ -53,7 +53,7 @@ void AFSEnemyAIController::FollowPlayer()
     if (Status == EPathFollowingStatus::Idle)
     {
         FAIMoveRequest MoveRequest{ PlayerPawn };
-        MoveRequest.SetAcceptanceRadius(OwnedEnemyPawn->GetDetectionRange());
+        MoveRequest.SetAcceptanceRadius(OwnedEnemyPawn->GetAttackRange());
         MoveTo(MoveRequest);
     }
 }
