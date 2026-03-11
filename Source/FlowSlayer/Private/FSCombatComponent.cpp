@@ -159,31 +159,11 @@ void UFSCombatComponent::InitializeComboAttackData()
     DashPierceAttack.Attacks.SetNum(1);
     DashPierceAttack.Attacks[0] = *GetAttackData("DashPierce");
     DashPierceAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    DashPierceAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName warpTargetName{ "DashIn" };
-            constexpr float notifyStart{ 0.09f };
-            constexpr float notifyEnd{ 0.52f };
-            constexpr float searchRadius{ 600.f };
-
-            if (LockedOnTarget)
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-        });
 
     // === DASH SPINNING SLASH ===
     DashSpinningSlashAttack.Attacks.SetNum(1);
     DashSpinningSlashAttack.Attacks[0] = *GetAttackData("DashSpinningSlash");
     DashSpinningSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    DashSpinningSlashAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName warpTargetName{ "DashIn" };
-            constexpr float notifyStart{ 0.16f };
-            constexpr float notifyEnd{ 0.51f };
-            constexpr float searchRadius{ 600.f };
-
-            if (LockedOnTarget)
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-        });
 
     // === DASH DOUBLE SLASH ===
     DashDoubleSlashAttack.Attacks.SetNum(1);
@@ -212,22 +192,6 @@ void UFSCombatComponent::InitializeComboAttackData()
     LauncherAttack.Attacks.SetNum(1);
     LauncherAttack.Attacks[0] = *GetAttackData("Launcher");
     LauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    LauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName warpTargetName{ "DashIn" };
-            constexpr float notifyStart{ 0.1f };
-            constexpr float notifyEnd{ 0.35f };
-            constexpr float searchRadius{ 400.f };
-            SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-
-            const FName airWarpTargetName{ "AttackTarget" };
-            constexpr float airNotifyStart{ 0.4f };
-            constexpr float airNotifyEnd{ 0.82f };
-            constexpr float airSearchRadius{ 400.f };
-            constexpr float zOffset{ 150.f };
-            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target, zOffset);
-        });
     LauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
 
     // === POWER LAUNCHER ===
@@ -236,12 +200,7 @@ void UFSCombatComponent::InitializeComboAttackData()
     PowerLauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
     PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
         {
-            const FName warpTargetName{ "DashIn" };
-            constexpr float notifyStart{ 0.04f };
             constexpr float notifyEnd{ 0.38f };
-            constexpr float searchRadius{ 400.f };
-            SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-
             constexpr double zVelocity{ 1400.0 };
             FTimerHandle launchTimer;
             GetWorld()->GetTimerManager().SetTimer(
@@ -277,29 +236,11 @@ void UFSCombatComponent::InitializeComboAttackData()
     HorizontalSweepAttack.Attacks.SetNum(1);
     HorizontalSweepAttack.Attacks[0] = *GetAttackData("HorizontalSweep");
     HorizontalSweepAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    HorizontalSweepAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName warpTargetName{ "Rotate" };
-            constexpr float notifyStart{ 0.f };
-            constexpr float notifyEnd{ 0.24f };
-            constexpr float searchRadius{ 300.f };
-
-            if (LockedOnTarget)
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-        });
 
     // === PIERCE THRUST ===
     PierceThrustAttack.Attacks.SetNum(1);
     PierceThrustAttack.Attacks[0] = *GetAttackData("PierceThrust");
     PierceThrustAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    PierceThrustAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName warpTargetName{ "Rotate" };
-            constexpr float notifyStart{ 0.f };
-            constexpr float notifyEnd{ 0.36f };
-            constexpr float searchRadius{ 300.f };
-            SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-        });
 
     // === POWER SLASH ===
     PowerSlashAttack.Attacks.SetNum(1);
@@ -310,31 +251,11 @@ void UFSCombatComponent::InitializeComboAttackData()
     DiagonalRetourneAttack.Attacks.SetNum(1);
     DiagonalRetourneAttack.Attacks[0] = *GetAttackData("DiagonalRetourne");
     DiagonalRetourneAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    DiagonalRetourneAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName warpTargetName{ "Rotate" };
-            constexpr float notifyStart{ 0.f };
-            constexpr float notifyEnd{ 0.62f };
-            constexpr float searchRadius{ 300.f };
-
-            if (LockedOnTarget)
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-        });
 
     // === GROUND SLAM ===
     GroundSlamAttack.Attacks.SetNum(1);
     GroundSlamAttack.Attacks[0] = *GetAttackData("GroundSlam");
     GroundSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    GroundSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName warpTargetName{ "Rotate" };
-            constexpr float notifyStart{ 0.f };
-            constexpr float notifyEnd{ 0.37f };
-            constexpr float searchRadius{ 250.f };
-
-            if (LockedOnTarget)
-                SetupGroundAttackMotionWarp(warpTargetName, notifyStart, notifyEnd, searchRadius);
-        });
 
     // === AIR COMBO (3 attacks) ===
     AirCombo.Attacks.SetNum(3);
@@ -342,39 +263,10 @@ void UFSCombatComponent::InitializeComboAttackData()
     AirCombo.Attacks[1] = *GetAttackData("AirCombo_1");
     AirCombo.Attacks[2] = *GetAttackData("AirCombo_2");
 
-    AirCombo.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName airWarpTargetName{ "AttackTarget" };
-            constexpr float airNotifyStart{ 0.15f };
-            constexpr float airNotifyEnd{ 0.34f };
-            constexpr float airSearchRadius{ 250.f };
-            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target);
-        });
+    AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]() { bCanAirAttack = false; });
+
     AirCombo.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
-
-    AirCombo.Attacks[1].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName airWarpTargetName{ "AttackTarget" };
-            constexpr float airNotifyStart{ 0.33f };
-            constexpr float airNotifyEnd{ 0.52f };
-            constexpr float airSearchRadius{ 250.f };
-            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target);
-        });
     AirCombo.Attacks[1].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
-
-    AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]()
-        {
-            const FName airWarpTargetName{ "AttackTarget" };
-            constexpr float airNotifyStart{ 0.14f };
-            constexpr float airNotifyEnd{ 0.28f };
-            constexpr float airSearchRadius{ 250.f };
-            AActor* target{ LockedOnTarget ? LockedOnTarget : GetTargetForMotionWarp(airSearchRadius) };
-            SetupAirAttackMotionWarp(airWarpTargetName, airNotifyStart, airNotifyEnd, target);
-
-            bCanAirAttack = false;
-        });
     AirCombo.Attacks[2].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
     // === AERIAL SLAM ===
@@ -598,177 +490,6 @@ void UFSCombatComponent::HandleOnLanded(const FHitResult& Hit)
             break;
         }
     }
-}
-
-AActor* UFSCombatComponent::GetTargetForMotionWarp(float searchRadius, bool debugLines)
-{
-    if (LockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), LockedOnTarget->GetActorLocation()) <= (searchRadius * searchRadius)))
-        return LockedOnTarget;
-
-    return GetNearestEnemyFromPlayer(searchRadius, debugLines);
-}
-
-void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, AActor* targetActor, float zOffset, float forwardOffset, bool debugLines)
-{
-    if (!MotionWarpingComponent || !targetActor)
-        return;
-
-    TWeakObjectPtr<AActor> weakEnemy{ MakeWeakObjectPtr(targetActor) };
-    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MakeWeakObjectPtr(MotionWarpingComponent) };
-
-    FTimerHandle flyingStartTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        flyingStartTimer,
-        [this, weakEnemy, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName]()
-        {
-            if (!weakEnemy.IsValid() || !weakMotionWarp.IsValid())
-                return;
-
-            FVector playerLocation{ PlayerOwner->GetActorLocation() };
-            FVector enemyLocation{ weakEnemy->GetActorLocation() };
-
-            FVector directionToEnemy{ (enemyLocation - playerLocation).GetSafeNormal() };
-
-            FVector targetLocation{ enemyLocation };
-            targetLocation.Z += zOffset;
-            targetLocation -= directionToEnemy * forwardOffset;
-
-            FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
-
-            FMotionWarpingTarget target;
-            target.Name = motionWarpingTargetName;
-            target.Location = targetLocation;
-            target.Rotation = lookAtRotation;
-
-            PlayerOwner->SetActorRotation(FRotator(0.f, lookAtRotation.Yaw, 0.f), ETeleportType::TeleportPhysics);
-            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-            weakMotionWarp->AddOrUpdateWarpTarget(target);
-        },
-        notifyStartTime,
-        false
-        );
-
-    FTimerHandle flyingEndTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        flyingEndTimer,
-        [this, weakMotionWarp]()
-        {
-            if (!weakMotionWarp.IsValid())
-                return;
-
-            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
-            weakMotionWarp->RemoveAllWarpTargets();
-        },
-        notifyEndTime,
-        false
-    );
-}
-
-void UFSCombatComponent::SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float zOffset, float forwardOffset, bool debugLines)
-{
-    if (!MotionWarpingComponent)
-        return;
-
-    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MakeWeakObjectPtr(MotionWarpingComponent) };
-
-    FTimerHandle flyingStartTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        flyingStartTimer,
-        [this, weakMotionWarp, zOffset, forwardOffset, motionWarpingTargetName, debugLines]()
-        {
-            if (!weakMotionWarp.IsValid())
-                return;
-
-            FVector playerLocation{ PlayerOwner->GetActorLocation() };
-
-            FRotator controlYaw{ 0.f, PlayerOwner->GetControlRotation().Yaw, 0.f };
-            FVector cameraForward{ FRotationMatrix(controlYaw).GetUnitAxis(EAxis::X) };
-
-            FVector targetLocation{ playerLocation + cameraForward * forwardOffset + FVector{0.f, 0.f, zOffset} };
-
-            if (debugLines)
-            {
-                DrawDebugSphere(
-                    GetWorld(),
-                    targetLocation,
-                    20.f,
-                    12,
-                    FColor::Emerald,
-                    false,
-                    3.f
-                );
-            }
-
-            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-            weakMotionWarp->AddOrUpdateWarpTargetFromLocation(motionWarpingTargetName, targetLocation);
-        },
-        notifyStartTime,
-        false
-    );
-
-    FTimerHandle flyingEndTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        flyingEndTimer,
-        [this, weakMotionWarp]()
-        {
-            if (!weakMotionWarp.IsValid())
-                return;
-
-            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
-            weakMotionWarp->RemoveAllWarpTargets();
-        },
-        notifyEndTime,
-        false
-    );
-}
-
-void UFSCombatComponent::SetupGroundAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines, float forwardOffset)
-{
-    AActor* nearestEnemy{ GetTargetForMotionWarp(searchRadius, debugLines) };
-    if (!MotionWarpingComponent || !nearestEnemy)
-        return;
-
-    FVector targetLocation{ nearestEnemy->GetActorLocation() };
-
-    FVector forwardOffsetVector{ PlayerOwner->GetActorForwardVector() * forwardOffset };
-    targetLocation += forwardOffsetVector;
-
-    FVector playerLocation{ PlayerOwner->GetActorLocation() };
-    FVector enemyLocation{ nearestEnemy->GetActorLocation() };
-    FRotator lookAtRotation{ UKismetMathLibrary::FindLookAtRotation(playerLocation, enemyLocation) };
-
-    FMotionWarpingTarget target;
-    target.Name = motionWarpingTargetName;
-    target.Location = targetLocation;
-    target.Rotation = lookAtRotation;
-
-    MotionWarpingComponent->AddOrUpdateWarpTarget(target);
-
-    TWeakObjectPtr<UMotionWarpingComponent> weakMotionWarp{ MotionWarpingComponent };
-
-    FTimerHandle notifyStartTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        notifyStartTimer,
-        [weakMotionWarp, target]()
-        {
-            if (weakMotionWarp.IsValid())
-                weakMotionWarp->AddOrUpdateWarpTarget(target);
-        },
-        notifyStartTime,
-        false
-    );
-
-    FTimerHandle notifyEndTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        notifyEndTimer,
-        [weakMotionWarp]()
-        {
-            if (weakMotionWarp.IsValid())
-                weakMotionWarp->RemoveAllWarpTargets();
-        },
-        notifyEndTime,
-        false
-    );
 }
 
 void UFSCombatComponent::ChainingToNextCombo()

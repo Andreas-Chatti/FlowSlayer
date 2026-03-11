@@ -499,52 +499,6 @@ private:
     */
     bool bCanAirAttack{ true };
 
-    /** Helper to get the target for motion warping
-    * Prioritizes locked-on target if within radius, otherwise finds nearest enemy
-    * @param searchRadius Maximum detection radius
-    * @param debugLines Whether to show debug lines
-    * @return Target actor or nullptr if none found
-    */
-    AActor* GetTargetForMotionWarp(float searchRadius, bool debugLines = false);
-
-    /** Setup motion warp for air-based attacks (launcher, air combos, aerial slams)
-    *
-    * Creates a motion warp target toward the nearest enemy and synchronizes Flying movement mode
-    * with the animation's MotionWarp notify state to allow smooth aerial tracking.
-    *
-    * @param notifyStartTime When the MotionWarp notify state STARTS in the animation montage (seconds).
-    *                        MOVE_Flying is activated at this exact moment to disable gravity.
-    *
-    * @param notifyEndTime When the MotionWarp notify state ENDS in the animation montage (seconds).
-    *                      MOVE_Falling is restored at this exact moment to re-enable gravity.
-    *
-    * @param zOffset Vertical offset added to enemy position (positive = higher, negative = lower).
-    *                Use this to aim above the enemy (e.g., 150.f for launcher attacks).
-    *
-    * @param forwardOffset Forward distance added in front of the player's facing direction.
-    *                      Use this to land slightly in front of the enemy instead of directly on them.
-    *
-    * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
-    *                     Defaults to 250.f. Motion warp is skipped if no enemy is found within radius.
-    */
-    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, AActor* targetActor, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
-
-    /** Overload version */
-    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
-
-    /** Setup motion warp for ground-based attacks (dash attacks, launcher ground phase)
-    *
-    * Creates a motion warp target toward the nearest enemy for ground tracking.
-    * Unlike air attacks, this does NOT change movement mode (stays in MOVE_Walking).
-    *
-    * @param notifyStartTime When the MotionWarp notify state STARTS in the animation montage (seconds).
-    * @param notifyEndTime When the MotionWarp notify state ENDS in the animation montage (seconds).
-    * @param forwardOffset Forward distance added in front of the player's facing direction.
-    * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
-    * @param motionWarpingTargetName Name of the warp target to create (must match notify state).
-    */
-    void SetupGroundAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines = false, float forwardOffset = 0.f);
-
     /** Transitions from current combo to a different pending combo
     * Replaces the ongoing combo with the pending combo and starts it from the first attack
     * Used when chaining between different combo types (e.g., StandingLight -> RunningHeavy)
