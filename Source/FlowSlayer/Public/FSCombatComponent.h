@@ -12,6 +12,7 @@
 #include "CombatData.h"
 #include "FSDamageable.h"
 #include "HitboxComponent.h"
+#include "HitFeedbackComponent.h"
 #include "MotionWarpingComponent.h"
 #include "EnhancedInputLibrary.h"
 #include "NiagaraComponent.h"
@@ -165,16 +166,14 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     TSubclassOf<AFSWeapon> weaponClass;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat VFX")
-    UMaterialInterface* HitFlashMaterial;
-
-    void ApplyHitFlash(AActor* hitActor);
-
     UPROPERTY(EditDefaultsOnly)
     UDataTable* AttackDataTable;
 
     UPROPERTY(VisibleAnywhere)
     UHitboxComponent* HitboxComponent;
+
+    UPROPERTY(VisibleAnywhere)
+    UHitFeedbackComponent* HitFeedBackComponent;
 
 public:
 
@@ -187,73 +186,11 @@ public:
     * Applies damage, hitstop, vfx, sfx and cameraShake
     */
     UFUNCTION(BlueprintCallable, Category = "Combat")
-    void OnHitLanded(AActor* hitActor, const FVector& hitLocation);
+    void OnHitLanded(AActor* hitActor, AActor* instigator, const FVector& hitLocation);
 
     // === DAMAGE ===
 
     void ApplyDamage(AActor* target, AActor* instigator, float damageAmount);
-
-    // === KNOCKBACK ===
-
-    void ApplyKnockback(AActor* target, float KnockbackForce = 0.f, float UpKnockbackForce = 0.f);
-
-    // === HITSTOP ===
-
-    /** Freeze duration */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopDuration{ 0.25f };
-
-    /** Player Hitstop dilation on hit */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float PlayerHitstopTimeDilation{ 0.75f };
-
-    /** Enemy Hitstop dilation on hit */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float EnemyHitstopTimeDilation{ 0.35f };
-
-    void ApplyHitstop(AActor* hitActor);
-
-    /** Applies hit shake to a specific target */
-    void ApplyHitShake(USkeletalMeshComponent* hitActorMesh, float shakeSpeed, float shakeAmplitude);
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
-    float ShakeSpeed{ 30.f };
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
-    float EnemyShakeAmplitude{ 20.f };
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
-    float PlayerShakeAmplitude{ 1.f };
-
-    /** Player HitShake Timer */
-    UPROPERTY()
-    FTimerHandle PlayerHitShakeTimer;
-
-    /** Enemy HitShake Timer */
-    UPROPERTY()
-    FTimerHandle EnemyHitShakeTimer;
-
-    // === VFX ===
-
-    /** Hit Particules VFX */
-    UPROPERTY(EditDefaultsOnly, Category = "VFX")
-    TArray<UNiagaraSystem*> hitParticlesSystemArray;
-
-    void SpawnHitVFX(const FVector& location);
-
-    // === SFX ===
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat SFX")
-    USoundBase* hitSound{ nullptr };
-
-    void PlayHitSound(const FVector& location);
-
-    // === CAMERA SHAKE ===
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Camera")
-    TSubclassOf<UCameraShakeBase> hitCameraShake;
-
-    void ApplyCameraShake();
 
     const AFSWeapon* GetEquippedWeapon() const { return equippedWeapon; }
 
@@ -275,10 +212,6 @@ private:
     UPROPERTY()
     UAnimInstance* AnimInstance;
 
-    /** Cached MotionWarpingComponent reference */
-    UPROPERTY()
-    UMotionWarpingComponent* MotionWarpingComponent;
-
     /** Current locked-on target reference
     * nullptr if there's no target locked-on
     */
@@ -290,8 +223,6 @@ private:
 
     UFUNCTION()
     void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
-
-    void ResetTimeDilation(TWeakObjectPtr<AActor> hitActor);
 
     bool InitializeAndAttachWeapon();
 

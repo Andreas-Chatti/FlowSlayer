@@ -7,6 +7,7 @@
 #include "DrawDebugHelpers.h"
 #include "FSDamageable.h"
 #include "FSFocusable.h"
+#include "HitFeedbackComponent.h"
 #include "HitboxComponent.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -79,6 +80,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     float CcImuneDelay{ 6.f };
 
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
+    float ForwardKnockback{ 50.f };
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
+    float UpKnockback{ 100.f };
+
     UFUNCTION(BlueprintCallable, Category = "Combat")
     virtual void Die();
 
@@ -112,6 +119,9 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hitbox")
     UHitboxComponent* HitboxComponent;
 
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HitFeedback")
+    UHitFeedbackComponent* HitFeedbackComponent;
+
 private:
 
     static constexpr float destroyDelay{ 5.f };
@@ -130,5 +140,5 @@ private:
     * Called upon target hit
     * Applies damage, hitstop, vfx, sfx and cameraShake
     */
-    void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation);
+    void HandleOnHitLanded(AActor* hitActor, AActor* instigator, const FVector& hitLocation);
 };

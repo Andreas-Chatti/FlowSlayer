@@ -24,6 +24,9 @@ AFSEnemy::AFSEnemy()
     HitboxComponent = CreateDefaultSubobject<UHitboxComponent>(TEXT("HitboxComponent"));
     checkf(HitboxComponent, TEXT("FATAL: HitboxComponent is NULL or INVALID !"));
     HitboxComponent->OnHit.AddUObject(this, &AFSEnemy::HandleOnHitLanded);
+
+    HitFeedbackComponent = CreateDefaultSubobject<UHitFeedbackComponent>(TEXT("HitFeedbackComponent"));
+    checkf(HitFeedbackComponent, TEXT("FATAL: HitFeedbackComponent is NULL or INVALID !"));
 }
 
 void AFSEnemy::InitializeLifeBarWidgetRef()
@@ -184,8 +187,14 @@ void AFSEnemy::DisplayAllWidgets(bool bShowWidget)
     DisplayHealthBarWidget(bShowWidget);
 }
 
-void AFSEnemy::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
+void AFSEnemy::HandleOnHitLanded(AActor* hitActor, AActor* instigator, const FVector& hitLocation)
 {
     if (hitActor->Implements<UFSDamageable>())
         Cast<IFSDamageable>(hitActor)->ReceiveDamage(Damage, this);
+
+    HitFeedbackComponent->OnLandHit(hitLocation);
+
+    UHitFeedbackComponent* hitActorHitFeedbackComp{ hitActor->FindComponentByClass<UHitFeedbackComponent>() };
+    if (hitActorHitFeedbackComp)
+        hitActorHitFeedbackComp->OnReceiveHit(GetActorLocation(), ForwardKnockback, UpKnockback);
 }
