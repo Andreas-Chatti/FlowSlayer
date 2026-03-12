@@ -110,7 +110,7 @@ void AFSEnemy::DisplayAllWidgets(bool bShowWidget)
 void AFSEnemy::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
 {
     IFSDamageable* hitActorDamageable{ Cast<IFSDamageable>(hitActor) };
-    if (!hitActor || (hitActorDamageable && hitActorDamageable->GetHealthComponent()->IsDead()))
+    if (!hitActor || !hitActorDamageable || (hitActorDamageable && hitActorDamageable->GetHealthComponent()->IsDead()))
         return;
 
     HitFeedbackComponent->OnLandHit(hitLocation);
@@ -150,6 +150,14 @@ void AFSEnemy::HandleOnDamageReceived(AActor* damageInstigator, float damageAmou
             false
         );
     }
+}
+
+void AFSEnemy::HandleOnFSProjectileHit(AActor* hitActor, const FVector& hitLocation)
+{
+    if (hitActor->IsA<AFSEnemy>())
+        return;
+
+    HandleOnHitLanded(hitActor, hitLocation);
 }
 
 void AFSEnemy::HandleOnDeath()

@@ -29,21 +29,13 @@ void AFSEnemy_Runner::Attack_Implementation()
 
 void AFSEnemy_Runner::ShootProjectileAtPlayer()
 {
-	// Determine trajectory to enemy
-	// Spawn projectile
-	// OnHitEvent (in projectile class)
-
 	if (!ProjectileClass)
 		return;
 
 	FVector spawnLocation{ GetMesh()->GetSocketLocation(ProjectileShootSocket) };
-	AFSProjectile* projectile{ AFSProjectile::SpawnProjectile(GetWorld(), this, ProjectileClass, spawnLocation, GetActorRotation()) };
+	AFSProjectile* projectile{ AFSProjectile::SpawnProjectile(GetWorld(), this, Player, ProjectileClass, spawnLocation, GetActorRotation()) };
+
 	if (projectile)
-	{
-		projectile->SetDamage(MainAttack.Damage);
-		FVector PlayerLocation{ Player->GetActorLocation() };
-		FVector ShootDirection{ (PlayerLocation - spawnLocation).GetSafeNormal() };
-		projectile->FireInDirection(ShootDirection);
-	}
+		projectile->OnFSProjectileHit.BindUObject(this, &AFSEnemy_Runner::HandleOnFSProjectileHit);
 }
 

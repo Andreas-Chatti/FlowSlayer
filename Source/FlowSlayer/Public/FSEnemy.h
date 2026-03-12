@@ -74,6 +74,9 @@ protected:
     UFUNCTION()
     void HandleOnDamageReceived(AActor* damageInstigator, float damageAmount, float currentHealth, float maxHealth);
 
+    /** Called when owning spawned projectile has hit a target */
+    void HandleOnFSProjectileHit(AActor* hitActor, const FVector& hitLocation);
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     int32 XPReward{ 10 };
 
