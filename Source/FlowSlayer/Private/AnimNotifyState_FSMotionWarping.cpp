@@ -135,7 +135,7 @@ AActor* UAnimNotifyState_FSMotionWarping::GetNearestEnemyFromPlayer(float distan
 
         uniqueHitActors.Add(hitActor);
 
-        if (hitActor->Implements<UFSDamageable>() && !Cast<IFSDamageable>(hitActor)->IsDead())
+        if (hitActor->Implements<UFSDamageable>() && !Cast<IFSDamageable>(hitActor)->GetHealthComponent()->IsDead())
         {
             float newDistance{ static_cast<float>(FVector::Distance(hitActor->GetActorLocation(), PlayerOwner->GetActorLocation())) };
             if (newDistance < shortestDistance)

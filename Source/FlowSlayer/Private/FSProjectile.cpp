@@ -81,7 +81,7 @@ void AFSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPri
     bool isPlayer{ OtherActor->ActorHasTag("Player") };
     if (damageablePlayer && isPlayer)
     {
-        damageablePlayer->ReceiveDamage(Damage, Owner);
+        damageablePlayer->GetHealthComponent()->ReceiveDamage(Damage, Owner);
         UHitFeedbackComponent* playerHitFeedbackComp{ OtherActor->FindComponentByClass<UHitFeedbackComponent>() };
         if (playerHitFeedbackComp)
             playerHitFeedbackComp->OnReceiveHit(GetActorLocation(), ForwardKnockBack, UpKnockBack);

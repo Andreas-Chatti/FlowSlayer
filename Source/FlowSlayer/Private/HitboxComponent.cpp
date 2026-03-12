@@ -152,6 +152,6 @@ void UHitboxComponent::ProcessHits(const TArray<FHitResult>& hits)
         ActorsHitThisAttack.Add(hitActor);
 
         if (hitActor->Implements<UFSDamageable>())
-            OnHit.Broadcast(hitActor, GetOwner(), hitResult.ImpactPoint);
+            OnHitboxHitLanded.ExecuteIfBound(hitActor, hitResult.ImpactPoint);
     }
 }

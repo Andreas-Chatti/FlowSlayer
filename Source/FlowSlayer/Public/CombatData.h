@@ -132,6 +132,9 @@ struct FAttackData : public FTableRowBase
     // etc.
 };
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHitReceived, AActor*, instigatorActor, const FAttackData&, usedAttack);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHitLanded, AActor*, hitActor, const FVector&, hitLocation, const FAttackData&, usedAttack);
+
 /**
  * Combo data structure
  * Encapsulates all data related to a single combo chain.

@@ -33,9 +33,6 @@ DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
 DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
 
-/** Delegate broadcasted when a successfull hit landed on an enemy target */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnHitLanded, AActor*, actorHit, const FVector&, hitLocation, float, damageAmount, float, flowReward);
-
 /** Delegate broadcasted when any attack starts or ends */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingStarted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingEnded);
@@ -84,7 +81,7 @@ public:
     * Broadcasted by OnHitLanded() when an sucessfull hit has been landed on an enemy target
     */
     UPROPERTY(BlueprintAssignable)
-    FOnHitLanded OnHitLandedNotify;
+    FOnHitLanded OnHitLanded;
 
     /** Broadcasted when a new hit streak begins (first hit) */
     UPROPERTY(BlueprintAssignable)
@@ -157,6 +154,8 @@ public:
 
     const UHitboxComponent* GetHitboxComponent() const { return HitboxComponent; }
 
+    UHitFeedbackComponent* GetHitFeedbackComponent() const { return HitFeedBackComponent; }
+
 protected:
 
     virtual void BeginPlay() override;
@@ -186,11 +185,7 @@ public:
     * Applies damage, hitstop, vfx, sfx and cameraShake
     */
     UFUNCTION(BlueprintCallable, Category = "Combat")
-    void OnHitLanded(AActor* hitActor, AActor* instigator, const FVector& hitLocation);
-
-    // === DAMAGE ===
-
-    void ApplyDamage(AActor* target, AActor* instigator, float damageAmount);
+    void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
     const AFSWeapon* GetEquippedWeapon() const { return equippedWeapon; }
 

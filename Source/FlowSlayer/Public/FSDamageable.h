@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
+#include "HealthComponent.h"
 #include "FSDamageable.generated.h"
 
 UINTERFACE(MinimalAPI, Blueprintable)
@@ -15,11 +16,8 @@ class FLOWSLAYER_API IFSDamageable
 
 public:
 
-    virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) = 0;
+    virtual UHealthComponent* GetHealthComponent() = 0;
 
-    virtual bool IsDead() const = 0;
-
-    virtual float GetCurrentHealth() const = 0;
-
-    virtual float GetMaxHealth() const = 0;
+    UFUNCTION()
+    virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) = 0;
 };

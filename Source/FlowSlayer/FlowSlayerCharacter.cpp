@@ -56,9 +56,6 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	LockOnComponent = CreateDefaultSubobject<UFSLockOnComponent>(TEXT("LockOnComponent"));
 	checkf(LockOnComponent, TEXT("FATAL: LockOnComponent is NULL or INVALID !"));
 
-	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
-	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
-
 	FlowComponent = CreateDefaultSubobject<UFSFlowComponent>(TEXT("FlowComponent"));
 	checkf(FlowComponent, TEXT("FATAL: FlowComponent is NULL or INVALID !"));
 
@@ -67,8 +64,18 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	DashComponent->OnDashStarted.AddUObject(FlowComponent, &UFSFlowComponent::RemoveFlow);
 	DashComponent->CanAffordDash.BindUObject(FlowComponent, &UFSFlowComponent::HasEnoughFlow);
 
+	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+	checkf(HealthComponent, TEXT("FATAL: HealthComponent is NULL or INVALID !"));
+	HealthComponent->OnDamageReceived.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnPlayerHit);
+
+	CombatComponent = CreateDefaultSubobject<UFSCombatComponent>(TEXT("CombatComponent"));
+	checkf(CombatComponent, TEXT("FATAL: CombatComponent is NULL or INVALID !"));
+	CombatComponent->OnHitLanded.AddUniqueDynamic(this, &AFlowSlayerCharacter::HandleOnHitLanded);
+	CombatComponent->OnAttackingStarted.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingStarted);
+	CombatComponent->OnAttackingEnded.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingEnded);
+	OnHitReceived.AddUniqueDynamic(this, &AFlowSlayerCharacter::HandleOnHitReceived);
+
 	JumpMaxCount = 2;
-	CurrentHealth = MaxHealth;
 }
 
 void AFlowSlayerCharacter::BeginPlay()
@@ -82,10 +89,7 @@ void AFlowSlayerCharacter::BeginPlay()
 	AnimInstance = GetMesh()->GetAnimInstance();
 	checkf(AnimInstance, TEXT("AnimInstance is NULL"));
 
-	CombatComponent->OnHitLandedNotify.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnHitLanded);
-	CombatComponent->OnAttackingStarted.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingStarted);
-	CombatComponent->OnAttackingEnded.AddUniqueDynamic(DashComponent, &UDashComponent::OnAttackingEnded);
-	OnDamageTaken.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::OnPlayerHit);
+	HealthComponent->OnDeath.BindUObject(this, &AFlowSlayerCharacter::HandleOnDeath);
 
 	/** Tag used when other classes trying to avoid direct dependance to this class */
 	Tags.Add("Player");
@@ -103,22 +107,6 @@ void AFlowSlayerCharacter::InitializeHUD()
 		HUDWidgetInstance->AddToViewport();
 }
 
-void AFlowSlayerCharacter::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
-{
-	if (bIsDead)
-		return;
-
-	OnDamageTaken.Broadcast(DamageAmount, DamageDealer);
-
-	if (bInvincibility)
-		return;
-
-    CurrentHealth -= DamageAmount;
-
-    if (CurrentHealth <= 0.f)
-        Die();
-}
-
 bool AFlowSlayerCharacter::CanJumpInternal_Implementation() const
 {
 	if (CombatComponent->isAttacking())
@@ -127,27 +115,11 @@ bool AFlowSlayerCharacter::CanJumpInternal_Implementation() const
 	return Super::CanJumpInternal_Implementation();
 }
 
-void AFlowSlayerCharacter::Die()
+void AFlowSlayerCharacter::HandleOnDeath()
 {
-	bIsDead = true;
-
 	DisableAllInputs();
 
-}
-
-void AFlowSlayerCharacter::Ragdoll()
-{
-	USkeletalMeshComponent* playerMesh{ GetMesh() };
-	if (playerMesh)
-	{
-		playerMesh->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-		playerMesh->SetSimulatePhysics(true);
-		playerMesh->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
-		playerMesh->SetCollisionProfileName(TEXT("Ragdoll"));
-
-		FVector ImpulseDirection = GetActorForwardVector() * -500.f + FVector(0, 0, 300.f);
-		playerMesh->AddImpulse(ImpulseDirection, NAME_None, true);
-	}
+	OnPlayerDeath.Broadcast(this);
 }
 
 void AFlowSlayerCharacter::DisableAllInputs()
@@ -201,6 +173,11 @@ void AFlowSlayerCharacter::HandleOnLockOnStopped()
 {
 	GetCharacterMovement()->MaxWalkSpeed = SprintSpeedThreshold;
 	CombatComponent->SetLockedOnTargetRef(nullptr);
+}
+
+void AFlowSlayerCharacter::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation, const FAttackData& usedAttack)
+{
+	FlowComponent->HandleOnHitLanded(hitActor, hitLocation, usedAttack.Damage, usedAttack.FlowReward);
 }
 
 void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -555,4 +532,15 @@ void AFlowSlayerCharacter::OnSlamActionStarted()
 		attackType = EAttackType::GroundSlam;
 
 	OnAttackTriggered(attackType);
+}
+
+void AFlowSlayerCharacter::NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
+{
+	OnHitReceived.Broadcast(instigatorActor, usedAttack);
+}
+
+void AFlowSlayerCharacter::HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
+{
+	CombatComponent->GetHitFeedbackComponent()->OnReceiveHit(GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
+	HealthComponent->ReceiveDamage(usedAttack.Damage, instigatorActor);
 }

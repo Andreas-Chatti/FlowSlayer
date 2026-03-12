@@ -17,9 +17,11 @@
 #include "FSWeapon.h"
 #include "Public/FSDamageable.h"
 #include "Public/FSCombatComponent.h"
+#include "Public/CombatData.h"
 #include "Public/FSLockOnComponent.h"
 #include "Public/FSFlowComponent.h"
 #include "Public/DashComponent.h"
+#include "Public/HealthComponent.h"
 #include "Components/WidgetComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
@@ -41,8 +43,8 @@ UENUM(BlueprintType)
 /** Delegate for animations cancel window OPEN and CLOSE */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, EActionType, actionType);
 
-/* Delegate for handling damage taken from any source */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamageTaken, float, damageAmount, AActor*, damageDealer);
+/** Broadcasted on this player's death */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerDeath, AFlowSlayerCharacter*, player);
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
@@ -56,9 +58,6 @@ public:
 	/** Called during an animation cancel window if the player has tried to dash or jump */
 	UPROPERTY(BlueprintAssignable, Category = "Combat")
 	FOnAnimationCanceled OnAnimationCanceled;
-
-	/** Broadcasted when the player has received damage */
-	FOnDamageTaken OnDamageTaken;
 
 private:
 
@@ -89,6 +88,10 @@ private:
 	/** Dash component class */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	UDashComponent* DashComponent;
+
+	/** Health component class */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UHealthComponent* HealthComponent;
 
 	/** Default MappingContext */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
@@ -148,6 +151,9 @@ private:
 	/** Callback called when lock-on is stopped or interrupted in any way */
 	void HandleOnLockOnStopped();
 
+	UFUNCTION()
+	void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation, const FAttackData& usedAttack);
+
 	/** Cached AnimInstance reference */
 	UPROPERTY()
 	UAnimInstance* AnimInstance;
@@ -171,16 +177,7 @@ public:
 	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-	virtual bool IsDead() const override { return bIsDead; }
-
-	virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
-
 	virtual bool CanJumpInternal_Implementation() const override;
-
-	UFUNCTION(BlueprintCallable)
-	virtual float GetCurrentHealth() const override { return CurrentHealth; }
-
-	virtual float GetMaxHealth() const override { return MaxHealth; }
 
 	UFUNCTION(BlueprintCallable)
 	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
@@ -195,7 +192,22 @@ public:
 
 	UDashComponent* GetDashComponent() const { return DashComponent; }
 
+	virtual UHealthComponent* GetHealthComponent() override { return HealthComponent; }
+
+	/** Broadcasted on this player's death */
+	FOnPlayerDeath OnPlayerDeath;
+
+	/** Broadcasted when this player gets hit */
+	FOnHitReceived OnHitReceived;
+
 protected:
+
+	/** Called by HitboxComponent (UHitboxComponent)
+	* Called when getting hit by an actor
+	* Applies damage, hitstop, vfx, sfx and cameraShake
+	*/
+	UFUNCTION()
+	void HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack);
 
 	/** Is player currently giving movement input? (for ABP) */
 	UPROPERTY(BlueprintReadOnly, Category = "Movement")
@@ -222,16 +234,6 @@ public:
 	bool WantsToJump() const { return bWantsToJump; }
 
 protected:
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
-	float MaxFlow{ 100.f };
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
-	float MaxHealth{ 100.f };
-
-	/** Is Player Dead ?*/
-	UPROPERTY(BlueprintReadOnly)
-	bool bIsDead{ false };
 
 	/** Max speed until player change into run state */
 	UPROPERTY(BlueprintReadOnly)
@@ -344,33 +346,27 @@ protected:
 
 	virtual void BeginPlay() override;
 
-	void Ragdoll();
-	void DisableAllInputs();
+	/* OnDeath (UHealthComponent) handler */
+	virtual void HandleOnDeath();
 
 private:
-
-	float CurrentHealth{};
 
 	/** Minimum velocity required in order to use Dash */
 	static constexpr float MIN_DASH_VELOCITY{ 10.0f };
 
-	void Die();
-
 	virtual void Jump() override;
 
 	bool bHasPressedJump{ false };
-
-	/* 
-	* Make the player not take any damage
-	* FOR DUBUG / TESTING ONLY
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool bInvincibility{ false };
 
 	UFUNCTION()
 	virtual void Falling() override;
 
 	/** Initialize Player HUD on BeginPlay */
 	void InitializeHUD();
+
+	void DisableAllInputs();
+
+	UFUNCTION()
+	virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) override;
 };
 
