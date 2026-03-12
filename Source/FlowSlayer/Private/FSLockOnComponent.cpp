@@ -34,7 +34,7 @@ void UFSLockOnComponent::LockOnValidCheck()
 	FVector playerLocation{ PlayerOwner->GetActorLocation() };
 
 	double distanceSq{ FVector::DistSquared(playerLocation, targetLocation) };
-	if (distanceSq >= FMath::Square(LockOnDetectionRadius) || CachedDamageableLockOnTarget->IsDead())
+	if (distanceSq >= FMath::Square(LockOnDetectionRadius) || CachedDamageableLockOnTarget->GetHealthComponent()->IsDead())
 		DisengageLockOn();
 }
 
@@ -106,8 +106,12 @@ void UFSLockOnComponent::HidePreviousTargetWidgets()
 	if (!CachedDamageableLockOnTarget || !CachedFocusableTarget)
 		return;
 
-	bool isFullLife{ CachedDamageableLockOnTarget->GetCurrentHealth() >= CachedDamageableLockOnTarget->GetMaxHealth() };
-	bool isDead{ CachedDamageableLockOnTarget->IsDead() };
+	UHealthComponent* LockOnTargetHealthComp{ CachedDamageableLockOnTarget->GetHealthComponent() };
+	if (!LockOnTargetHealthComp)
+		return;
+
+	bool isFullLife{ LockOnTargetHealthComp->GetCurrentHealth() >= LockOnTargetHealthComp->GetMaxHealth() };
+	bool isDead{ LockOnTargetHealthComp->IsDead() };
 
 	if (isFullLife || isDead)
 		CachedFocusableTarget->DisplayAllWidgets(false);
@@ -145,7 +149,7 @@ bool UFSLockOnComponent::EngageLockOn()
 		if (!HitActor->Implements<UFSFocusable>() ||
 			TargetsInLockOnRadius.Contains(HitActor) ||
 			!HitActor->Implements<UFSDamageable>() ||
-			Cast<IFSDamageable>(HitActor)->IsDead())
+			Cast<IFSDamageable>(HitActor)->GetHealthComponent()->IsDead())
 			continue;
 
 		TargetsInLockOnRadius.Add(HitActor);
@@ -240,7 +244,7 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 		if (HitActor == CurrentLockedOnTarget ||
 			!HitActor->Implements<UFSFocusable>() ||
 			!HitActor->Implements<UFSDamageable>() ||
-			Cast<IFSDamageable>(HitActor)->IsDead())
+			Cast<IFSDamageable>(HitActor)->GetHealthComponent()->IsDead())
 			continue;
 
 		FVector ToTarget{ HitActor->GetActorLocation() - PlayerLocation };

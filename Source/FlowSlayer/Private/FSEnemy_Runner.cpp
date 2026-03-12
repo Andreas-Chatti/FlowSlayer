@@ -40,7 +40,7 @@ void AFSEnemy_Runner::ShootProjectileAtPlayer()
 	AFSProjectile* projectile{ AFSProjectile::SpawnProjectile(GetWorld(), this, ProjectileClass, spawnLocation, GetActorRotation()) };
 	if (projectile)
 	{
-		projectile->SetDamage(Damage);
+		projectile->SetDamage(MainAttack.Damage);
 		FVector PlayerLocation{ Player->GetActorLocation() };
 		FVector ShootDirection{ (PlayerLocation - spawnLocation).GetSafeNormal() };
 		projectile->FireInDirection(ShootDirection);

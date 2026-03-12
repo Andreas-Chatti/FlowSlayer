@@ -28,28 +28,24 @@ void UFSCombatComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Setting up core variables (PlayerOwner, AnimInstance and equippedWeapon)
     PlayerOwner = Cast<ACharacter>(GetOwner());
     AnimInstance = PlayerOwner->GetMesh()->GetAnimInstance();
     InitializeAndAttachWeapon();
 
     checkf(PlayerOwner && AnimInstance && equippedWeapon && HitboxComponent, TEXT("FATAL: One or more Core CombatComponent variables are NULL"));
 
-    HitboxComponent->OnHit.AddUObject(this, &UFSCombatComponent::OnHitLanded);
+    HitboxComponent->OnHitboxHitLanded.BindUObject(this, &UFSCombatComponent::HandleOnHitLanded);
     HitboxComponent->SetOwnerWeaponRef(equippedWeapon);
 
-    // Bind combo window delegates (broadcasted by AnimNotifyState_ModularCombo)
     OnComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleComboWindowOpened);
     OnComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleComboWindowClosed);
 
-    // Bind Air stall delegates for air combos (broadcasted by AirStallNotify)
     OnAirStallStarted.AddUObject(this, &UFSCombatComponent::HandleAirStallStarted);
     OnAirStallFinished.AddUObject(this, &UFSCombatComponent::HandleAirStallFinished);
 
     AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
 
     // Initialize combo attack data (damage, knockback, ChainableAttacks)
-    // Must be called AFTER Blueprint has loaded montages
     InitializeComboAttackData();
 
     // Initialize combo lookup table for fast attack selection
@@ -707,9 +703,10 @@ void UFSCombatComponent::OnAirAttackHit(AActor* hitEnemy)
 * VFX, SFX, Hitstop, CameraShake, etc ...
 */
 ////////////////////////////////////////////////
-void UFSCombatComponent::OnHitLanded(AActor* hitActor, AActor* instigator, const FVector& hitLocation)
+void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
 {
-    if (!hitActor || Cast<IFSDamageable>(hitActor)->IsDead())
+    IFSDamageable* hitActorDamageable{ Cast<IFSDamageable>(hitActor) };
+    if (!hitActor || (hitActorDamageable && hitActorDamageable->GetHealthComponent()->IsDead()))
         return;
 
     ++ComboHitCount;
@@ -732,24 +729,14 @@ void UFSCombatComponent::OnHitLanded(AActor* hitActor, AActor* instigator, const
     OngoingAttackComboWindowDuration = currentAttack->ComboWindowDuration;
     ComboTimeRemaining = OngoingAttackComboWindowDuration;
 
-    OnHitLandedNotify.Broadcast(hitActor, hitLocation, currentAttack->Damage, currentAttack->FlowReward);
+    OnHitLanded.Broadcast(hitActor, hitLocation, *currentAttack);
 
     if (currentAttack->OnAttackHit.IsBound())
         currentAttack->OnAttackHit.Execute(hitActor);
 
     HitFeedBackComponent->OnLandHit(hitLocation);
 
-    ApplyDamage(hitActor, equippedWeapon, currentAttack->Damage);
-    UHitFeedbackComponent* hitActorHitFeedbackComp{ hitActor->FindComponentByClass<UHitFeedbackComponent>() };
-    if (hitActorHitFeedbackComp)
-        hitActorHitFeedbackComp->OnReceiveHit(PlayerOwner->GetActorLocation(), currentAttack->KnockbackForce, currentAttack->KnockbackUpForce);
-}
-
-void UFSCombatComponent::ApplyDamage(AActor* target, AActor* instigator, float damageAmount)
-{
-    IFSDamageable* damageableActor{ Cast<IFSDamageable>(target) };
-    if (damageableActor)
-        damageableActor->ReceiveDamage(damageAmount, instigator);
+    hitActorDamageable->NotifyHitReceived(PlayerOwner, *currentAttack);
 }
 
 AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines) const
@@ -791,7 +778,7 @@ AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool
 
         uniqueHitActors.Add(hitActor);
 
-        if (hitActor->Implements<UFSDamageable>() && !Cast<IFSDamageable>(hitActor)->IsDead())
+        if (hitActor->Implements<UFSDamageable>() && !Cast<IFSDamageable>(hitActor)->GetHealthComponent()->IsDead())
         {
             float newDistance{ static_cast<float>(FVector::Distance(hitActor->GetActorLocation(), PlayerOwner->GetActorLocation())) };
             if (newDistance < shortestDistance)

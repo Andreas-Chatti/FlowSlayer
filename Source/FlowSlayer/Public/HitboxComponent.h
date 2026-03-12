@@ -37,7 +37,7 @@ struct FHitboxProfile
     FVector Offset{ FVector::ZeroVector };
 };
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnHit, AActor* hitActor, AActor* instigator, const FVector& hitLocation);
+DECLARE_DELEGATE_TwoParams(FOnHitboxHitLanded, AActor* hitActor, const FVector& hitLocation);
 
 /** Delegates used to activate and deactivate damage hitbox */
 DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, const FHitboxProfile* hitboxProfile);
@@ -59,7 +59,7 @@ public:
     FOnActiveFrameStopped OnActiveFrameStopped;
 
     /** Broadcasted when a target is hit inside the hitbox */
-    FOnHit OnHit;
+    FOnHitboxHitLanded OnHitboxHitLanded;
 
     /** Shows hit debug lines */
     UPROPERTY(EditAnywhere, Category = "Debug")
