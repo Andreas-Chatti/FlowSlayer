@@ -623,59 +623,6 @@ void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitL
     hitActorDamageable->NotifyHitReceived(PlayerOwner, *currentAttack);
 }
 
-AActor* UFSCombatComponent::GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines) const
-{
-    FVector Start{ PlayerOwner->GetActorLocation() };
-    FVector End{ Start };
-
-    TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes;
-    ObjectTypes.Add(UEngineTypes::ConvertToObjectType(ECC_Pawn));
-
-    TArray<AActor*> ActorsToIgnore;
-    ActorsToIgnore.Add(GetOwner());
-
-    TArray<FHitResult> outHits;
-    bool bHit{ UKismetSystemLibrary::SphereTraceMultiForObjects(
-        GetWorld(),
-        Start,
-        End,
-        distanceRadius,
-        ObjectTypes,
-        false,
-        ActorsToIgnore,
-        debugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None,
-        outHits,
-        true
-    ) };
-
-    if (!bHit)
-        return nullptr;
-
-    TSet<AActor*> uniqueHitActors;
-    float shortestDistance{ FLT_MAX };
-    AActor* nearestEnemy{ nullptr };
-    for (const auto& hit : outHits)
-    {
-        AActor* hitActor{ hit.GetActor() };
-        if (uniqueHitActors.Contains(hitActor))
-            continue;
-
-        uniqueHitActors.Add(hitActor);
-
-        if (hitActor->Implements<UFSDamageable>() && !Cast<IFSDamageable>(hitActor)->GetHealthComponent()->IsDead())
-        {
-            float newDistance{ static_cast<float>(FVector::Distance(hitActor->GetActorLocation(), PlayerOwner->GetActorLocation())) };
-            if (newDistance < shortestDistance)
-            {
-                shortestDistance = newDistance;
-                nearestEnemy = hitActor;
-            }
-        }
-    }
-
-    return nearestEnemy;
-}
-
 void UFSCombatComponent::ResetComboCounter()
 {
     ComboHitCount = 0;

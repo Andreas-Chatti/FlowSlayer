@@ -207,14 +207,14 @@ bool UFSLockOnComponent::EngageLockOn()
 	return true;
 }
 
-bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
+void UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 {
 	if (!CurrentLockedOnTarget || GetWorld()->GetTimerManager().IsTimerActive(delaySwitchLockOnTimer))
-		return false;
+		return;
 
 	TArray<FHitResult> outHits;
 	if (!FindTargetsInRadius(outHits))
-		return false;
+		return;
 
 	FRotator ControlRotation{ PlayerOwner->GetController()->GetControlRotation() };
 	FVector CameraForward{ ControlRotation.Vector() };
@@ -276,7 +276,7 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 	}
 
 	if (!BestTarget)
-		return false;
+		return;
 
 	HidePreviousTargetWidgets();
 
@@ -293,8 +293,6 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 
 	if (CombatComponent)
 		CombatComponent->SetLockedOnTargetRef(CurrentLockedOnTarget);
-
-	return true;
 }
 
 void UFSLockOnComponent::DisengageLockOn()
