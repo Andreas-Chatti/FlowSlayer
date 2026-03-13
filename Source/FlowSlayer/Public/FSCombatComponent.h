@@ -165,8 +165,6 @@ protected:
 
 public:
 
-    AActor* GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines = false) const;
-
     // === HIT REACTION ===
 
     /** Called by HitboxComponent (UHitboxComponent) 
