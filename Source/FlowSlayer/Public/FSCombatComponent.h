@@ -26,8 +26,8 @@ class UParticleSystem;
 class UCameraShakeBase;
 
 /** Delegates for combo window management - broadcasted by AnimNotifyState_ComboWindow */
-DECLARE_MULTICAST_DELEGATE(FOnComboWindowOpened);
-DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
+DECLARE_DELEGATE(FOnComboInputWindowOpened);
+DECLARE_DELEGATE(FOnComboInputWindowClosed);
 
 /** Delegate broadcasted when any attack starts or ends */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingStarted);
@@ -63,8 +63,8 @@ public:
     /** Combo window delegates
     * Broadcasted by ComboWindow notify state class to notify combo window open/close events
     */
-    FOnComboWindowClosed OnComboWindowClosed;
-    FOnComboWindowOpened OnComboWindowOpened;
+    FOnComboInputWindowOpened OnComboInputWindowOpened;
+    FOnComboInputWindowClosed OnComboInputWindowClosed;
 
     /** Hit landed delegate 
     * Broadcasted by OnHitLanded() when an sucessfull hit has been landed on an enemy target
@@ -357,11 +357,11 @@ private:
 
     // === COMBO WINDOW HANDLERS (Bound to delegates in BeginPlay) ===
 
-    /** Called when MODULAR combo window opens via delegate broadcast */
-    void HandleComboWindowOpened();
+    /** Called when combo input window opens via delegate broadcast */
+    void HandleComboInputWindowOpened();
 
-    /** Called when MODULAR combo window closes via delegate broadcast */
-    void HandleComboWindowClosed();
+    /** Called when combo input window closes via delegate broadcast */
+    void HandleComboInputWindowClosed();
 
     /** Called when the character has landed on the ground */
     UFUNCTION()

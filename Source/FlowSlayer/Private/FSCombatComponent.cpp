@@ -37,8 +37,8 @@ void UFSCombatComponent::BeginPlay()
     HitboxComponent->OnHitboxHitLanded.BindUObject(this, &UFSCombatComponent::HandleOnHitLanded);
     HitboxComponent->SetOwnerWeaponRef(equippedWeapon);
 
-    OnComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleComboWindowOpened);
-    OnComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleComboWindowClosed);
+    OnComboInputWindowOpened.BindUObject(this, &UFSCombatComponent::HandleComboInputWindowOpened);
+    OnComboInputWindowClosed.BindUObject(this, &UFSCombatComponent::HandleComboInputWindowClosed);
 
     AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
 
@@ -431,12 +431,12 @@ UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
     return attackToPerform;
 }
 
-void UFSCombatComponent::HandleComboWindowOpened()
+void UFSCombatComponent::HandleComboInputWindowOpened()
 {
     bComboWindowOpened = true;
 }
 
-void UFSCombatComponent::HandleComboWindowClosed()
+void UFSCombatComponent::HandleComboInputWindowClosed()
 {
     bComboWindowOpened = false;
 
