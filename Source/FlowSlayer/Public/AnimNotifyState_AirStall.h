@@ -1,7 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "FSCombatComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "AnimNotifyState_AirStall.generated.h"
 
 /* This notify state is mainly used to set an Air Stall during an air attack
@@ -16,12 +16,13 @@ class FLOWSLAYER_API UAnimNotifyState_AirStall : public UAnimNotifyState
 
 	UAnimNotifyState_AirStall();
 
+protected:
+
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
-	UPROPERTY()
-	UFSCombatComponent* CombatComp{ nullptr };
+private:
 
-	/** Player's default gravity scale before air stall */
-	float GravityScale;
+	UPROPERTY()
+	UCharacterMovementComponent* movementCompRef{ nullptr };
 };

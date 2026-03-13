@@ -40,9 +40,6 @@ void UFSCombatComponent::BeginPlay()
     OnComboWindowOpened.AddUObject(this, &UFSCombatComponent::HandleComboWindowOpened);
     OnComboWindowClosed.AddUObject(this, &UFSCombatComponent::HandleComboWindowClosed);
 
-    OnAirStallStarted.AddUObject(this, &UFSCombatComponent::HandleAirStallStarted);
-    OnAirStallFinished.AddUObject(this, &UFSCombatComponent::HandleAirStallFinished);
-
     AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
 
     // Initialize combo attack data (damage, knockback, ChainableAttacks)
@@ -184,7 +181,6 @@ void UFSCombatComponent::InitializeComboAttackData()
     LauncherAttack.Attacks.SetNum(1);
     LauncherAttack.Attacks[0] = *GetAttackData("Launcher");
     LauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    LauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
 
     // === POWER LAUNCHER ===
     PowerLauncherAttack.Attacks.SetNum(1);
@@ -202,7 +198,6 @@ void UFSCombatComponent::InitializeComboAttackData()
                 false
             );
         });
-    PowerLauncherAttack.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnLauncherAttackHit);
 
     // === SPIN ATTACK ===
     SpinAttack.Attacks.SetNum(1);
@@ -452,16 +447,6 @@ void UFSCombatComponent::HandleComboWindowClosed()
         ContinueCombo();
 }
 
-void UFSCombatComponent::HandleAirStallStarted()
-{
-    PlayerOwner->GetCharacterMovement()->GravityScale = AirStallGravity;
-}
-
-void UFSCombatComponent::HandleAirStallFinished(float gravityScale)
-{
-    PlayerOwner->GetCharacterMovement()->GravityScale = gravityScale;
-}
-
 void UFSCombatComponent::HandleOnLanded(const FHitResult& Hit)
 {
     bCanAirAttack = true;
@@ -574,125 +559,24 @@ void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted
         ResetComboState();
 }
 
-////////////////////////////////////////////////
-/*
-* Attack effect on launch
-* and effect on target hit
-*/
-////////////////////////////////////////////////
-void UFSCombatComponent::OnLauncherAttackHit(AActor* hitEnemy)
-{
-    if (!hitEnemy)
-        return;
-
-    UCharacterMovementComponent* enemyMovement{ hitEnemy->GetComponentByClass<UCharacterMovementComponent>() };
-    if (!enemyMovement)
-        return;
-
-    constexpr float maxHeight{ 400.f };
-    constexpr float freezeDuraction{ 1.2f };
-    FreezeEnemyAtTrajectoryPeak(hitEnemy, enemyMovement, maxHeight, freezeDuraction);
-}
-
-void UFSCombatComponent::FreezeEnemyAtTrajectoryPeak(AActor* enemy, UCharacterMovementComponent* enemyMovement, float maxHeight, float freezeDuration)
-{
-    constexpr float checkDelay{ 0.05f };
-    float startZ{ static_cast<float>(enemy->GetActorLocation().Z) };
-
-    // État partagé entre toutes les exécutions du timer (nécessaire car timer en loop)
-    TSharedPtr<bool> bPeakDetected{ MakeShared<bool>(false) };
-    TWeakObjectPtr<AActor> weakEnemy{ enemy };
-    TWeakObjectPtr<UCharacterMovementComponent> weakEnemyMovement{ enemyMovement };
-
-    FTimerHandle peakDetectionTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        peakDetectionTimer,
-        [this, weakEnemy, weakEnemyMovement, bPeakDetected, peakDetectionTimer, startZ, maxHeight, freezeDuration]() mutable
-        {
-            // Early exit si déjà détecté (évite re-freeze)
-            if (*bPeakDetected)
-                return;
-
-            // Vérifier si les objets existent encore
-            if (!weakEnemyMovement.IsValid() || !weakEnemy.IsValid())
-            {
-                GetWorld()->GetTimerManager().ClearTimer(peakDetectionTimer);
-                return;
-            }
-
-            float currentZ{ static_cast<float>(weakEnemy->GetActorLocation().Z) };
-            float heightGained{ currentZ - startZ };
-            float velocityZ{ static_cast<float>(weakEnemyMovement->Velocity.Z) };
-
-            // Conditions de freeze : pic atteint (vitesse <= 0) OU hauteur max dépassée
-            bool bReachedPeak{ velocityZ <= 0.f };
-            bool bReachedMaxHeight{ heightGained >= maxHeight };
-
-            if (bReachedPeak || bReachedMaxHeight)
-            {
-                *bPeakDetected = true;  // Marquer comme détecté pour toutes les futures exécutions
-                GetWorld()->GetTimerManager().ClearTimer(peakDetectionTimer);
-
-                // Freeze immédiat
-                FreezeEnemyInAir(weakEnemyMovement);
-
-                // Unfreeze après fenêtre de combo
-                ScheduleEnemyUnfreeze(weakEnemyMovement, freezeDuration);
-            }
-        },
-        checkDelay,  // Check toutes les 50ms
-        true    // Loop jusqu'à détection du pic
-    );
-}
-
-void UFSCombatComponent::FreezeEnemyInAir(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement)
-{
-    if (!enemyMovement.IsValid())
-        return;
-
-    enemyMovement->SetMovementMode(EMovementMode::MOVE_Flying);
-    enemyMovement->StopMovementImmediately();
-    enemyMovement->GravityScale = 0.f;
-}
-
-void UFSCombatComponent::ScheduleEnemyUnfreeze(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement, float delay)
-{
-    FTimerHandle unfreezeTimer;
-    GetWorld()->GetTimerManager().SetTimer(
-        unfreezeTimer,
-        [enemyMovement]()
-        {
-            if (enemyMovement.IsValid())
-            {
-                enemyMovement->SetMovementMode(EMovementMode::MOVE_Falling);
-                enemyMovement->GravityScale = 1.f;
-            }
-        },
-        delay,
-        false
-    );
-}
-
 void UFSCombatComponent::OnAirAttackHit(AActor* hitEnemy)
 {
-    PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
-    auto* enemyMovementComp{ hitEnemy->GetComponentByClass<UCharacterMovementComponent>() };
-    if (enemyMovementComp)
-        enemyMovementComp->SetMovementMode(EMovementMode::MOVE_Flying);
+    TWeakObjectPtr<UCharacterMovementComponent> enemyMovementComp{ hitEnemy->GetComponentByClass<UCharacterMovementComponent>() };
+    // Does NOT set back Flying movement mode if that's the last air attack
+    // Otherwise the target is staying up in the air longer than expected
+    if (!enemyMovementComp.IsValid() || GetOngoingAttack()->Name == AirCombo.GetLastAttack()->Name)
+        return;
 
-    TWeakObjectPtr<UCharacterMovementComponent> weakEnemyMovementComp{ enemyMovementComp };
+    enemyMovementComp->SetMovementMode(EMovementMode::MOVE_Flying);
 
-    FTimerHandle flyTimer;
     GetWorld()->GetTimerManager().SetTimer(
-        flyTimer,
-        [this, weakEnemyMovementComp]() 
+        AirStallHitTimer,
+        [this, enemyMovementComp]()
         { 
-            PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
-
-            if (weakEnemyMovementComp.IsValid())
-                weakEnemyMovementComp->SetMovementMode(EMovementMode::MOVE_Falling);
+            if (enemyMovementComp.IsValid())
+                enemyMovementComp->SetMovementMode(EMovementMode::MOVE_Falling);
         },
-        1.f,
+        ComboTimeRemaining,
         false
     );
 }

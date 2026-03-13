@@ -5,6 +5,14 @@
 #include "AnimNotifyState_MotionWarping.h"
 #include "AnimNotifyState_FSMotionWarping.generated.h"
 
+UENUM()
+enum class EFSMotionWarpingAttackType : uint8
+{
+    Ground,
+    Launcher,
+    Air,
+};
+
 /**
  * Custom Motion Warping notify state for FlowSlayer attacks.
  * Extends UAnimNotifyState_MotionWarping to automatically resolve the warp target
@@ -36,9 +44,13 @@ private:
 	UPROPERTY(EditAnywhere)
 	float ForwardOffset{ 0.f };
 
-	/** If true, switches movement mode to MOVE_Flying on NotifyBegin and restores MOVE_Falling on NotifyEnd */
+	/** Attack type during this instance lifetime 
+    * Ground: Will ignore Z axis and will stay in MovementMode::Walking
+    * Launcher: Will not ignore Z axis. At NotifyBegin MovementMode will be switched to Flying then set back to Falling at NotifyEnd
+    * Air: Will not ignore Z axis but will not change the current movement mode.
+    */
 	UPROPERTY(EditAnywhere)
-	bool bIsAirAttack{ false };
+	EFSMotionWarpingAttackType attackType{ EFSMotionWarpingAttackType::Ground };
 
 	/** If true, draws debug sphere at the warp target location */
 	UPROPERTY(EditAnywhere)

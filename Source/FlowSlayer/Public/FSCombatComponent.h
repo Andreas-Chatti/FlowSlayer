@@ -29,10 +29,6 @@ class UCameraShakeBase;
 DECLARE_MULTICAST_DELEGATE(FOnComboWindowOpened);
 DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
 
-/** Delegates for AirCombo air stall - broadcasted by AirStallNotify */
-DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
-
 /** Delegate broadcasted when any attack starts or ends */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingStarted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingEnded);
@@ -69,13 +65,6 @@ public:
     */
     FOnComboWindowClosed OnComboWindowClosed;
     FOnComboWindowOpened OnComboWindowOpened;
-
-    /** Air stall for air combos
-    * Broadcasted by AirStallNotify to start an air stall for an air combo
-    * Stop the air stall at the end
-    */
-    FOnAirStallStarted OnAirStallStarted;
-    FOnAirStallFinished OnAirStallFinished;
 
     /** Hit landed delegate 
     * Broadcasted by OnHitLanded() when an sucessfull hit has been landed on an enemy target
@@ -264,25 +253,8 @@ private:
     */
     void OnAirAttackHit(AActor* hitEnemy);
 
-    /** Freezes an enemy in mid-air by disabling gravity and stopping movement
-    * @param enemyMovement The enemy's movement component to freeze
-    */
-    void FreezeEnemyInAir(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement);
-
-    /** Schedules an enemy to unfreeze after a delay, restoring normal falling physics
-    * @param enemyMovement The enemy's movement component to unfreeze
-    * @param delay Time in seconds before unfreezing the enemy
-    */
-    void ScheduleEnemyUnfreeze(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement, float delay);
-
-    /** Detects when a launched enemy reaches trajectory peak and freezes them for air combo window
-    * Uses a looping timer to check velocity and height until peak is detected
-    * @param enemy The enemy actor to track
-    * @param enemyMovement The enemy's movement component
-    * @param maxHeight Maximum allowed height gain before forcing freeze (safety limit)
-    * @param freezeDuration How long to keep the enemy frozen for combo window
-    */
-    void FreezeEnemyAtTrajectoryPeak(AActor* enemy, UCharacterMovementComponent* enemyMovement, float maxHeight, float freezeDuration);
+    UPROPERTY()
+    FTimerHandle AirStallHitTimer;
 
     /** SPACE + LMB air attack */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
@@ -299,12 +271,6 @@ private:
     /** A + LMB clean launcher */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo LauncherAttack;
-
-    /** Called when launcher attack hits an enemy
-    * Detects trajectory peak and freezes enemy in air for combo window
-    * @param hitEnemy The enemy actor that was hit by the launcher
-    */
-    void OnLauncherAttackHit(AActor* hitEnemy);
 
     /** A + RMB power launcher */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
@@ -399,25 +365,9 @@ private:
     /** Called when MODULAR combo window closes via delegate broadcast */
     void HandleComboWindowClosed();
 
-    /** Called to start an air stall
-    * Used for air combos
-    */
-    void HandleAirStallStarted();
-
-    /** Called to stop an air stall
-    * Used for air combos
-    */
-    void HandleAirStallFinished(float gravityScale);
-
     /** Called when the character has landed on the ground */
     UFUNCTION()
     void HandleOnLanded(const FHitResult& Hit);
-
-    /** GravityScale during air stall
-    * Lower value means less gravity = player staying in the air longer
-    */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-    float AirStallGravity{ 0.3f };
 
     /** Whether the play can do an Air attack while in the air
     * Used mainly to track if the player already did an air attack
