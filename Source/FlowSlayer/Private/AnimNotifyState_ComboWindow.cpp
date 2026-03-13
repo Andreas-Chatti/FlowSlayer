@@ -19,7 +19,7 @@ void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
 		return;
 
 	bHasClosedEarly = false;
-	CombatComp->OnComboWindowOpened.Broadcast();
+	CombatComp->OnComboInputWindowOpened.ExecuteIfBound();
 }
 
 void UAnimNotifyState_ComboWindow::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
@@ -27,14 +27,12 @@ void UAnimNotifyState_ComboWindow::NotifyTick(USkeletalMeshComponent* MeshComp, 
 	if (!CombatComp || bHasClosedEarly)
 		return;
 
-	// Si le joueur a demandé de chain vers un nouveau combo, effectuer la transition immédiatement
+	// Immediatly do the transition to next attack if player wants to chain to a new combo
 	if (CombatComp->GetChainingToNewCombo())
 	{
-		// Broadcaster la fermeture de la combo window pour déclencher ContinueCombo()
-		CombatComp->OnComboWindowClosed.Broadcast();
+		// Closing input window early to trigger ContinueCombo()
+		CombatComp->OnComboInputWindowClosed.ExecuteIfBound();
 		bHasClosedEarly = true;
-
-		// Le nouveau montage remplacera automatiquement l'ancien via PlayAnimMontage()
 	}
 }
 
@@ -43,5 +41,5 @@ void UAnimNotifyState_ComboWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, U
 	if (!CombatComp || bHasClosedEarly)
 		return;
 
-	CombatComp->OnComboWindowClosed.Broadcast();
+	CombatComp->OnComboInputWindowClosed.ExecuteIfBound();
 }
