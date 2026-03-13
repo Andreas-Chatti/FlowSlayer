@@ -15,10 +15,10 @@ void UAnimNotifyState_FSMotionWarping::NotifyBegin(USkeletalMeshComponent* MeshC
     const AActor* currentLockedOnTarget{ LockOnCompRef->GetCurrentLockedOnTarget() };
     const AActor* targetActor{ currentLockedOnTarget ? currentLockedOnTarget : GetTargetForMotionWarp(SearchRadius, bDebugLines) };
 
-    if (bIsAirAttack)
-        SetupAirAttackMotionWarp(warpModifier->WarpTargetName, targetActor, ZOffset, ForwardOffset, bDebugLines);
-    else
+    if (attackType == EFSMotionWarpingAttackType::Ground)
         SetupGroundAttackMotionWarp(warpModifier->WarpTargetName, targetActor, ForwardOffset, bDebugLines);
+    else
+        SetupAirAttackMotionWarp(warpModifier->WarpTargetName, targetActor, ZOffset, ForwardOffset, bDebugLines);
         
 }
 
@@ -35,7 +35,7 @@ void UAnimNotifyState_FSMotionWarping::NotifyEnd(USkeletalMeshComponent* MeshCom
         return;
 
     EMovementMode currentMovementMode{ PlayerOwner->GetCharacterMovement()->MovementMode };
-    if (bIsAirAttack && currentMovementMode == EMovementMode::MOVE_Flying)
+    if (attackType == EFSMotionWarpingAttackType::Launcher && currentMovementMode == EMovementMode::MOVE_Flying)
         PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Falling);
 }
 
@@ -71,7 +71,10 @@ void UAnimNotifyState_FSMotionWarping::SetupAirAttackMotionWarp(FName motionWarp
     target.Rotation = lookAtRotation;
 
     PlayerOwner->SetActorRotation(FRotator(0.f, lookAtRotation.Yaw, 0.f), ETeleportType::TeleportPhysics);
-    PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+
+    if (attackType == EFSMotionWarpingAttackType::Launcher)
+        PlayerOwner->GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Flying);
+
     MotionWarpingComponent->AddOrUpdateWarpTarget(target);
 }
 
