@@ -4,21 +4,13 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/ActorComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Particles/ParticleSystem.h"
-#include "Sound/SoundBase.h"
-#include "Camera/CameraShakeBase.h"
 #include "Logging/LogMacros.h"
 #include "FSWeapon.h"
 #include "CombatData.h"
 #include "FSDamageable.h"
 #include "HitboxComponent.h"
 #include "HitFeedbackComponent.h"
-#include "MotionWarpingComponent.h"
-#include "EnhancedInputLibrary.h"
-#include "NiagaraComponent.h"
-#include "NiagaraFunctionLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
-#include "Camera/CameraComponent.h"
 #include "FSCombatComponent.generated.h"
 
 class USoundBase;
@@ -103,7 +95,13 @@ public:
     const FCombo* GetOngoingCombo() const { return OngoingCombo; }
 
     /** @return Current used attack in the current combo */
-    const FAttackData* GetOngoingAttack() const { return OngoingCombo->GetAttackAt(ComboIndex - 1); }
+    const FAttackData* GetOngoingAttack() const 
+    { 
+        if (OngoingCombo)
+            return OngoingCombo->GetAttackAt(ComboIndex);
+        else
+            return nullptr;
+    }
 
 private:
 
@@ -125,12 +123,9 @@ private:
 public:
 
     /** Called for attacking input */
-    void Attack(EAttackType attackType, bool isMoving, bool isFalling);
+    void OnAttackInputReceived(EAttackType attackType);
 
-    bool isAttacking() const { return bIsAttacking; }
-
-    /** Enable or disable bIsAttacking flag */
-    void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
+    bool IsAttacking() const { return bIsAttacking; }
 
     /** Returns whether we're currently chaining to a new combo */
     bool GetChainingToNewCombo() const { return bChainingToNewCombo; }
@@ -200,12 +195,6 @@ private:
     UPROPERTY()
     AActor* LockedOnTarget;
 
-    UPROPERTY()
-    FTimerHandle hitstopTimerHandle;
-
-    UFUNCTION()
-    void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
-
     bool InitializeAndAttachWeapon();
 
     // === COMBAT - COMBO SYSTEM ===
@@ -245,14 +234,6 @@ private:
     /** LMB Air attack combo */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
-
-    /** Called when an air attack hits an enemy
-    * Sets both player and enemy to Flying mode for air combo window
-    */
-    void OnAirAttackHit(AActor* hitEnemy);
-
-    UPROPERTY()
-    FTimerHandle AirStallHitTimer;
 
     /** SPACE + LMB air attack */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
@@ -324,7 +305,7 @@ private:
 
     /** Can the player input continue the combo? Set by AnimNotify_ComboWindow */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
-    bool bComboWindowOpened{ false };
+    bool bComboInputWindowOpen{ false };
 
     /** Can the player input continue the combo? Set by AnimNotify_ComboWindow */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
@@ -344,13 +325,16 @@ private:
     // === FUNCTIONS ===
 
     /** Select the correct Combo based on the current player's state (moving, falling, attack type) */
-    FCombo* SelectComboBasedOnState(EAttackType attackType, bool isMoving, bool isFalling);
-
-    /** Get the next attack montage in the combo sequence */
-    UAnimMontage* GetComboNextAttack(const FCombo& combo);
+    FCombo* GetComboFromContext(EAttackType attackType);
 
     /** Advances to the next attack in the combo sequence */
     void ContinueCombo();
+
+    /* Execute the anim montage attack and the ongoingAttack delegates */
+    void ExecuteAttack(UAnimMontage* attackMontage);
+
+    /** Called when a valid attack input is received during an opened combo input window */
+    void OnComboWindowInputReceived(EAttackType attackType);
 
     /** Resets all combo state variables to their default values */
     void ResetComboState();

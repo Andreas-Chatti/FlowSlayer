@@ -62,7 +62,7 @@ void UFSLockOnComponent::UpdateLockOnCamera(float deltaTime)
 	double CurrentPitchOffset{ FMath::Lerp(CloseCameraPitchOffset, FarCameraPitchOffset, DistanceRatio) };
 
 	// Check if player is attacking to adjust tolerance
-	float dotRightTolerance{ (CombatComponent && CombatComponent->isAttacking()) ? -0.15f : 0.f };
+	float dotRightTolerance{ (CombatComponent && CombatComponent->IsAttacking()) ? -0.15f : 0.f };
 
 	CameraLookAtRotation.Yaw += DotRight > dotRightTolerance ? -CurrentYawOffset : CurrentYawOffset;
 	CameraLookAtRotation.Pitch += CurrentPitchOffset;

@@ -120,8 +120,11 @@ void AFSEnemy::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
 
 void AFSEnemy::HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
 {
-    HitFeedbackComponent->OnReceiveHit(GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
+    HitFeedbackComponent->OnReceiveHit(instigatorActor->GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
     HealthComponent->ReceiveDamage(usedAttack.Damage, instigatorActor);
+
+    if (usedAttack.AttackContext == EAttackDataContext::Air && (GetCharacterMovement()->IsFalling() || GetCharacterMovement()->IsFlying()))
+        StartAirStall(usedAttack.ComboWindowDuration);
 }
 
 void AFSEnemy::NotifyHitReceived(AActor* instigator, const FAttackData& usedAttack)
@@ -173,4 +176,21 @@ void AFSEnemy::HandleOnDeath()
     OnEnemyDeath.Broadcast(this);
 
     SetLifeSpan(destroyDelay);
+}
+
+void AFSEnemy::StartAirStall(float airStallDuration)
+{
+    TWeakObjectPtr movementComp{ MakeWeakObjectPtr(GetCharacterMovement()) };
+    movementComp->SetMovementMode(EMovementMode::MOVE_Flying);
+
+    GetWorld()->GetTimerManager().SetTimer(
+        AirStallTimer,
+        [movementComp]()
+        {
+            if (movementComp.IsValid())
+                movementComp->SetMovementMode(EMovementMode::MOVE_Falling);
+        },
+        airStallDuration,
+        false
+    );
 }

@@ -48,6 +48,16 @@ enum class EAttackType : uint8
     AerialSlam            // RMB (airborne after launcher)
 };
 
+UENUM(BlueprintType)
+enum class EAttackDataContext : uint8
+{
+    /** Attack can only be performed on the ground */
+    Ground,
+
+    /** Attack can only be performed while airborne */
+    Air
+};
+
 /** Single attack data within a combo */
 USTRUCT(BlueprintType)
 struct FAttackData : public FTableRowBase
@@ -107,6 +117,12 @@ struct FAttackData : public FTableRowBase
     UPROPERTY(EditAnywhere)
     TSet<EAttackType> ChainableAttacks;
 
+    /** Whether this attack is a ground or air attack
+     * Used to validate attack execution against the player's current movement state
+     */
+    UPROPERTY(EditAnywhere)
+    EAttackDataContext AttackContext{ EAttackDataContext::Ground };
+
     /* Called just before the attack animation plays
     * Use for setup logic: rotation, VFX prep, state changes, etc.
     * Can be empty
@@ -151,7 +167,7 @@ struct FCombo
     UPROPERTY(EditDefaultsOnly, Category = "Combo")
     TArray<FAttackData> Attacks;
 
-    /** Returns the maximum combo index (last attack index in the array) */
+    /** Returns the maximum combo index (last attack VALID index in the array) */
     int32 GetMaxComboIndex() const { return FMath::Max(0, Attacks.Num() - 1); }
 
     /** Checks if this combo data is valid and ready to use */
@@ -161,6 +177,11 @@ struct FCombo
     const FAttackData* GetAttackAt(int32 Index) const
     {
         return Attacks.IsValidIndex(Index) ? &Attacks[Index] : nullptr;
+    }
+
+    const FAttackData* GetFirstAttack() const
+    {
+        return Attacks.IsValidIndex(0) ? &Attacks[0] : nullptr;
     }
 
     /** Gets the last attack montage in the combo */
