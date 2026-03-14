@@ -40,8 +40,6 @@ void UFSCombatComponent::BeginPlay()
     OnComboInputWindowOpened.BindUObject(this, &UFSCombatComponent::HandleComboInputWindowOpened);
     OnComboInputWindowClosed.BindUObject(this, &UFSCombatComponent::HandleComboInputWindowClosed);
 
-    AnimInstance->OnMontageEnded.AddDynamic(this, &UFSCombatComponent::OnMontageEnded);
-
     // Initialize combo attack data (damage, knockback, ChainableAttacks)
     InitializeComboAttackData();
 
@@ -186,34 +184,29 @@ void UFSCombatComponent::InitializeComboAttackData()
     PowerLauncherAttack.Attacks.SetNum(1);
     PowerLauncherAttack.Attacks[0] = *GetAttackData("PowerLauncher");
     PowerLauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    PowerLauncherAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            constexpr float notifyEnd{ 0.38f };
-            constexpr double zVelocity{ 1400.0 };
-            FTimerHandle launchTimer;
-            GetWorld()->GetTimerManager().SetTimer(
-                launchTimer,
-                [this]() { PlayerOwner->LaunchCharacter(FVector{ 0.0, 0.0, zVelocity }, false, true); },
-                notifyEnd + 0.1f,
-                false
-            );
-        });
 
     // === SPIN ATTACK ===
     SpinAttack.Attacks.SetNum(1);
     SpinAttack.Attacks[0] = *GetAttackData("SpinAttack");
 
-    TSharedPtr<FTimerHandle> spinAttackTimer{ MakeShared<FTimerHandle>() };
-    SpinAttack.Attacks[0].OnAttackExecuted.BindLambda([this, spinAttackTimer]()
+    SpinAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
         {
             constexpr float spinAttackMaxWalkSpeed{ 300.f };
             constexpr float walkSpeedDelay{ 1.09f };
-            PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = spinAttackMaxWalkSpeed;
+            if (PlayerOwner)
+                PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = spinAttackMaxWalkSpeed;
             constexpr float runSpeedThreshold{ 600.f };
             constexpr float sprintSpeedThreshold{ 900.f };
+            FTimerHandle spinAttackTimer;
+            TWeakObjectPtr playerOwner(MakeWeakObjectPtr(PlayerOwner));
+            TWeakObjectPtr lockedOnTarget(MakeWeakObjectPtr(LockedOnTarget));
             GetWorld()->GetTimerManager().SetTimer(
-                *spinAttackTimer,
-                [this]() { PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = LockedOnTarget ? runSpeedThreshold : sprintSpeedThreshold; },
+                spinAttackTimer,
+                [playerOwner, lockedOnTarget, runSpeedThreshold, sprintSpeedThreshold]() 
+                { 
+                    if (playerOwner.IsValid())
+                        playerOwner->GetCharacterMovement()->MaxWalkSpeed = lockedOnTarget.IsValid() ? runSpeedThreshold : sprintSpeedThreshold;
+                },
                 walkSpeedDelay,
                 false
             );
@@ -249,29 +242,12 @@ void UFSCombatComponent::InitializeComboAttackData()
     AirCombo.Attacks[0] = *GetAttackData("AirCombo_0");
     AirCombo.Attacks[1] = *GetAttackData("AirCombo_1");
     AirCombo.Attacks[2] = *GetAttackData("AirCombo_2");
-
     AirCombo.Attacks[2].OnAttackExecuted.BindLambda([this]() { bCanAirAttack = false; });
-
-    AirCombo.Attacks[0].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
-    AirCombo.Attacks[1].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
-    AirCombo.Attacks[2].OnAttackHit.BindUObject(this, &UFSCombatComponent::OnAirAttackHit);
 
     // === AERIAL SLAM ===
     AerialSlamAttack.Attacks.SetNum(1);
     AerialSlamAttack.Attacks[0] = *GetAttackData("AerialSlam");
     AerialSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-    AerialSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            constexpr float slamDownVelocity{ -2000.f };
-            constexpr float startDelay{ 0.51f };
-            FTimerHandle slamDownTimer;
-            GetWorld()->GetTimerManager().SetTimer(
-                slamDownTimer,
-                [slamDownVelocity, this]() { PlayerOwner->LaunchCharacter(FVector{ 0.f, 0.f, slamDownVelocity }, false, true); },
-                startDelay,
-                false
-            );
-        });
 }
 
 
@@ -282,75 +258,80 @@ void UFSCombatComponent::InitializeComboAttackData()
 * 
 */
 ////////////////////////////////////////////////
-void UFSCombatComponent::Attack(EAttackType attackType, bool isMoving, bool isFalling)
+void UFSCombatComponent::OnAttackInputReceived(EAttackType attackType)
 {
-    if (bIsAttacking && !bComboWindowOpened)
+    if (bIsAttacking && !bComboInputWindowOpen)
         return;
 
-    else if (bIsAttacking && bComboWindowOpened)
+    else if (bIsAttacking && bComboInputWindowOpen)
     {
-        // Continue dans le même combo
-        if ((ComboIndex <= OngoingCombo->GetMaxComboIndex()) &&
-            (OngoingCombo->GetAttackAt(ComboIndex) && OngoingCombo->GetAttackAt(ComboIndex)->AttackType == attackType))
-        {
-            bComboWindowOpened = false;
-            bContinueCombo = true;
-            return;
-        }
-
-        // Chain vers un nouveau combo depuis la dernière attaque
-        else if ((ComboIndex > OngoingCombo->GetMaxComboIndex()) &&
-            OngoingCombo->GetLastAttack() &&
-            OngoingCombo->GetLastAttack()->ChainableAttacks.Contains(attackType))
-        {
-            // Vérifier si le state permet cette attaque
-            FCombo* nextCombo{ SelectComboBasedOnState(attackType, isMoving, isFalling) };
-            if (nextCombo && nextCombo->IsValid())
-            {
-                bComboWindowOpened = false;
-                bContinueCombo = true;
-                bChainingToNewCombo = true;
-                PendingCombo = nextCombo;
-                return;
-            }
-        }
+        OnComboWindowInputReceived(attackType);
+        return;
     }
 
     if (AnimInstance && AnimInstance->IsAnyMontagePlaying())
         return;
 
+    OngoingCombo = GetComboFromContext(attackType);
+    if (!OngoingCombo || !OngoingCombo->IsValid())
+        return;
+    
+    const FAttackData* ongoingAttack{ GetOngoingAttack() };
+    if (!ongoingAttack)
+        return;
+
+    UAnimMontage* animAttack{ ongoingAttack->Montage };
+    if (!animAttack)
+        return;
+
     bIsAttacking = true;
 
-    OngoingCombo = SelectComboBasedOnState(attackType, isMoving, isFalling);
-    if (!OngoingCombo || !OngoingCombo->IsValid())
-    {
-        bIsAttacking = false;
-        return;
-    }
-
-    UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
-    if (!nextAnimAttack)
-    {
-        bIsAttacking = false;
-        return;
-    }
+    ExecuteAttack(animAttack);
 
     OnAttackingStarted.Broadcast();
+}
 
-    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.Execute();
+FCombo* UFSCombatComponent::GetComboFromContext(EAttackType attackType)
+{
+    if (attackType == EAttackType::None)
+        return nullptr;
 
-    PlayerOwner->PlayAnimMontage(nextAnimAttack);
+    // Lookup combo from table
+    FCombo** foundCombo{ ComboLookupTable.Find(attackType) };
+    if (!foundCombo || !(*foundCombo)->IsValid())
+        return nullptr;
 
-    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
+    bool bIsFalling{ PlayerOwner->GetCharacterMovement()->IsFalling() };
+    bool bIsFlying{ PlayerOwner->GetCharacterMovement()->IsFlying() };
+    bool bIsAirAttack{ (*foundCombo)->GetFirstAttack() && (*foundCombo)->GetFirstAttack()->AttackContext == EAttackDataContext::Air };
+
+    // Reject air-only attacks on ground
+    if (bIsAirAttack && !bIsFalling && !bIsFlying)
+        return nullptr;
+
+    // Reject ground-only attacks in air
+    else if (!bIsAirAttack && (bIsFalling || bIsFlying))
+        return nullptr;
+
+    return *foundCombo;
+}
+
+void UFSCombatComponent::ExecuteAttack(UAnimMontage* attackMontage)
+{
+    if (OngoingCombo->GetAttackAt(ComboIndex)->OnBeforeAttack.IsBound())
+        OngoingCombo->GetAttackAt(ComboIndex)->OnBeforeAttack.Execute();
+
+    PlayerOwner->PlayAnimMontage(attackMontage);
+
+    if (OngoingCombo->GetAttackAt(ComboIndex)->OnAttackExecuted.IsBound())
+        OngoingCombo->GetAttackAt(ComboIndex)->OnAttackExecuted.Execute();
 }
 
 void UFSCombatComponent::CancelAttack(float blendOutTime)
 {
     AnimInstance->StopAllMontages(blendOutTime);
     ResetComboState();
-    HitboxComponent->OnActiveFrameStopped.Execute();
+    HitboxComponent->OnActiveFrameStopped.ExecuteIfBound();
 }
 
 FAttackData* UFSCombatComponent::GetAttackData(FName rowName) const
@@ -361,112 +342,27 @@ FAttackData* UFSCombatComponent::GetAttackData(FName rowName) const
     return AttackDataTable->FindRow<FAttackData>(rowName, TEXT("GetAttackData"));
 }
 
-FCombo* UFSCombatComponent::SelectComboBasedOnState(EAttackType attackType, bool isMoving, bool isFalling)
-{
-    // Invalid attack type
-    if (attackType == EAttackType::None)
-        return nullptr;
-
-    // Lookup combo from table
-    FCombo** foundCombo{ ComboLookupTable.Find(attackType) };
-    if (!foundCombo)
-        return nullptr;
-
-    // Validate airborne restrictions
-    // Air-only attacks: JumpSlam, JumpForwardSlam, JumpUpperSlam, AirCombo, AerialSlam
-    bool isAirAttack{ (
-        attackType == EAttackType::JumpSlam ||
-        attackType == EAttackType::JumpForwardSlam ||
-        attackType == EAttackType::JumpUpperSlam ||
-        attackType == EAttackType::AirCombo ||
-        attackType == EAttackType::AerialSlam
-    ) };
-
-    // Ground-only attacks: all Dash, Launcher, Spin, Power, Slam attacks and JumpForwardSlam
-    bool isGroundAttack{ (
-        attackType == EAttackType::JumpForwardSlam ||
-        attackType == EAttackType::DashPierce ||
-        attackType == EAttackType::DashSpinningSlash ||
-        attackType == EAttackType::DashDoubleSlash ||
-        attackType == EAttackType::DashBackSlash ||
-        attackType == EAttackType::Launcher ||
-        attackType == EAttackType::PowerLauncher ||
-        attackType == EAttackType::SpinAttack ||
-        attackType == EAttackType::HorizontalSweep ||
-        attackType == EAttackType::PowerSlash ||
-        attackType == EAttackType::PierceThrust ||
-        attackType == EAttackType::GroundSlam ||
-        attackType == EAttackType::DiagonalRetourne ||
-        attackType == EAttackType::StandingLight ||
-        attackType == EAttackType::RunningLight ||
-        attackType == EAttackType::StandingHeavy ||
-        attackType == EAttackType::RunningHeavy
-    ) };
-
-    if (isAirAttack && isGroundAttack)
-        return *foundCombo;
-
-    // Reject air-only attacks on ground
-    if (isAirAttack && !isFalling && !PlayerOwner->GetCharacterMovement()->IsFlying())
-        return nullptr;
-
-    // Reject ground-only attacks in air
-    if (isGroundAttack && isFalling)
-        return nullptr;
-
-    return *foundCombo;
-}
-
-UAnimMontage* UFSCombatComponent::GetComboNextAttack(const FCombo& combo)
-{
-    UAnimMontage* attackToPerform{ nullptr };
-
-    if (ComboIndex >= combo.GetMaxComboIndex())
-        attackToPerform = combo.GetLastAttack()->Montage;
-    else
-        attackToPerform = combo.GetAttackAt(ComboIndex)->Montage;
-
-    ++ComboIndex;
-
-    return attackToPerform;
-}
-
 void UFSCombatComponent::HandleComboInputWindowOpened()
 {
-    bComboWindowOpened = true;
+    bComboInputWindowOpen = true;
 }
 
 void UFSCombatComponent::HandleComboInputWindowClosed()
 {
-    bComboWindowOpened = false;
+    bComboInputWindowOpen = false;
 
-    if (!OngoingCombo)
+    if (!OngoingCombo || !bContinueCombo)
+    {
+        ResetComboState();
         return;
+    }
 
-    else if (bContinueCombo)
-        ContinueCombo();
+    ContinueCombo();
 }
 
 void UFSCombatComponent::HandleOnLanded(const FHitResult& Hit)
 {
     bCanAirAttack = true;
-
-    if (!AnimInstance || !OngoingCombo)
-        return;
-    
-    const UAnimMontage* currentActiveMontage{ AnimInstance->GetCurrentActiveMontage() };
-    if (!currentActiveMontage)
-        return;
-    
-    for (const auto& airAttack : AirCombo.Attacks)
-    {
-        if (airAttack.Montage == currentActiveMontage)
-        {
-            CancelAttack(0.25f);
-            bCanAirAttack = true;
-            break;
-        }
-    }
 }
 
 void UFSCombatComponent::ChainingToNextCombo()
@@ -480,17 +376,15 @@ void UFSCombatComponent::ChainingToNextCombo()
     ComboIndex = 0;
     PendingCombo = nullptr;
 
-    UAnimMontage* firstAttack{ GetComboNextAttack(*OngoingCombo) };
-    if (!firstAttack)
+    const FAttackData* ongoingAttack{ GetOngoingAttack() };
+    if (!ongoingAttack)
         return;
 
-    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.Execute();
+    UAnimMontage* attackMontage{ ongoingAttack->Montage };
+    if (!attackMontage)
+        return;
 
-    PlayerOwner->PlayAnimMontage(firstAttack);
-
-    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
+    ExecuteAttack(attackMontage);
 }
 
 void UFSCombatComponent::RotatePlayerToPlayerView()
@@ -504,6 +398,7 @@ void UFSCombatComponent::ContinueCombo()
         return;
 
     bContinueCombo = false;
+    ++ComboIndex;
 
     if (bChainingToNewCombo)
     {
@@ -514,17 +409,51 @@ void UFSCombatComponent::ContinueCombo()
     if (!OngoingCombo || !OngoingCombo->IsValid())
         return;
 
-    UAnimMontage* nextAnimAttack{ GetComboNextAttack(*OngoingCombo) };
-    if (!nextAnimAttack)
+    const FAttackData* ongoingAttack{ GetOngoingAttack() };
+    if (!ongoingAttack)
         return;
 
-    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnBeforeAttack.Execute();
+    UAnimMontage* attackMontage{ ongoingAttack->Montage };
+    if (!attackMontage)
+        return;
 
-    PlayerOwner->PlayAnimMontage(nextAnimAttack);
+    ExecuteAttack(attackMontage);
+}
 
-    if (OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex - 1)->OnAttackExecuted.Execute();
+void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
+{
+    if (!OngoingCombo)
+        return;
+
+    // Chaining to a new combo
+    const FAttackData* lastAttack{ OngoingCombo->GetAttackAt(OngoingCombo->GetMaxComboIndex()) };
+    bool bIsLastAttack{ ComboIndex >= OngoingCombo->GetMaxComboIndex() };
+    bool bIsLastAttackChainableWithCurrentType{ static_cast<bool>(lastAttack) && lastAttack->ChainableAttacks.Contains(attackType) };
+    if (bIsLastAttack && lastAttack && bIsLastAttackChainableWithCurrentType)
+    {
+        FCombo* nextCombo{ GetComboFromContext(attackType) };
+        if (nextCombo && nextCombo->IsValid())
+        {
+            bComboInputWindowOpen = false;
+            bContinueCombo = true;
+            bChainingToNewCombo = true;
+            PendingCombo = nextCombo;
+            return;
+        }
+    }
+
+    // Continuing in the same combo
+    const FAttackData* nextAttack{ OngoingCombo->GetAttackAt(ComboIndex + 1) };
+    if (!nextAttack)
+        return;
+
+    bool bIsNextAttackSameType{ nextAttack->AttackType == attackType };
+    if (!bIsLastAttack && bIsNextAttackSameType)
+    {
+        bComboInputWindowOpen = false;
+        bContinueCombo = true;
+        return;
+    }
 }
 
 void UFSCombatComponent::ResetComboState()
@@ -537,7 +466,7 @@ void UFSCombatComponent::ResetComboState()
     ComboIndex = 0;
     bIsAttacking = false;
     bContinueCombo = false;
-    bComboWindowOpened = false;
+    bComboInputWindowOpen = false;
     bChainingToNewCombo = false;
     OngoingCombo = nullptr;
     PendingCombo = nullptr;
@@ -545,57 +474,20 @@ void UFSCombatComponent::ResetComboState()
     OnAttackingEnded.Broadcast();
 }
 
-void UFSCombatComponent::OnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
-{
-    // Safety check: ensure we have a valid ongoing combo
-    if (!OngoingCombo || !OngoingCombo->IsValid())
-        return;
-
-    /** Reset the whole combo state if :
-    * It's the last attack of the combo
-    * If any attack in the combo is not interrupted
-    */
-    if (Montage == OngoingCombo->GetLastAttack()->Montage || !bInterrupted)
-        ResetComboState();
-}
-
-void UFSCombatComponent::OnAirAttackHit(AActor* hitEnemy)
-{
-    TWeakObjectPtr<UCharacterMovementComponent> enemyMovementComp{ hitEnemy->GetComponentByClass<UCharacterMovementComponent>() };
-    // Does NOT set back Flying movement mode if that's the last air attack
-    // Otherwise the target is staying up in the air longer than expected
-    if (!enemyMovementComp.IsValid() || GetOngoingAttack()->Name == AirCombo.GetLastAttack()->Name)
-        return;
-
-    enemyMovementComp->SetMovementMode(EMovementMode::MOVE_Flying);
-
-    GetWorld()->GetTimerManager().SetTimer(
-        AirStallHitTimer,
-        [this, enemyMovementComp]()
-        { 
-            if (enemyMovementComp.IsValid())
-                enemyMovementComp->SetMovementMode(EMovementMode::MOVE_Falling);
-        },
-        ComboTimeRemaining,
-        false
-    );
-}
-
 ////////////////////////////////////////////////
 /*
 * Below are all methods related to OnHitLanded
-* VFX, SFX, Hitstop, CameraShake, etc ...
 */
 ////////////////////////////////////////////////
 void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
 {
     IFSDamageable* hitActorDamageable{ Cast<IFSDamageable>(hitActor) };
-    if (!hitActor || (hitActorDamageable && hitActorDamageable->GetHealthComponent()->IsDead()))
+    if (!hitActor || !hitActorDamageable || (hitActorDamageable && hitActorDamageable->GetHealthComponent()->IsDead()))
         return;
 
     ++ComboHitCount;
     // Activate the decreasing combo time remaining in Tick()
-    if (ComboHitCount >= 1)
+    if (!bComboCounterActive)
         bComboCounterActive = true;
 
     // Render combo counter to screen
@@ -603,10 +495,11 @@ void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitL
         OnComboCounterStarted.Broadcast();
 
     OnComboCountChanged.Broadcast(ComboHitCount);
-    
-    // NOTE: ComboIndex has already been incremented at this point, 
-    // so the actual ComboIndex to this attack that hit the enemy here is : ComboIndex - 1
-    const FAttackData* currentAttack{ OngoingCombo->GetAttackAt(ComboIndex - 1) };
+
+    if (!OngoingCombo)
+        return;
+
+    const FAttackData* currentAttack{ OngoingCombo->GetAttackAt(ComboIndex) };
     if (!currentAttack)
         return;
 

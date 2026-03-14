@@ -121,7 +121,7 @@ void AFlowSlayerCharacter::InitializeHUD()
 
 bool AFlowSlayerCharacter::CanJumpInternal_Implementation() const
 {
-	if (CombatComponent->isAttacking())
+	if (CombatComponent->IsAttacking())
 		return false;
 	
 	return Super::CanJumpInternal_Implementation();
@@ -136,7 +136,7 @@ void AFlowSlayerCharacter::HandleOnDeath()
 
 void AFlowSlayerCharacter::HandleOnAnimationCanceled()
 {
-	CombatComponent->CancelAttack(0.2f);
+	CombatComponent->CancelAttack();
 }
 
 void AFlowSlayerCharacter::HandleOnLockOnStarted(AActor* lockedOnTarget)
@@ -174,7 +174,8 @@ void AFlowSlayerCharacter::ToggleLockOn() const
 
 void AFlowSlayerCharacter::OnDashAction()
 {
-	if (InputManagerComponent->GetInputKeyState(EKeys::LeftMouseButton) || InputManagerComponent->GetInputKeyState(EKeys::LeftMouseButton))
+	auto [isLMBPressed, isRMBPressed] { InputManagerComponent->GetMouseButtonStates() };
+	if (isLMBPressed || isRMBPressed)
 	{
 		EAttackType attackType{ GetDashAttackFromInput() };
 		OnAttackTriggered(attackType);
@@ -186,7 +187,6 @@ void AFlowSlayerCharacter::OnDashAction()
 EAttackType AFlowSlayerCharacter::GetDashAttackFromInput()
 {
 	EAttackType attackType{ EAttackType::None };
-
 	auto [isLMBPressed, isRMBPressed] { InputManagerComponent->GetMouseButtonStates() };
 	// LMB: DashPierce (forward) or DashSpinningSlash (sideways)
 	if (isLMBPressed)
@@ -349,11 +349,11 @@ EAttackType AFlowSlayerCharacter::GetForwardPowerAttackFromInput()
 
 void AFlowSlayerCharacter::OnAttackTriggered(EAttackType attackType)
 {
-	CombatComponent->Attack(attackType, IsMoving(), GetCharacterMovement()->IsFalling());
+	CombatComponent->OnAttackInputReceived(attackType);
 }
 
 void AFlowSlayerCharacter::HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
 {
-	CombatComponent->GetHitFeedbackComponent()->OnReceiveHit(GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
+	CombatComponent->GetHitFeedbackComponent()->OnReceiveHit(instigatorActor->GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
 	HealthComponent->ReceiveDamage(usedAttack.Damage, instigatorActor);
 }

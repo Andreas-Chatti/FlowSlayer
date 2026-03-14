@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "HitFeedbackComponent.generated.h"
 
 /**
@@ -38,6 +39,8 @@ private:
 
     /** Cached character reference of the owner */
     ACharacter* OwnerCharacter{ nullptr };
+
+private:
 
     // === KNOCKBACK ===
 

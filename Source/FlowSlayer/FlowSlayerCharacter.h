@@ -128,7 +128,7 @@ public:
 
 	/** Returns true if the character is currently executing an attack */
 	UFUNCTION(BlueprintPure, Category = "Combat")
-	bool IsAttacking() const { return CombatComponent->isAttacking(); }
+	bool IsAttacking() const { return CombatComponent->IsAttacking(); }
 
 	// --- Camera accessors ---
 

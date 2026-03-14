@@ -129,4 +129,15 @@ private:
 
     UFUNCTION()
     virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) override;
+
+    // === AIRSTALL ===
+
+    UPROPERTY()
+    FTimerHandle AirStallTimer;
+
+    /** Activates airstall for this instance 
+    * Flying movement mode is activated for airStallDuration
+    * then setting back up to falling mode
+    */
+    void StartAirStall(float airStallDuration);
 };
