@@ -14,41 +14,24 @@ AFSEnemy::AFSEnemy()
     LockOnWidget->SetDrawSize(FVector2D(40.0f, 40.0f));
     LockOnWidget->SetVisibility(false);
 
-    // Life bar UI setup
-    LifeBarWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("LifeBarWidget"));
-    LifeBarWidget->SetupAttachment(GetMesh());
-    LifeBarWidget->SetWidgetSpace(EWidgetSpace::Screen);
-    LifeBarWidget->SetDrawSize(FVector2D(100.f, 15.f));
-    LifeBarWidget->SetVisibility(false);
-
     HitboxComponent = CreateDefaultSubobject<UHitboxComponent>(TEXT("HitboxComponent"));
     checkf(HitboxComponent, TEXT("FATAL: HitboxComponent is NULL or INVALID !"));
-    HitboxComponent->OnHit.AddUObject(this, &AFSEnemy::HandleOnHitLanded);
-}
+    HitboxComponent->OnHitboxHitLanded.BindUObject(this, &AFSEnemy::HandleOnHitLanded);
 
-void AFSEnemy::InitializeLifeBarWidgetRef()
-{
-    if (!LifeBarWidget)
-        return;
+    HitFeedbackComponent = CreateDefaultSubobject<UHitFeedbackComponent>(TEXT("HitFeedbackComponent"));
+    checkf(HitFeedbackComponent, TEXT("FATAL: HitFeedbackComponent is NULL or INVALID !"));
 
-    UUserWidget* Widget{ LifeBarWidget->GetUserWidgetObject() };
-    if (!Widget)
-        return;
+    HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
+    checkf(HealthComponent, TEXT("FATAL: HealthComponent is NULL or INVALID !"));
+    HealthComponent->OnDeath.BindUObject(this, &AFSEnemy::HandleOnDeath);
+    HealthComponent->OnDamageReceived.AddUniqueDynamic(this, &AFSEnemy::HandleOnDamageReceived);
 
-    // Set the OwningEnemy property on the widget
-    FObjectProperty* Prop{ FindFProperty<FObjectProperty>(Widget->GetClass(), TEXT("OwningEnemy")) };
-    if (!Prop)
-        return;
-
-    void* ValuePtr = Prop->ContainerPtrToValuePtr<void>(Widget);
-    Prop->SetObjectPropertyValue(ValuePtr, this);
+    OnHitReceived.AddUniqueDynamic(this, &AFSEnemy::HandleOnHitReceived);
 }
 
 void AFSEnemy::BeginPlay()
 {
     Super::BeginPlay();
-
-    CurrentHealth = MaxHealth;
 
     Player = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
 
@@ -56,51 +39,9 @@ void AFSEnemy::BeginPlay()
     if (AnimInstance)
         AnimInstance->OnMontageEnded.AddDynamic(this, &AFSEnemy::OnAttackMontageEnded);
 
-    InitializeLifeBarWidgetRef();
-
     // Ignoring Player's camera collision to avoid weird camera snap
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-}
-
-void AFSEnemy::ReceiveDamage(float DamageAmount, AActor* DamageDealer)
-{
-    if (bIsDead)
-        return;
-
-    CurrentHealth -= DamageAmount;
-
-    LifeBarWidget->SetVisibility(true);
-
-    OnReceiveDamage.Broadcast(CurrentHealth / MaxHealth);
-
-    if (CurrentHealth <= 0.f)
-        Die();
-
-    else if (HitMontage && !bIsCcImune)
-    {
-        PlayAnimMontage(HitMontage);
-        bIsStunned = true;
-        bIsCcImune = true;
-
-        TWeakObjectPtr<AFSEnemy> WeakThis{ this };
-        FTimerHandle ccImuneTimer;
-        GetWorld()->GetTimerManager().SetTimer(
-            ccImuneTimer,
-            [WeakThis]()
-            {
-                if (WeakThis.IsValid())
-                    WeakThis->bIsCcImune = false;
-            },
-            CcImuneDelay,
-            false
-        );
-    }
-}
-
-bool AFSEnemy::IsDead() const
-{
-    return bIsDead;
 }
 
 bool AFSEnemy::IsStunned() const
@@ -112,31 +53,13 @@ void AFSEnemy::Attack_Implementation()
 {
     bIsAttacking = true;
 
-    if (Player && AttackMontage)
-        PlayAnimMontage(AttackMontage);
-}
-
-void AFSEnemy::Die()
-{
-    bIsDead = true;
-
-    GetCapsuleComponent()->SetCollisionProfileName("Ragdoll");
-    GetCharacterMovement()->DisableMovement();
-    LifeBarWidget->SetVisibility(false);
-
-    PlayDeathMontage();
-
-    // TODO: Award XP to player
-    // TODO: Spawn loot/pickups
-
-    OnEnemyDeath.Broadcast(this);
-
-    SetLifeSpan(destroyDelay);
+    if (Player && MainAttack.Montage)
+        PlayAnimMontage(MainAttack.Montage);
 }
 
 void AFSEnemy::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
-    if (Montage == AttackMontage)
+    if (Montage == MainAttack.Montage)
         bIsAttacking = false;
 
     else if (Montage == HitMontage)
@@ -175,7 +98,7 @@ void AFSEnemy::DisplayLockedOnWidget(bool bShowWidget)
 
 void AFSEnemy::DisplayHealthBarWidget(bool bShowWidget)
 {
-    LifeBarWidget->SetVisibility(bShowWidget);
+    HealthComponent->DisplayLifeBar(bShowWidget);
 }
 
 void AFSEnemy::DisplayAllWidgets(bool bShowWidget)
@@ -186,6 +109,88 @@ void AFSEnemy::DisplayAllWidgets(bool bShowWidget)
 
 void AFSEnemy::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
 {
-    if (hitActor->Implements<UFSDamageable>())
-        Cast<IFSDamageable>(hitActor)->ReceiveDamage(Damage, this);
+    IFSDamageable* hitActorDamageable{ Cast<IFSDamageable>(hitActor) };
+    if (!hitActor || !hitActorDamageable || (hitActorDamageable && hitActorDamageable->GetHealthComponent()->IsDead()))
+        return;
+
+    HitFeedbackComponent->OnLandHit(hitLocation);
+
+    hitActorDamageable->NotifyHitReceived(this, MainAttack);
+}
+
+void AFSEnemy::HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
+{
+    HitFeedbackComponent->OnReceiveHit(instigatorActor->GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
+    HealthComponent->ReceiveDamage(usedAttack.Damage, instigatorActor);
+
+    if (usedAttack.AttackContext == EAttackDataContext::Air && (GetCharacterMovement()->IsFalling() || GetCharacterMovement()->IsFlying()))
+        StartAirStall(usedAttack.ComboWindowDuration);
+}
+
+void AFSEnemy::NotifyHitReceived(AActor* instigator, const FAttackData& usedAttack)
+{
+    OnHitReceived.Broadcast(instigator, usedAttack);
+}
+
+void AFSEnemy::HandleOnDamageReceived(AActor* damageInstigator, float damageAmount, float currentHealth, float maxHealth)
+{
+    if (HitMontage && !bIsCcImune)
+    {
+        PlayAnimMontage(HitMontage);
+        bIsStunned = true;
+        bIsCcImune = true;
+    
+        TWeakObjectPtr<AFSEnemy> WeakThis{ this };
+        FTimerHandle ccImuneTimer;
+        GetWorld()->GetTimerManager().SetTimer(
+            ccImuneTimer,
+            [WeakThis]()
+            {
+                if (WeakThis.IsValid())
+                    WeakThis->bIsCcImune = false;
+            },
+            CcImuneDelay,
+            false
+        );
+    }
+}
+
+void AFSEnemy::HandleOnFSProjectileHit(AActor* hitActor, const FVector& hitLocation)
+{
+    if (hitActor->IsA<AFSEnemy>())
+        return;
+
+    HandleOnHitLanded(hitActor, hitLocation);
+}
+
+void AFSEnemy::HandleOnDeath()
+{
+    GetCapsuleComponent()->SetCollisionProfileName("Ragdoll");
+    GetCharacterMovement()->DisableMovement();
+
+    PlayDeathMontage();
+
+    // TODO: Award XP to player
+    // TODO: Spawn loot/pickups
+
+    OnEnemyDeath.Broadcast(this);
+
+    SetLifeSpan(destroyDelay);
+}
+
+void AFSEnemy::StartAirStall(float airStallDuration)
+{
+    TWeakObjectPtr movementComp{ MakeWeakObjectPtr(GetCharacterMovement()) };
+    movementComp->SetMovementMode(EMovementMode::MOVE_Flying);
+
+    GetWorld()->GetTimerManager().SetTimer(
+        AirStallTimer,
+        [movementComp]()
+        {
+            if (movementComp.IsValid())
+                movementComp->SetMovementMode(EMovementMode::MOVE_Falling);
+        },
+        airStallDuration,
+        false
+    );
 }

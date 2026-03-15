@@ -35,9 +35,15 @@ struct FHitboxProfile
 
     UPROPERTY(EditAnywhere, meta = (EditCondition = "Shape != EHitboxShape::WeaponSweep"))
     FVector Offset{ FVector::ZeroVector };
+
+    UPROPERTY(EditAnywhere)
+    bool bDebugLines{ false };
+
+    UPROPERTY(EditAnywhere, meta = (EditCondition = "bDebugLines"))
+    float DebugDuration{ 3.f };
 };
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHit, AActor* hitActor, const FVector& hitLocation);
+DECLARE_DELEGATE_TwoParams(FOnHitboxHitLanded, AActor* hitActor, const FVector& hitLocation);
 
 /** Delegates used to activate and deactivate damage hitbox */
 DECLARE_DELEGATE_OneParam(FOnActiveFrameStarted, const FHitboxProfile* hitboxProfile);
@@ -59,11 +65,11 @@ public:
     FOnActiveFrameStopped OnActiveFrameStopped;
 
     /** Broadcasted when a target is hit inside the hitbox */
-    FOnHit OnHit;
+    FOnHitboxHitLanded OnHitboxHitLanded;
 
-    /** Shows hit debug lines */
+    /** Shows hitbox debug lines */
     UPROPERTY(EditAnywhere, Category = "Debug")
-    bool DebugLines{ false };
+    bool bShowAllDebugLines{ false };
 
     UPROPERTY(EditAnywhere, Category = "Debug", meta = (EditCondition = "DebugLines"))
     float DebugLinesDuration{ 5.f };
@@ -100,10 +106,10 @@ private:
     */
     TSet<AActor*> ActorsHitThisAttack;
 
-    void DetectWeaponSweep(float radius);
-    void DetectSphere(float range, const FVector& offset);
-    void DetectCone(float range, float halfAngleDeg, const FVector& offset);
-    void DetectBox(const FVector& extent, float range, const FVector& offset);
+    void DetectWeaponSweep(float radius, bool bShowDebugLines = false, float debugLinesDuration = 1.f);
+    void DetectSphere(float range, const FVector& offset, bool bShowDebugLines = false, float debugLinesDuration = 1.f);
+    void DetectCone(float range, float halfAngleDeg, const FVector& offset, bool bShowDebugLines = false, float debugLinesDuration = 1.f);
+    void DetectBox(const FVector& extent, float range, const FVector& offset, bool bShowDebugLines = false, float debugLinesDuration = 1.f);
 
     /** Process and adds valid damageable actors to ActorsHitThisAttack
     * Prevents targets from being hit multiple times during one attack

@@ -34,7 +34,7 @@ void UFSLockOnComponent::LockOnValidCheck()
 	FVector playerLocation{ PlayerOwner->GetActorLocation() };
 
 	double distanceSq{ FVector::DistSquared(playerLocation, targetLocation) };
-	if (distanceSq >= FMath::Square(LockOnDetectionRadius) || CachedDamageableLockOnTarget->IsDead())
+	if (distanceSq >= FMath::Square(LockOnDetectionRadius) || CachedDamageableLockOnTarget->GetHealthComponent()->IsDead())
 		DisengageLockOn();
 }
 
@@ -62,7 +62,7 @@ void UFSLockOnComponent::UpdateLockOnCamera(float deltaTime)
 	double CurrentPitchOffset{ FMath::Lerp(CloseCameraPitchOffset, FarCameraPitchOffset, DistanceRatio) };
 
 	// Check if player is attacking to adjust tolerance
-	float dotRightTolerance{ (CombatComponent && CombatComponent->isAttacking()) ? -0.15f : 0.f };
+	float dotRightTolerance{ (CombatComponent && CombatComponent->IsAttacking()) ? -0.15f : 0.f };
 
 	CameraLookAtRotation.Yaw += DotRight > dotRightTolerance ? -CurrentYawOffset : CurrentYawOffset;
 	CameraLookAtRotation.Pitch += CurrentPitchOffset;
@@ -106,8 +106,12 @@ void UFSLockOnComponent::HidePreviousTargetWidgets()
 	if (!CachedDamageableLockOnTarget || !CachedFocusableTarget)
 		return;
 
-	bool isFullLife{ CachedDamageableLockOnTarget->GetCurrentHealth() >= CachedDamageableLockOnTarget->GetMaxHealth() };
-	bool isDead{ CachedDamageableLockOnTarget->IsDead() };
+	UHealthComponent* LockOnTargetHealthComp{ CachedDamageableLockOnTarget->GetHealthComponent() };
+	if (!LockOnTargetHealthComp)
+		return;
+
+	bool isFullLife{ LockOnTargetHealthComp->GetCurrentHealth() >= LockOnTargetHealthComp->GetMaxHealth() };
+	bool isDead{ LockOnTargetHealthComp->IsDead() };
 
 	if (isFullLife || isDead)
 		CachedFocusableTarget->DisplayAllWidgets(false);
@@ -145,7 +149,7 @@ bool UFSLockOnComponent::EngageLockOn()
 		if (!HitActor->Implements<UFSFocusable>() ||
 			TargetsInLockOnRadius.Contains(HitActor) ||
 			!HitActor->Implements<UFSDamageable>() ||
-			Cast<IFSDamageable>(HitActor)->IsDead())
+			Cast<IFSDamageable>(HitActor)->GetHealthComponent()->IsDead())
 			continue;
 
 		TargetsInLockOnRadius.Add(HitActor);
@@ -203,14 +207,14 @@ bool UFSLockOnComponent::EngageLockOn()
 	return true;
 }
 
-bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
+void UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 {
 	if (!CurrentLockedOnTarget || GetWorld()->GetTimerManager().IsTimerActive(delaySwitchLockOnTimer))
-		return false;
+		return;
 
 	TArray<FHitResult> outHits;
 	if (!FindTargetsInRadius(outHits))
-		return false;
+		return;
 
 	FRotator ControlRotation{ PlayerOwner->GetController()->GetControlRotation() };
 	FVector CameraForward{ ControlRotation.Vector() };
@@ -240,7 +244,7 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 		if (HitActor == CurrentLockedOnTarget ||
 			!HitActor->Implements<UFSFocusable>() ||
 			!HitActor->Implements<UFSDamageable>() ||
-			Cast<IFSDamageable>(HitActor)->IsDead())
+			Cast<IFSDamageable>(HitActor)->GetHealthComponent()->IsDead())
 			continue;
 
 		FVector ToTarget{ HitActor->GetActorLocation() - PlayerLocation };
@@ -272,7 +276,7 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 	}
 
 	if (!BestTarget)
-		return false;
+		return;
 
 	HidePreviousTargetWidgets();
 
@@ -289,8 +293,6 @@ bool UFSLockOnComponent::SwitchLockOnTarget(float axisValueX)
 
 	if (CombatComponent)
 		CombatComponent->SetLockedOnTargetRef(CurrentLockedOnTarget);
-
-	return true;
 }
 
 void UFSLockOnComponent::DisengageLockOn()

@@ -27,7 +27,7 @@ void AFSEnemyAIController::OnMoveToTargetCompleted(FAIRequestID RequestID, const
     if (ResultCode != EPathFollowingResult::Success)
         return;
 
-    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsDead())
+    if (OwnedEnemyPawn && !OwnedEnemyPawn->GetHealthComponent()->IsDead())
     {
         RotateToPlayer();
         OwnedEnemyPawn->Attack();
@@ -38,7 +38,7 @@ void AFSEnemyAIController::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsAttacking() && !OwnedEnemyPawn->IsDead() && !OwnedEnemyPawn->IsStunned())
+    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsAttacking() && !OwnedEnemyPawn->GetHealthComponent()->IsDead() && !OwnedEnemyPawn->IsStunned())
         FollowPlayer();
 }
 
@@ -53,7 +53,7 @@ void AFSEnemyAIController::FollowPlayer()
     if (Status == EPathFollowingStatus::Idle)
     {
         FAIMoveRequest MoveRequest{ PlayerPawn };
-        MoveRequest.SetAcceptanceRadius(OwnedEnemyPawn->GetDetectionRange());
+        MoveRequest.SetAcceptanceRadius(OwnedEnemyPawn->GetAttackRange());
         MoveTo(MoveRequest);
     }
 }

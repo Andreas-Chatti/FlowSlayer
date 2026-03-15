@@ -28,17 +28,6 @@ void UAnimNotifyState_AnimCancelWindow::NotifyTick(USkeletalMeshComponent* MeshC
 	if (!FSCharacter)
 		return;
 
-	else if (FSCharacter->WantsToJump() || FSCharacter->HasMovementInput() || bDashInputPressed)
-	{
-		EActionType actionType{ EActionType::NONE };
-
-		if (FSCharacter->WantsToJump())
-			actionType = EActionType::Jump;
-		else if (bDashInputPressed)
-			actionType = EActionType::Dash;
-		else if (FSCharacter->HasMovementInput())
-			actionType = EActionType::Move;
-
-		FSCharacter->OnAnimationCanceled.Broadcast(actionType);
-	}
+	if (bDashInputPressed || FSCharacter->GetInputManagerComponent()->HasMovementInput())
+		FSCharacter->OnAnimationCanceled.Broadcast();
 }

@@ -5,18 +5,20 @@
 #include "Components/ShapeComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
+#include "HealthComponent.h"
 #include "FSDamageable.h"
 #include "FSFocusable.h"
+#include "HitFeedbackComponent.h"
 #include "HitboxComponent.h"
 #include "Components/BoxComponent.h"
 #include "Kismet/GameplayStatics.h"
 #include "Animation/AnimInstance.h"
 #include "Components/WidgetComponent.h"
+#include "CombatData.h"
 #include "FSEnemy.generated.h"
 
 DECLARE_MULTICAST_DELEGATE(FOnProjectileSpawned);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, AFSEnemy* enemy);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReceiveDamage, float, level);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyDeath, AFSEnemy*, enemy);
 
 UCLASS(Abstract)
 class FLOWSLAYER_API AFSEnemy : public ACharacter, public IFSDamageable, public IFSFocusable
@@ -27,12 +29,12 @@ public:
 
     AFSEnemy();
 
-    virtual bool IsDead() const override;
-
     bool IsStunned() const;
 
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat")
     void Attack();
+
+    virtual UHealthComponent* GetHealthComponent() override { return HealthComponent; }
 
     virtual void DisplayLockedOnWidget(bool bShowWidget) override;
 
@@ -40,50 +42,52 @@ public:
 
     virtual void DisplayAllWidgets(bool bShowWidget) override;
 
-    virtual float GetCurrentHealth() const override { return CurrentHealth; }
-
-    virtual float GetMaxHealth() const override { return MaxHealth; }
-
-    float GetDetectionRange() const { return DetectionRange; }
+    float GetAttackRange() const { return AttackRange; }
     bool IsAttacking() const { return bIsAttacking; }
 
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
 
     FOnProjectileSpawned OnProjectileSpawned;
     FOnEnemyDeath OnEnemyDeath;
-
-    UPROPERTY(BlueprintAssignable)
-    FOnReceiveDamage OnReceiveDamage;
+    FOnHitReceived OnHitReceived;
 
 protected:
 
     virtual void BeginPlay() override;
 
-    virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
+    /* OnDeath (UHealthComponent) handler */
+    virtual void HandleOnDeath();
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
-    float MaxHealth{ 100.f };
+    /** Called by HitboxComponent (UHitboxComponent)
+    * Called on successful hit upon a target
+    * Applies damage, hitstop, vfx, sfx and cameraShake
+    */
+    void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Stats")
-    float CurrentHealth;
+    /** Called by HitboxComponent (UHitboxComponent)
+    * Called when getting hit by an actor
+    * Applies damage, hitstop, vfx, sfx and cameraShake
+    */
+    UFUNCTION()
+    void HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack);
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
-    float Damage{ 10.f };
+    UFUNCTION()
+    void HandleOnDamageReceived(AActor* damageInstigator, float damageAmount, float currentHealth, float maxHealth);
+
+    /** Called when owning spawned projectile has hit a target */
+    void HandleOnFSProjectileHit(AActor* hitActor, const FVector& hitLocation);
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     int32 XPReward{ 10 };
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
-    float DetectionRange{ 150.f };
+    float AttackRange{ 150.f };
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     float CcImuneDelay{ 6.f };
 
-    UFUNCTION(BlueprintCallable, Category = "Combat")
-    virtual void Die();
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
-    UAnimMontage* AttackMontage;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
+    FAttackData MainAttack;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
     UAnimMontage* HitMontage;
@@ -105,12 +109,14 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
     UWidgetComponent* LockOnWidget{ nullptr };
 
-    /** Life bar widget ui */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
-    UWidgetComponent* LifeBarWidget{ nullptr };
-
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Hitbox")
     UHitboxComponent* HitboxComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "HitFeedback")
+    UHitFeedbackComponent* HitFeedbackComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
+    UHealthComponent* HealthComponent;
 
 private:
 
@@ -121,14 +127,17 @@ private:
 
     void PlayDeathMontage();
 
-    /* Initialize directly the blueprint variable "OwningEnemy" from this method 
-    * Used for now because there's no way to directly a direct reference to FSEnemy in widget blueprint
-    */
-    void InitializeLifeBarWidgetRef();
+    UFUNCTION()
+    virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) override;
 
-    /** Called by HitboxComponent (UHitboxComponent)
-    * Called upon target hit
-    * Applies damage, hitstop, vfx, sfx and cameraShake
+    // === AIRSTALL ===
+
+    UPROPERTY()
+    FTimerHandle AirStallTimer;
+
+    /** Activates airstall for this instance 
+    * Flying movement mode is activated for airStallDuration
+    * then setting back up to falling mode
     */
-    void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation);
+    void StartAirStall(float airStallDuration);
 };

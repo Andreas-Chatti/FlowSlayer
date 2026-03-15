@@ -9,7 +9,7 @@ AFSProjectile::AFSProjectile()
     CollisionComponent->InitSphereRadius(15.0f);
     CollisionComponent->SetCollisionObjectType(ECC_GameTraceChannel1);
     CollisionComponent->SetCollisionProfileName(TEXT("Projectile"));
-    CollisionComponent->OnComponentHit.AddDynamic(this, &AFSProjectile::OnHit);
+    CollisionComponent->OnComponentHit.AddDynamic(this, &AFSProjectile::HandleOnHit);
     RootComponent = CollisionComponent;
 
     // Mesh visuel
@@ -50,7 +50,7 @@ void AFSProjectile::FireInDirection(const FVector& ShootDirection)
     ProjectileMovement->Velocity = ShootDirection * ProjectileMovement->InitialSpeed;
 }
 
-AFSProjectile* AFSProjectile::SpawnProjectile(UWorld* world, AActor* owner, TSubclassOf<AFSProjectile> projectileClass,
+AFSProjectile* AFSProjectile::SpawnProjectile(UWorld* world, AActor* owner, AActor* target, TSubclassOf<AFSProjectile> projectileClass,
     FVector spawnLocation, FRotator spawnRotation)
 {
     if (!world || !owner || !projectileClass)
@@ -67,20 +67,25 @@ AFSProjectile* AFSProjectile::SpawnProjectile(UWorld* world, AActor* owner, TSub
         SpawnParams
     ) };
 
+    if (projectile)
+    {
+        FVector targetLocation{ target->GetActorLocation() };
+        FVector ShootDirection{ (targetLocation - spawnLocation).GetSafeNormal() };
+        projectile->FireInDirection(ShootDirection);
+    }
+
     return projectile;
 }
 
-void AFSProjectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+void AFSProjectile::HandleOnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
 {
-    //DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
+    if (DebugLines)
+        DrawDebugSphere(GetWorld(), Hit.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
 
     if (!OtherActor || OtherActor == Owner)
         return;
 
-    IFSDamageable* damageable{ Cast<IFSDamageable>(OtherActor) };
-    bool isPlayer{ OtherActor->ActorHasTag("Player") };
-    if (damageable && isPlayer)
-        damageable->ReceiveDamage(Damage, Owner);
+    OnFSProjectileHit.ExecuteIfBound(OtherActor, Hit.ImpactPoint);
 
     SpawnHitVFX(Hit.ImpactPoint);
 

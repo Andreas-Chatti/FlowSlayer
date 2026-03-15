@@ -17,32 +17,20 @@
 #include "FSWeapon.h"
 #include "Public/FSDamageable.h"
 #include "Public/FSCombatComponent.h"
+#include "Public/CombatData.h"
 #include "Public/FSLockOnComponent.h"
 #include "Public/FSFlowComponent.h"
 #include "Public/DashComponent.h"
+#include "Public/HealthComponent.h"
+#include "Public/InputManagerComponent.h"
 #include "Components/WidgetComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
-class USpringArmComponent;
-class UCameraComponent;
-class UInputMappingContext;
-class UInputAction;
-struct FInputActionValue;
+/** Broadcasted when an attack animation cancel window opens and the player inputs a cancel action (dash or jump) */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAnimationCanceled);
 
-UENUM(BlueprintType)
-	enum class EActionType : uint8
-{
-	NONE,
-	Jump,
-	Dash,
-	Move
-};
-
-/** Delegate for animations cancel window OPEN and CLOSE */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, EActionType, actionType);
-
-/* Delegate for handling damage taken from any source */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDamageTaken, float, damageAmount, AActor*, damageDealer);
+/** Broadcasted on this player's death */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerDeath, AFlowSlayerCharacter*, player);
 
 DECLARE_LOG_CATEGORY_EXTERN(LogTemplateCharacter, Log, All);
 
@@ -51,16 +39,12 @@ class FLOWSLAYER_API AFlowSlayerCharacter : public ACharacter, public IFSDamagea
 {
 	GENERATED_BODY()
 
-public:
-
-	/** Called during an animation cancel window if the player has tried to dash or jump */
-	UPROPERTY(BlueprintAssignable, Category = "Combat")
-	FOnAnimationCanceled OnAnimationCanceled;
-
-	/** Broadcasted when the player has received damage */
-	FOnDamageTaken OnDamageTaken;
-
+	////////////////////////////////////////////////
+	// COMPONENTS
+	////////////////////////////////////////////////
 private:
+
+	// --- Camera ---
 
 	/** Camera boom positioning the camera behind the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
@@ -70,307 +54,218 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	UCameraComponent* FollowCamera;
 
-	/** Combat component class */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
-	UFSCombatComponent* CombatComponent;
-
-	/** Flow component class */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
-	UFSFlowComponent* FlowComponent;
-
-	/** Lock-On component class */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
-	UFSLockOnComponent* LockOnComponent;
-
-	/** Motion warping component class */
+	/** Handles motion warp targets for attack animations */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Animations, meta = (AllowPrivateAccess = "true"))
 	UMotionWarpingComponent* MotionWarpingComponent;
 
-	/** Dash component class */
+	// --- Gameplay ---
+
+	/** Handles all combat logic: combos, attack execution, hit detection */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UFSCombatComponent* CombatComponent;
+
+	/** Manages the Flow/Momentum resource system */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UFSFlowComponent* FlowComponent;
+
+	/** Handles lock-on targeting logic */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UFSLockOnComponent* LockOnComponent;
+
+	/** Handles dash movement and dash cooldown */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	UDashComponent* DashComponent;
 
-	/** Default MappingContext */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputMappingContext* DefaultMappingContext;
+	/** Manages player health and death */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UHealthComponent* HealthComponent;
 
-	/** Jump Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* JumpAction;
+	/** Handles all Enhanced Input bindings and fires input delegates */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
+	UInputManagerComponent* InputManagerComponent;
 
-	/** Move Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* MoveAction;
-
-	/** Look Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* LookAction;
-
-	/** Dash Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* DashAction;
-
-	// ========== ATTACK INPUT ACTIONS ==========
-	// NOTE: Simplified to base actions only - variants detected via LMB/RMB and direction in callbacks
-	// ===========================================
-
-	/** LMB - Light attack */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* LightAttackAction;
-
-	/** RMB - Heavy attack */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* HeavyAttackAction;
-
-	/** A + LMB/RMB - Launcher attacks (Launcher, PowerLauncher) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* LauncherAttackAction;
-
-	/** E + LMB/RMB - Spin attacks (SpinAttack, HorizontalSweep) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* SpinAttackAction;
-
-	/** F input key - Forward power attacks (PierceThrust, PowerSlash) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* ForwardPowerAttackAction;
-
-	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* ToggleLockOnAction;
-
-	/** Callback called when player dashed or jumped sucessfully in the animation cancel window during an attack animation */
-	UFUNCTION()
-	void HandleOnAnimationCanceled(EActionType actionType);
-
-	/** Callback called when lock-on starts */
-	void HandleOnLockOnStarted(AActor* lockedOnTarget);
-
-	/** Callback called when lock-on is stopped or interrupted in any way */
-	void HandleOnLockOnStopped();
+	////////////////////////////////////////////////
+	// CACHED REFERENCES
+	////////////////////////////////////////////////
 
 	/** Cached AnimInstance reference */
 	UPROPERTY()
 	UAnimInstance* AnimInstance;
 
-	/** Cached PlayerController reference */
-	UPROPERTY()
-	APlayerController* PlayerController{ nullptr };
+	////////////////////////////////////////////////
+	// UI
+	////////////////////////////////////////////////
 
 	/** Main HUD widget class */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI", meta = (AllowPrivateAccess = "true"))
 	TSubclassOf<UUserWidget> HUDWidgetClass;
 
-	/** Instance du HUD widget */
+	/** Current HUD widget instance */
 	UPROPERTY()
 	UUserWidget* HUDWidgetInstance{ nullptr };
+
+	/** Spawns and adds the HUD widget to the viewport */
+	void InitializeHUD();
 
 public:
 
 	AFlowSlayerCharacter();
 
-	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
-	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+	// --- Lifecycle ---
 
-	virtual bool IsDead() const override { return bIsDead; }
-
-	virtual void ReceiveDamage(float DamageAmount, AActor* DamageDealer) override;
-
+	/** Prevents jumping while the player is currently executing an attack */
 	virtual bool CanJumpInternal_Implementation() const override;
 
-	UFUNCTION(BlueprintCallable)
-	virtual float GetCurrentHealth() const override { return CurrentHealth; }
+	// --- Queries ---
 
-	virtual float GetMaxHealth() const override { return MaxHealth; }
-
+	/** Returns true if the character is currently moving */
 	UFUNCTION(BlueprintCallable)
 	bool IsMoving() const { return GetCharacterMovement()->Velocity.Length() > 0; }
 
+	/** Returns the current movement speed */
 	UFUNCTION(BlueprintPure, Category = "Movement")
 	float GetSpeed() const { return GetCharacterMovement()->Velocity.Size(); }
 
-	UFUNCTION(BlueprintCallable)
-	bool HasMovementInput() const { return bHasMovementInput; }
+	/** Returns true if the character is currently executing an attack */
+	UFUNCTION(BlueprintPure, Category = "Combat")
+	bool IsAttacking() const { return CombatComponent->IsAttacking(); }
+
+	// --- Camera accessors ---
+
+	FORCEINLINE class USpringArmComponent* GetCameraBoom() const { return CameraBoom; }
+	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
+
+	// --- Component accessors ---
 
 	UFSCombatComponent* GetCombatComponent() const { return CombatComponent; }
-
 	UDashComponent* GetDashComponent() const { return DashComponent; }
+	virtual UHealthComponent* GetHealthComponent() override { return HealthComponent; }
+	UInputManagerComponent* GetInputManagerComponent() const { return InputManagerComponent; }
+
+	// --- Delegates ---
+
+	/** Broadcasted on this player's death */
+	FOnPlayerDeath OnPlayerDeath;
+
+	/** Broadcasted when this player gets hit */
+	FOnHitReceived OnHitReceived;
+
+	/** Fired when an animation cancel window opens and the player inputs a cancel action */
+	UPROPERTY(BlueprintAssignable, Category = "Combat")
+	FOnAnimationCanceled OnAnimationCanceled;
 
 protected:
 
-	/** Is player currently giving movement input? (for ABP) */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	bool bHasMovementInput{ false };
+	// --- Lifecycle ---
 
-	/** If the last fall was cause by a jump */
-	UPROPERTY(BlueprintReadOnly, Category = "Movement")
-	bool bWasJumpFall{ false };
+	virtual void BeginPlay() override;
 
-	/** Was jump input pressed recently? (cleared after short delay) */
-	bool bWantsToJump{ false };
+	/** Registers all Enhanced Input bindings via InputManagerComponent */
+	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
-	/** Timer to clear bWantsToJump */
-	FTimerHandle JumpInputWindowTimer;
+	/** Called by HealthComponent when the player's HP reaches 0 */
+	virtual void HandleOnDeath();
 
-	/** How long Jump input stays "active" for cancel detection */
-	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	float JumpInputWindowDuration{ 0.2f }; // 200ms
+	// --- Movement speed thresholds ---
 
-	void ClearJumpInput() { bWantsToJump = false; }
-
-public:
-
-	bool WantsToJump() const { return bWantsToJump; }
-
-protected:
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
-	float MaxFlow{ 100.f };
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "PlayerStats")
-	float MaxHealth{ 100.f };
-
-	/** Is Player Dead ?*/
-	UPROPERTY(BlueprintReadOnly)
-	bool bIsDead{ false };
-
-	/** Max speed until player change into run state */
+	/** Speed at which the character transitions from walk to run animation */
 	UPROPERTY(BlueprintReadOnly)
 	float WalkSpeedThreshold{ 300.f };
 
-	/** Max speed until player change into sprint state 
-	* Above this speed, the player will sprint until capped max speed value GetCharacterMovement()->MaxWalkSpeed
+	/** Speed at which the character transitions from run to sprint
+	* Also used as MaxWalkSpeed while locked on
 	*/
 	UPROPERTY(BlueprintReadOnly)
 	float RunSpeedThreshold{ 600.f };
 
-	/* Max speed of the player 
-	* Cannot go faster then this
-	*/
+	/** Maximum movement speed of the player */
 	UPROPERTY(BlueprintReadOnly)
 	float SprintSpeedThreshold{ 900.f };
 
-	/** Used to know Player Input to determine the direction the character should go */
-	UPROPERTY(BlueprintReadOnly)
-	FVector2D MoveInputAxis{ 0.0, 0.0 };
+	// --- IFSDamageable interface ---
 
-public:
-
-	FVector2D GetMoveInputAxis() const { return MoveInputAxis; }
-
-	UFUNCTION(BlueprintPure, Category = "Combat")
-	bool IsAttacking() const { return CombatComponent->isAttacking(); }
-
-protected:
-
-	/** Called for movement input */
-	void Move(const FInputActionValue& Value);
-
-	/** Called when movement input is released */
-	void StopMoving(const FInputActionValue& Value);
-
-	/** Called for looking input */
-	void Look(const FInputActionValue& Value);
-
-	/** Called for dashing input */
-	void Dash(const FInputActionValue& Value);
-
-	/** Called for attack input (RIGHT or LEFT click) */
-	void OnAttackTriggered(EAttackType attackType);
-
-	/*
-	* LEFT and RIGHT click input management 
+	/** Called when this character receives a hit from a melee attack
+	* Applies damage, knockback, hitstop, VFX, SFX and camera shake
 	*/
+	UFUNCTION()
+	void HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack);
 
-	/** Timer input buffer */
-	UPROPERTY()
-	FTimerHandle InputBufferTimer;
-
-	/** Delay before the input trigger the related events */
-	static constexpr float InputBufferDelay{ 0.05f };
-
-	/** Helper to query mouse button states (returns pair: {isLMBPressed, isRMBPressed}) */
-	TPair<bool, bool> GetMouseButtonStates() const;
-
-	/** Helper to know if a specific key is PRESSED or was just PRESSED 
-	* @param inputKey we want to know the state
-	* @return TRUE if the specific key has been either pressed or is currently pressed
-	*/
-	bool GetInputKeyState(FKey inputKey) const;
-
-	/** Called ONCE, when LEFT click is PRESSED */
-	void OnLeftClickStarted(const FInputActionInstance& Value);
-
-	/** Called ONCE, when RIGHT click is PRESSED */
-	void OnRightClickStarted(const FInputActionInstance& Value);
-
-	/** LSHIFT + MoveAction input + LMB / RMB
-	* DashAttackAction clicked state
-	*/
-	void OnDashAttackActionStarted();
-
-	/** SPACE + LMB / RMB
-	* JumpAttackAction clicked state
-	*/
-	void OnJumpAttackActionStarted();
-
-	/** A + LMB / RMB
-	* LauncherAction clicked state
-	*/
-	void OnLauncherActionStarted(const FInputActionInstance& Value);
-
-	/** E / E + RMB
-	* SpinAttackAction clicked state
-	*/
-	void OnSpinAttackActionStarted(const FInputActionInstance& Value);
-
-	/** Z + RMB / Z + LMB
-	* ForwardPowerAction clicked state
-	*/
-	void OnForwardPowerActionStarted(const FInputActionInstance& Value);
-
-	/** S + RMB / S + LMB
-	* SlamAction clicked state
-	*/
-	void OnSlamActionStarted();
-
-	/** Switch Player's movement mode
-	* Normal mode : Character is rotating directly on move direction input
-	* Combat mode : Character is focused on wherever the player's camera is looking at
-	*/
-	void ToggleLockOn(const FInputActionInstance& Value);
-
-	// APawn interface
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
-	virtual void BeginPlay() override;
-
-	void Ragdoll();
-	void DisableAllInputs();
-
+	////////////////////////////////////////////////
+	// CALLBACKS
+	////////////////////////////////////////////////
 private:
 
-	float CurrentHealth{};
-
-	/** Minimum velocity required in order to use Dash */
-	static constexpr float MIN_DASH_VELOCITY{ 10.0f };
-
-	void Die();
-
-	virtual void Jump() override;
-
-	bool bHasPressedJump{ false };
-
-	/* 
-	* Make the player not take any damage
-	* FOR DUBUG / TESTING ONLY
-	*/
-	UPROPERTY(EditAnywhere, Category = "Debug")
-	bool bInvincibility{ false };
-
+	/** Called when the animation cancel window opens and the player inputs a cancel action */
 	UFUNCTION()
-	virtual void Falling() override;
+	void HandleOnAnimationCanceled();
 
-	/** Initialize Player HUD on BeginPlay */
-	void InitializeHUD();
+	/** Called when lock-on engages on a target */
+	void HandleOnLockOnStarted(AActor* lockedOnTarget);
+
+	/** Called when lock-on is disengaged or interrupted in any way */
+	void HandleOnLockOnStopped();
+
+	/** Called by CombatComponent when an attack successfully lands on a target */
+	UFUNCTION()
+	void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation, const FAttackData& usedAttack);
+
+	/** IFSDamageable interface - broadcasts OnHitReceived when this character is hit */
+	UFUNCTION()
+	virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) override;
+
+	////////////////////////////////////////////////
+	// INPUT
+	////////////////////////////////////////////////
+
+	/** Toggles lock-on ON/OFF if a valid target is within range */
+	void ToggleLockOn() const;
+
+	// --- Input delegate handlers ---
+	// Bound to InputManagerComponent delegates in the constructor.
+	// Each handler reads input state and calls OnAttackTriggered with the resolved EAttackType.
+
+	/** LSHIFT - Starts a dash and optionally triggers a dash attack if LMB/RMB is held */
+	void OnDashAction();
+
+	/** LMB - Dispatches to the correct light attack getter based on current state */
+	void OnLeftClickAction();
+
+	/** RMB - Dispatches to the correct heavy attack getter based on current state */
+	void OnRightClickAction();
+
+	/** A + LMB/RMB - Resolves and triggers Launcher or PowerLauncher */
+	void OnLauncherAction();
+
+	/** E + LMB/RMB - Resolves and triggers SpinAttack or HorizontalSweep */
+	void OnSpinAttackAction();
+
+	/** F + Z/S - Resolves and triggers PierceThrust or PowerSlash */
+	void OnForwardPowerAction();
+
+	// --- Attack type getters ---
+	// Pure input-reading functions that return the correct EAttackType.
+	// Never call OnAttackTriggered directly — that is the caller's responsibility.
+
+	/** LSHIFT + LMB/RMB - Returns the correct dash attack based on direction and mouse button */
+	EAttackType GetDashAttackFromInput();
+
+	/** SPACE + LMB/RMB (or while airborne) - Returns the correct air attack type */
+	EAttackType GetJumpAttackFromInput();
+
+	/** S + LMB/RMB - Returns DiagonalRetourne or GroundSlam */
+	EAttackType GetSlamAttackFromInput();
+
+	/** A + LMB/RMB - Returns Launcher or PowerLauncher */
+	EAttackType GetLauncherAttackFromInput();
+
+	/** E + LMB/RMB - Returns SpinAttack or HorizontalSweep */
+	EAttackType GetSpinAttackFromInput();
+
+	/** F + Z/S - Returns PierceThrust or PowerSlash */
+	EAttackType GetForwardPowerAttackFromInput();
+
+	// --- Attack trigger ---
+
+	/** Forwards the resolved attack type to CombatComponent with the current movement context */
+	void OnAttackTriggered(EAttackType attackType);
 };
-

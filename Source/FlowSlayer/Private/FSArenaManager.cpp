@@ -63,7 +63,7 @@ void AFSArenaManager::TrySpawnEnemy()
 	{
 		TotalSpawned++;
 		AliveEnemyCount++;
-		spawnedEnemy->OnEnemyDeath.AddUObject(this, &AFSArenaManager::HandleOnEnemyDeath);
+		spawnedEnemy->OnEnemyDeath.AddUniqueDynamic(this, &AFSArenaManager::HandleOnEnemyDeath);
 
 		UE_LOG(LogTemp, Log, TEXT("[FSArenaManager] Enemy spawned. Alive: %d/%d, Spawned: %d/%d"),
 			AliveEnemyCount, CurrentMaxAlive, TotalSpawned, TotalEnemiesToSpawn);

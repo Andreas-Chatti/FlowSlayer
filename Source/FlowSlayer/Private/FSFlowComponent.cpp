@@ -14,7 +14,7 @@ void UFSFlowComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 		RemoveFlow(DecayRate * DeltaTime);
 }
 
-void UFSFlowComponent::OnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward)
+void UFSFlowComponent::HandleOnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward)
 {
 	AddFlow(flowReward);
 }
@@ -104,7 +104,7 @@ void UFSFlowComponent::ConsumeFlow(float amount)
 	RemoveFlow(amount);
 }
 
-void UFSFlowComponent::OnPlayerHit(float damageAmount, AActor* damageDealer)
+void UFSFlowComponent::OnPlayerHit(AActor* instigator, float damageAmount, float currentHealth, float maxHealth)
 {
 	RemoveFlow(damageAmount / 2.f);
 }

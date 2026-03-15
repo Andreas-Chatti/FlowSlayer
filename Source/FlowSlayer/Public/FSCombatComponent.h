@@ -4,20 +4,13 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/ActorComponent.h"
 #include "Kismet/GameplayStatics.h"
-#include "Particles/ParticleSystem.h"
-#include "Sound/SoundBase.h"
-#include "Camera/CameraShakeBase.h"
 #include "Logging/LogMacros.h"
 #include "FSWeapon.h"
 #include "CombatData.h"
 #include "FSDamageable.h"
 #include "HitboxComponent.h"
-#include "MotionWarpingComponent.h"
-#include "EnhancedInputLibrary.h"
-#include "NiagaraComponent.h"
-#include "NiagaraFunctionLibrary.h"
+#include "HitFeedbackComponent.h"
 #include "Kismet/KismetMathLibrary.h"
-#include "Camera/CameraComponent.h"
 #include "FSCombatComponent.generated.h"
 
 class USoundBase;
@@ -25,15 +18,8 @@ class UParticleSystem;
 class UCameraShakeBase;
 
 /** Delegates for combo window management - broadcasted by AnimNotifyState_ComboWindow */
-DECLARE_MULTICAST_DELEGATE(FOnComboWindowOpened);
-DECLARE_MULTICAST_DELEGATE(FOnComboWindowClosed);
-
-/** Delegates for AirCombo air stall - broadcasted by AirStallNotify */
-DECLARE_MULTICAST_DELEGATE(FOnAirStallStarted);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnAirStallFinished, float gravityScale);
-
-/** Delegate broadcasted when a successfull hit landed on an enemy target */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_FourParams(FOnHitLanded, AActor*, actorHit, const FVector&, hitLocation, float, damageAmount, float, flowReward);
+DECLARE_DELEGATE(FOnComboInputWindowOpened);
+DECLARE_DELEGATE(FOnComboInputWindowClosed);
 
 /** Delegate broadcasted when any attack starts or ends */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAttackingStarted);
@@ -69,21 +55,14 @@ public:
     /** Combo window delegates
     * Broadcasted by ComboWindow notify state class to notify combo window open/close events
     */
-    FOnComboWindowClosed OnComboWindowClosed;
-    FOnComboWindowOpened OnComboWindowOpened;
-
-    /** Air stall for air combos
-    * Broadcasted by AirStallNotify to start an air stall for an air combo
-    * Stop the air stall at the end
-    */
-    FOnAirStallStarted OnAirStallStarted;
-    FOnAirStallFinished OnAirStallFinished;
+    FOnComboInputWindowOpened OnComboInputWindowOpened;
+    FOnComboInputWindowClosed OnComboInputWindowClosed;
 
     /** Hit landed delegate 
     * Broadcasted by OnHitLanded() when an sucessfull hit has been landed on an enemy target
     */
     UPROPERTY(BlueprintAssignable)
-    FOnHitLanded OnHitLandedNotify;
+    FOnHitLanded OnHitLanded;
 
     /** Broadcasted when a new hit streak begins (first hit) */
     UPROPERTY(BlueprintAssignable)
@@ -116,7 +95,13 @@ public:
     const FCombo* GetOngoingCombo() const { return OngoingCombo; }
 
     /** @return Current used attack in the current combo */
-    const FAttackData* GetOngoingAttack() const { return OngoingCombo->GetAttackAt(ComboIndex - 1); }
+    const FAttackData* GetOngoingAttack() const 
+    { 
+        if (OngoingCombo)
+            return OngoingCombo->GetAttackAt(ComboIndex);
+        else
+            return nullptr;
+    }
 
 private:
 
@@ -138,12 +123,9 @@ private:
 public:
 
     /** Called for attacking input */
-    void Attack(EAttackType attackType, bool isMoving, bool isFalling);
+    void OnAttackInputReceived(EAttackType attackType);
 
-    bool isAttacking() const { return bIsAttacking; }
-
-    /** Enable or disable bIsAttacking flag */
-    void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
+    bool IsAttacking() const { return bIsAttacking; }
 
     /** Returns whether we're currently chaining to a new combo */
     bool GetChainingToNewCombo() const { return bChainingToNewCombo; }
@@ -156,6 +138,8 @@ public:
 
     const UHitboxComponent* GetHitboxComponent() const { return HitboxComponent; }
 
+    UHitFeedbackComponent* GetHitFeedbackComponent() const { return HitFeedBackComponent; }
+
 protected:
 
     virtual void BeginPlay() override;
@@ -165,20 +149,16 @@ protected:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat")
     TSubclassOf<AFSWeapon> weaponClass;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat VFX")
-    UMaterialInterface* HitFlashMaterial;
-
-    void ApplyHitFlash(AActor* hitActor);
-
     UPROPERTY(EditDefaultsOnly)
     UDataTable* AttackDataTable;
 
     UPROPERTY(VisibleAnywhere)
     UHitboxComponent* HitboxComponent;
 
-public:
+    UPROPERTY(VisibleAnywhere)
+    UHitFeedbackComponent* HitFeedBackComponent;
 
-    AActor* GetNearestEnemyFromPlayer(float distanceRadius, bool debugLines = false) const;
+public:
 
     // === HIT REACTION ===
 
@@ -187,73 +167,7 @@ public:
     * Applies damage, hitstop, vfx, sfx and cameraShake
     */
     UFUNCTION(BlueprintCallable, Category = "Combat")
-    void OnHitLanded(AActor* hitActor, const FVector& hitLocation);
-
-    // === DAMAGE ===
-
-    void ApplyDamage(AActor* target, AActor* instigator, float damageAmount);
-
-    // === KNOCKBACK ===
-
-    void ApplyKnockback(AActor* target, float KnockbackForce = 0.f, float UpKnockbackForce = 0.f);
-
-    // === HITSTOP ===
-
-    /** Freeze duration */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float hitstopDuration{ 0.25f };
-
-    /** Player Hitstop dilation on hit */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float PlayerHitstopTimeDilation{ 0.75f };
-
-    /** Enemy Hitstop dilation on hit */
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Hitstop")
-    float EnemyHitstopTimeDilation{ 0.35f };
-
-    void ApplyHitstop(AActor* hitActor);
-
-    /** Applies hit shake to a specific target */
-    void ApplyHitShake(USkeletalMeshComponent* hitActorMesh, float shakeSpeed, float shakeAmplitude);
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
-    float ShakeSpeed{ 30.f };
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
-    float EnemyShakeAmplitude{ 20.f };
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Combat HitShake")
-    float PlayerShakeAmplitude{ 1.f };
-
-    /** Player HitShake Timer */
-    UPROPERTY()
-    FTimerHandle PlayerHitShakeTimer;
-
-    /** Enemy HitShake Timer */
-    UPROPERTY()
-    FTimerHandle EnemyHitShakeTimer;
-
-    // === VFX ===
-
-    /** Hit Particules VFX */
-    UPROPERTY(EditDefaultsOnly, Category = "VFX")
-    TArray<UNiagaraSystem*> hitParticlesSystemArray;
-
-    void SpawnHitVFX(const FVector& location);
-
-    // === SFX ===
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat SFX")
-    USoundBase* hitSound{ nullptr };
-
-    void PlayHitSound(const FVector& location);
-
-    // === CAMERA SHAKE ===
-
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Combat Camera")
-    TSubclassOf<UCameraShakeBase> hitCameraShake;
-
-    void ApplyCameraShake();
+    void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
     const AFSWeapon* GetEquippedWeapon() const { return equippedWeapon; }
 
@@ -275,23 +189,11 @@ private:
     UPROPERTY()
     UAnimInstance* AnimInstance;
 
-    /** Cached MotionWarpingComponent reference */
-    UPROPERTY()
-    UMotionWarpingComponent* MotionWarpingComponent;
-
     /** Current locked-on target reference
     * nullptr if there's no target locked-on
     */
     UPROPERTY()
     AActor* LockedOnTarget;
-
-    UPROPERTY()
-    FTimerHandle hitstopTimerHandle;
-
-    UFUNCTION()
-    void OnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
-
-    void ResetTimeDilation(TWeakObjectPtr<AActor> hitActor);
 
     bool InitializeAndAttachWeapon();
 
@@ -333,31 +235,6 @@ private:
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AirCombo;
 
-    /** Called when an air attack hits an enemy
-    * Sets both player and enemy to Flying mode for air combo window
-    */
-    void OnAirAttackHit(AActor* hitEnemy);
-
-    /** Freezes an enemy in mid-air by disabling gravity and stopping movement
-    * @param enemyMovement The enemy's movement component to freeze
-    */
-    void FreezeEnemyInAir(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement);
-
-    /** Schedules an enemy to unfreeze after a delay, restoring normal falling physics
-    * @param enemyMovement The enemy's movement component to unfreeze
-    * @param delay Time in seconds before unfreezing the enemy
-    */
-    void ScheduleEnemyUnfreeze(TWeakObjectPtr<UCharacterMovementComponent> enemyMovement, float delay);
-
-    /** Detects when a launched enemy reaches trajectory peak and freezes them for air combo window
-    * Uses a looping timer to check velocity and height until peak is detected
-    * @param enemy The enemy actor to track
-    * @param enemyMovement The enemy's movement component
-    * @param maxHeight Maximum allowed height gain before forcing freeze (safety limit)
-    * @param freezeDuration How long to keep the enemy frozen for combo window
-    */
-    void FreezeEnemyAtTrajectoryPeak(AActor* enemy, UCharacterMovementComponent* enemyMovement, float maxHeight, float freezeDuration);
-
     /** SPACE + LMB air attack */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo JumpSlamAttack;
@@ -373,12 +250,6 @@ private:
     /** A + LMB clean launcher */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo LauncherAttack;
-
-    /** Called when launcher attack hits an enemy
-    * Detects trajectory peak and freezes enemy in air for combo window
-    * @param hitEnemy The enemy actor that was hit by the launcher
-    */
-    void OnLauncherAttackHit(AActor* hitEnemy);
 
     /** A + RMB power launcher */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
@@ -434,7 +305,7 @@ private:
 
     /** Can the player input continue the combo? Set by AnimNotify_ComboWindow */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
-    bool bComboWindowOpened{ false };
+    bool bComboInputWindowOpen{ false };
 
     /** Can the player input continue the combo? Set by AnimNotify_ComboWindow */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combo", meta = (AllowPrivateAccess = "true"))
@@ -454,44 +325,31 @@ private:
     // === FUNCTIONS ===
 
     /** Select the correct Combo based on the current player's state (moving, falling, attack type) */
-    FCombo* SelectComboBasedOnState(EAttackType attackType, bool isMoving, bool isFalling);
-
-    /** Get the next attack montage in the combo sequence */
-    UAnimMontage* GetComboNextAttack(const FCombo& combo);
+    FCombo* GetComboFromContext(EAttackType attackType);
 
     /** Advances to the next attack in the combo sequence */
     void ContinueCombo();
+
+    /* Execute the anim montage attack and the ongoingAttack delegates */
+    void ExecuteAttack(UAnimMontage* attackMontage);
+
+    /** Called when a valid attack input is received during an opened combo input window */
+    void OnComboWindowInputReceived(EAttackType attackType);
 
     /** Resets all combo state variables to their default values */
     void ResetComboState();
 
     // === COMBO WINDOW HANDLERS (Bound to delegates in BeginPlay) ===
 
-    /** Called when MODULAR combo window opens via delegate broadcast */
-    void HandleComboWindowOpened();
+    /** Called when combo input window opens via delegate broadcast */
+    void HandleComboInputWindowOpened();
 
-    /** Called when MODULAR combo window closes via delegate broadcast */
-    void HandleComboWindowClosed();
-
-    /** Called to start an air stall
-    * Used for air combos
-    */
-    void HandleAirStallStarted();
-
-    /** Called to stop an air stall
-    * Used for air combos
-    */
-    void HandleAirStallFinished(float gravityScale);
+    /** Called when combo input window closes via delegate broadcast */
+    void HandleComboInputWindowClosed();
 
     /** Called when the character has landed on the ground */
     UFUNCTION()
     void HandleOnLanded(const FHitResult& Hit);
-
-    /** GravityScale during air stall
-    * Lower value means less gravity = player staying in the air longer
-    */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-    float AirStallGravity{ 0.3f };
 
     /** Whether the play can do an Air attack while in the air
     * Used mainly to track if the player already did an air attack
@@ -499,58 +357,9 @@ private:
     */
     bool bCanAirAttack{ true };
 
-    /** Helper to get the target for motion warping
-    * Prioritizes locked-on target if within radius, otherwise finds nearest enemy
-    * @param searchRadius Maximum detection radius
-    * @param debugLines Whether to show debug lines
-    * @return Target actor or nullptr if none found
-    */
-    AActor* GetTargetForMotionWarp(float searchRadius, bool debugLines = false);
-
-    /** Setup motion warp for air-based attacks (launcher, air combos, aerial slams)
-    *
-    * Creates a motion warp target toward the nearest enemy and synchronizes Flying movement mode
-    * with the animation's MotionWarp notify state to allow smooth aerial tracking.
-    *
-    * @param notifyStartTime When the MotionWarp notify state STARTS in the animation montage (seconds).
-    *                        MOVE_Flying is activated at this exact moment to disable gravity.
-    *
-    * @param notifyEndTime When the MotionWarp notify state ENDS in the animation montage (seconds).
-    *                      MOVE_Falling is restored at this exact moment to re-enable gravity.
-    *
-    * @param zOffset Vertical offset added to enemy position (positive = higher, negative = lower).
-    *                Use this to aim above the enemy (e.g., 150.f for launcher attacks).
-    *
-    * @param forwardOffset Forward distance added in front of the player's facing direction.
-    *                      Use this to land slightly in front of the enemy instead of directly on them.
-    *
-    * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
-    *                     Defaults to 250.f. Motion warp is skipped if no enemy is found within radius.
-    */
-    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, AActor* targetActor, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
-
-    /** Overload version */
-    void SetupAirAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float zOffset = 0.f, float forwardOffset = 0.f, bool debugLines = false);
-
-    /** Setup motion warp for ground-based attacks (dash attacks, launcher ground phase)
-    *
-    * Creates a motion warp target toward the nearest enemy for ground tracking.
-    * Unlike air attacks, this does NOT change movement mode (stays in MOVE_Walking).
-    *
-    * @param notifyStartTime When the MotionWarp notify state STARTS in the animation montage (seconds).
-    * @param notifyEndTime When the MotionWarp notify state ENDS in the animation montage (seconds).
-    * @param forwardOffset Forward distance added in front of the player's facing direction.
-    * @param searchRadius Maximum detection radius from player position to find the nearest enemy (cm).
-    * @param motionWarpingTargetName Name of the warp target to create (must match notify state).
-    */
-    void SetupGroundAttackMotionWarp(FName motionWarpingTargetName, float notifyStartTime, float notifyEndTime, float searchRadius, bool debugLines = false, float forwardOffset = 0.f);
-
     /** Transitions from current combo to a different pending combo
     * Replaces the ongoing combo with the pending combo and starts it from the first attack
     * Used when chaining between different combo types (e.g., StandingLight -> RunningHeavy)
     */
     void ChainingToNextCombo();
-
-    /** Rotate the player character to where camera is looking at */
-    void RotatePlayerToPlayerView();
 };

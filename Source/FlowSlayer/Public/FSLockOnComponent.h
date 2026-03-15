@@ -54,7 +54,7 @@ public:
 	* @return TRUE if successfully switched to new target, FALSE otherwise
 	*/
 	UFUNCTION(BlueprintCallable)
-	bool SwitchLockOnTarget(float axisValueX);
+	void SwitchLockOnTarget(float axisValueX);
 
 	/** Stop the lock-on */
 	void DisengageLockOn();

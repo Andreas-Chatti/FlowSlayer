@@ -53,7 +53,7 @@ public:
 	 * At Max tier, flow loss is deferred behind an immunity window instead of applied immediately.
 	 */
 	UFUNCTION()
-	void OnPlayerHit(float damageAmount, AActor* damageDealer);
+	void OnPlayerHit(AActor* instigator, float damageAmount, float currentHealth, float maxHealth);
 
 	/** Returns the current flow tier based on the flow ratio. */
 	EFlowTier GetFlowTier() const;
@@ -74,7 +74,7 @@ public:
 	 * Extracts the flow reward from the hit and calls AddFlow().
 	 */
 	UFUNCTION()
-	void OnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward);
+	void HandleOnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward);
 
 	/** Check if the player has enough flow based on the flow cost of an ability */
 	UFUNCTION(BlueprintPure)

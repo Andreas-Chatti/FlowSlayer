@@ -48,13 +48,25 @@ enum class EAttackType : uint8
     AerialSlam            // RMB (airborne after launcher)
 };
 
+UENUM(BlueprintType)
+enum class EAttackDataContext : uint8
+{
+    /** Attack can only be performed on the ground */
+    Ground,
+
+    /** Attack can only be performed while airborne */
+    Air,
+
+    /** Attack can be performed on ground or airborne */
+    Any
+};
+
 /** Single attack data within a combo */
 USTRUCT(BlueprintType)
 struct FAttackData : public FTableRowBase
 {
     GENERATED_BODY()
 
-    DECLARE_DELEGATE(FOnBeforeAttack);
     DECLARE_DELEGATE(FOnAttackExecuted);
     DECLARE_DELEGATE_OneParam(FOnAttackHit, AActor* hitActor);
 
@@ -107,11 +119,11 @@ struct FAttackData : public FTableRowBase
     UPROPERTY(EditAnywhere)
     TSet<EAttackType> ChainableAttacks;
 
-    /* Called just before the attack animation plays
-    * Use for setup logic: rotation, VFX prep, state changes, etc.
-    * Can be empty
-    */
-    FOnBeforeAttack OnBeforeAttack;
+    /** Whether this attack is a ground or air attack
+     * Used to validate attack execution against the player's current movement state
+     */
+    UPROPERTY(EditAnywhere)
+    EAttackDataContext AttackContext{ EAttackDataContext::Ground };
 
     /* Attack side effect
     * An attack can have a specific effect
@@ -120,17 +132,15 @@ struct FAttackData : public FTableRowBase
     */
     FOnAttackExecuted OnAttackExecuted;
 
-    /* Called when attack hit an enemy
-    * Can be empty (no side effect)
-    */
-    FOnAttackHit OnAttackHit;
-
     // === LATER (Phase 2+) ===
     // USoundBase* HitSound;
     // UNiagaraSystem* HitVFX;
     // float CustomHitstop;
     // etc.
 };
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHitReceived, AActor*, instigatorActor, const FAttackData&, usedAttack);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnHitLanded, AActor*, hitActor, const FVector&, hitLocation, const FAttackData&, usedAttack);
 
 /**
  * Combo data structure
@@ -148,7 +158,7 @@ struct FCombo
     UPROPERTY(EditDefaultsOnly, Category = "Combo")
     TArray<FAttackData> Attacks;
 
-    /** Returns the maximum combo index (last attack index in the array) */
+    /** Returns the maximum combo index (last attack VALID index in the array) */
     int32 GetMaxComboIndex() const { return FMath::Max(0, Attacks.Num() - 1); }
 
     /** Checks if this combo data is valid and ready to use */
@@ -158,6 +168,11 @@ struct FCombo
     const FAttackData* GetAttackAt(int32 Index) const
     {
         return Attacks.IsValidIndex(Index) ? &Attacks[Index] : nullptr;
+    }
+
+    const FAttackData* GetFirstAttack() const
+    {
+        return Attacks.IsValidIndex(0) ? &Attacks[0] : nullptr;
     }
 
     /** Gets the last attack montage in the combo */
