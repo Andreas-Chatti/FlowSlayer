@@ -55,7 +55,10 @@ enum class EAttackDataContext : uint8
     Ground,
 
     /** Attack can only be performed while airborne */
-    Air
+    Air,
+
+    /** Attack can be performed on ground or airborne */
+    Any
 };
 
 /** Single attack data within a combo */
@@ -64,7 +67,6 @@ struct FAttackData : public FTableRowBase
 {
     GENERATED_BODY()
 
-    DECLARE_DELEGATE(FOnBeforeAttack);
     DECLARE_DELEGATE(FOnAttackExecuted);
     DECLARE_DELEGATE_OneParam(FOnAttackHit, AActor* hitActor);
 
@@ -123,23 +125,12 @@ struct FAttackData : public FTableRowBase
     UPROPERTY(EditAnywhere)
     EAttackDataContext AttackContext{ EAttackDataContext::Ground };
 
-    /* Called just before the attack animation plays
-    * Use for setup logic: rotation, VFX prep, state changes, etc.
-    * Can be empty
-    */
-    FOnBeforeAttack OnBeforeAttack;
-
     /* Attack side effect
     * An attack can have a specific effect
     * Called when the attack is executed
     * Can be empty (no side effect)
     */
     FOnAttackExecuted OnAttackExecuted;
-
-    /* Called when attack hit an enemy
-    * Can be empty (no side effect)
-    */
-    FOnAttackHit OnAttackHit;
 
     // === LATER (Phase 2+) ===
     // USoundBase* HitSound;

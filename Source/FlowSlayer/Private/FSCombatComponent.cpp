@@ -113,9 +113,6 @@ void UFSCombatComponent::InitializeComboAttackData()
     StandingLightCombo.Attacks[5] = *GetAttackData("StandingLight_5");
     StandingLightCombo.Attacks[6] = *GetAttackData("StandingLight_6");
 
-    for (auto& attack : StandingLightCombo.Attacks)
-        attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-
     // === STANDING HEAVY COMBO (4 attacks) ===
     StandingHeavyCombo.Attacks.SetNum(4);
     StandingHeavyCombo.Attacks[0] = *GetAttackData("StandingHeavy_0");
@@ -123,16 +120,11 @@ void UFSCombatComponent::InitializeComboAttackData()
     StandingHeavyCombo.Attacks[2] = *GetAttackData("StandingHeavy_2");
     StandingHeavyCombo.Attacks[3] = *GetAttackData("StandingHeavy_3");
 
-    for (auto& attack : StandingHeavyCombo.Attacks)
-        attack.OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-
     // === RUNNING LIGHT COMBO (3 attacks) ===
     RunningLightCombo.Attacks.SetNum(3);
     RunningLightCombo.Attacks[0] = *GetAttackData("RunningLight_0");
     RunningLightCombo.Attacks[1] = *GetAttackData("RunningLight_1");
     RunningLightCombo.Attacks[2] = *GetAttackData("RunningLight_2");
-
-    RunningLightCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === RUNNING HEAVY COMBO (3 attacks) ===
     RunningHeavyCombo.Attacks.SetNum(3);
@@ -140,17 +132,13 @@ void UFSCombatComponent::InitializeComboAttackData()
     RunningHeavyCombo.Attacks[1] = *GetAttackData("RunningHeavy_1");
     RunningHeavyCombo.Attacks[2] = *GetAttackData("RunningHeavy_2");
 
-    RunningHeavyCombo.Attacks[2].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
-
     // === DASH PIERCE ===
     DashPierceAttack.Attacks.SetNum(1);
     DashPierceAttack.Attacks[0] = *GetAttackData("DashPierce");
-    DashPierceAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === DASH SPINNING SLASH ===
     DashSpinningSlashAttack.Attacks.SetNum(1);
     DashSpinningSlashAttack.Attacks[0] = *GetAttackData("DashSpinningSlash");
-    DashSpinningSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === DASH DOUBLE SLASH ===
     DashDoubleSlashAttack.Attacks.SetNum(1);
@@ -163,27 +151,43 @@ void UFSCombatComponent::InitializeComboAttackData()
     // === JUMP SLAM ===
     JumpSlamAttack.Attacks.SetNum(1);
     JumpSlamAttack.Attacks[0] = *GetAttackData("JumpSlam");
-    JumpSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    JumpSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            if (PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying())
+                AnimInstance->Montage_JumpToSection(FName("AirStart"), AnimInstance->GetCurrentActiveMontage());
+            else if (bIsAttacking)
+                AnimInstance->Montage_JumpToSection(FName("ComboStart"), AnimInstance->GetCurrentActiveMontage());
+        });
 
     // === JUMP FORWARD SLAM ===
     JumpForwardSlamAttack.Attacks.SetNum(1);
     JumpForwardSlamAttack.Attacks[0] = *GetAttackData("JumpForwardSlam");
-    JumpForwardSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    JumpForwardSlamAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            if (PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying())
+                AnimInstance->Montage_JumpToSection(FName("AirStart"), AnimInstance->GetCurrentActiveMontage());
+            else if (bIsAttacking)
+                AnimInstance->Montage_JumpToSection(FName("ComboStart"), AnimInstance->GetCurrentActiveMontage());
+        });
 
     // === JUMP UPPER SLAM ===
     JumpUpperSlamComboAttack.Attacks.SetNum(1);
     JumpUpperSlamComboAttack.Attacks[0] = *GetAttackData("JumpUpperSlam");
-    JumpUpperSlamComboAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
+    JumpUpperSlamComboAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
+        {
+            if (PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying())
+                AnimInstance->Montage_JumpToSection(FName("AirStart"), AnimInstance->GetCurrentActiveMontage());
+            else if (bIsAttacking)
+                AnimInstance->Montage_JumpToSection(FName("ComboStart"), AnimInstance->GetCurrentActiveMontage());
+        });
 
     // === LAUNCHER ===
     LauncherAttack.Attacks.SetNum(1);
     LauncherAttack.Attacks[0] = *GetAttackData("Launcher");
-    LauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === POWER LAUNCHER ===
     PowerLauncherAttack.Attacks.SetNum(1);
     PowerLauncherAttack.Attacks[0] = *GetAttackData("PowerLauncher");
-    PowerLauncherAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === SPIN ATTACK ===
     SpinAttack.Attacks.SetNum(1);
@@ -215,27 +219,22 @@ void UFSCombatComponent::InitializeComboAttackData()
     // === HORIZONTAL SWEEP ===
     HorizontalSweepAttack.Attacks.SetNum(1);
     HorizontalSweepAttack.Attacks[0] = *GetAttackData("HorizontalSweep");
-    HorizontalSweepAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === PIERCE THRUST ===
     PierceThrustAttack.Attacks.SetNum(1);
     PierceThrustAttack.Attacks[0] = *GetAttackData("PierceThrust");
-    PierceThrustAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === POWER SLASH ===
     PowerSlashAttack.Attacks.SetNum(1);
     PowerSlashAttack.Attacks[0] = *GetAttackData("PowerSlash");
-    PowerSlashAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === DIAGONAL RETOURNE ===
     DiagonalRetourneAttack.Attacks.SetNum(1);
     DiagonalRetourneAttack.Attacks[0] = *GetAttackData("DiagonalRetourne");
-    DiagonalRetourneAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === GROUND SLAM ===
     GroundSlamAttack.Attacks.SetNum(1);
     GroundSlamAttack.Attacks[0] = *GetAttackData("GroundSlam");
-    GroundSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 
     // === AIR COMBO (3 attacks) ===
     AirCombo.Attacks.SetNum(3);
@@ -247,15 +246,12 @@ void UFSCombatComponent::InitializeComboAttackData()
     // === AERIAL SLAM ===
     AerialSlamAttack.Attacks.SetNum(1);
     AerialSlamAttack.Attacks[0] = *GetAttackData("AerialSlam");
-    AerialSlamAttack.Attacks[0].OnBeforeAttack.BindLambda([this]() { RotatePlayerToPlayerView(); });
 }
 
 
 ////////////////////////////////////////////////
 /*
-* 
 * Core combo-related methods 
-* 
 */
 ////////////////////////////////////////////////
 void UFSCombatComponent::OnAttackInputReceived(EAttackType attackType)
@@ -305,8 +301,13 @@ FCombo* UFSCombatComponent::GetComboFromContext(EAttackType attackType)
     bool bIsFlying{ PlayerOwner->GetCharacterMovement()->IsFlying() };
     bool bIsAirAttack{ (*foundCombo)->GetFirstAttack() && (*foundCombo)->GetFirstAttack()->AttackContext == EAttackDataContext::Air };
 
+    // First attack of that combo that can be performed in air and ground
+    bool bIsAirAndGroundAttack{ (*foundCombo)->GetFirstAttack() && (*foundCombo)->GetFirstAttack()->AttackContext == EAttackDataContext::Any };
+    if (bIsAirAndGroundAttack)
+        return *foundCombo;
+
     // Reject air-only attacks on ground
-    if (bIsAirAttack && !bIsFalling && !bIsFlying)
+    else if (bIsAirAttack && !bIsFalling && !bIsFlying)
         return nullptr;
 
     // Reject ground-only attacks in air
@@ -318,13 +319,9 @@ FCombo* UFSCombatComponent::GetComboFromContext(EAttackType attackType)
 
 void UFSCombatComponent::ExecuteAttack(UAnimMontage* attackMontage)
 {
-    if (OngoingCombo->GetAttackAt(ComboIndex)->OnBeforeAttack.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex)->OnBeforeAttack.Execute();
-
     PlayerOwner->PlayAnimMontage(attackMontage);
 
-    if (OngoingCombo->GetAttackAt(ComboIndex)->OnAttackExecuted.IsBound())
-        OngoingCombo->GetAttackAt(ComboIndex)->OnAttackExecuted.Execute();
+    OngoingCombo->GetAttackAt(ComboIndex)->OnAttackExecuted.ExecuteIfBound();
 }
 
 void UFSCombatComponent::CancelAttack(float blendOutTime)
@@ -385,11 +382,6 @@ void UFSCombatComponent::ChainingToNextCombo()
         return;
 
     ExecuteAttack(attackMontage);
-}
-
-void UFSCombatComponent::RotatePlayerToPlayerView()
-{
-    PlayerOwner->SetActorRotation(FRotator(0.f, PlayerOwner->GetControlRotation().Yaw, 0.f), ETeleportType::TeleportPhysics);
 }
 
 void UFSCombatComponent::ContinueCombo()
@@ -507,9 +499,6 @@ void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitL
     ComboTimeRemaining = OngoingAttackComboWindowDuration;
 
     OnHitLanded.Broadcast(hitActor, hitLocation, *currentAttack);
-
-    if (currentAttack->OnAttackHit.IsBound())
-        currentAttack->OnAttackHit.Execute(hitActor);
 
     HitFeedBackComponent->OnLandHit(hitLocation);
 
