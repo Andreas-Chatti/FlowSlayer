@@ -362,7 +362,4 @@ private:
     * Used when chaining between different combo types (e.g., StandingLight -> RunningHeavy)
     */
     void ChainingToNextCombo();
-
-    /** Rotate the player character to where camera is looking at */
-    void RotatePlayerToPlayerView();
 };
