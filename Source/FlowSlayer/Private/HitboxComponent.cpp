@@ -21,19 +21,22 @@ void UHitboxComponent::HandleActiveFrameStarted(const FHitboxProfile* hitboxProf
     if (!hitboxProfile)
         return;
 
+    bool bActiveDebugsLines{ bShowAllDebugLines || hitboxProfile->bDebugLines };
+    float debugLinesDuration{ hitboxProfile->bDebugLines ? hitboxProfile->DebugDuration : DebugLinesDuration };
+
     switch (hitboxProfile->Shape)
     {
     case EHitboxShape::WeaponSweep:
-        DetectWeaponSweep(hitboxProfile->SweepRadius);
+        DetectWeaponSweep(hitboxProfile->SweepRadius, bActiveDebugsLines, debugLinesDuration);
         break;
     case EHitboxShape::Sphere:
-        DetectSphere(hitboxProfile->Range, hitboxProfile->Offset);
+        DetectSphere(hitboxProfile->Range, hitboxProfile->Offset, bActiveDebugsLines, debugLinesDuration);
         break;
     case EHitboxShape::Cone:
-        DetectCone(hitboxProfile->Range, hitboxProfile->ConeHalfAngle, hitboxProfile->Offset);
+        DetectCone(hitboxProfile->Range, hitboxProfile->ConeHalfAngle, hitboxProfile->Offset, bActiveDebugsLines, debugLinesDuration);
         break;
     case EHitboxShape::Box:
-        DetectBox(hitboxProfile->BoxExtent, hitboxProfile->Range, hitboxProfile->Offset);
+        DetectBox(hitboxProfile->BoxExtent, hitboxProfile->Range, hitboxProfile->Offset, bActiveDebugsLines, debugLinesDuration);
         break;
     }
 }
@@ -46,7 +49,7 @@ void UHitboxComponent::HandleActiveFrameStopped()
         OwnerWeapon->DeactivateTrail();
 }
 
-void UHitboxComponent::DetectWeaponSweep(float radius)
+void UHitboxComponent::DetectWeaponSweep(float radius, bool bShowDebugLines, float debugLinesDuration)
 {
     if (!OwnerWeapon)
         return;
@@ -56,16 +59,16 @@ void UHitboxComponent::DetectWeaponSweep(float radius)
 
     TArray<TEnumAsByte<EObjectTypeQuery>> objectsType{ EObjectTypeQuery::ObjectTypeQuery3 };
     TArray<AActor*> actorsToIgnore{ GetOwner() };
-    EDrawDebugTrace::Type debugTrace{ DebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
+    EDrawDebugTrace::Type debugTrace{ bShowDebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
     TArray<FHitResult> outHits;
 
     UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), start, end, radius, objectsType, false, actorsToIgnore, debugTrace, outHits, true,
-        FLinearColor::Red, FLinearColor::Green, DebugLinesDuration);
+        FLinearColor::Red, FLinearColor::Green, debugLinesDuration);
 
     ProcessHits(outHits);
 }
 
-void UHitboxComponent::DetectSphere(float range, const FVector& offset)
+void UHitboxComponent::DetectSphere(float range, const FVector& offset, bool bShowDebugLines, float debugLinesDuration)
 {
     const AActor* owner{ GetOwner() };
     FVector worldOffset{ owner->GetActorTransform().TransformVector(offset) };
@@ -73,16 +76,16 @@ void UHitboxComponent::DetectSphere(float range, const FVector& offset)
 
     TArray<TEnumAsByte<EObjectTypeQuery>> objectsType{ EObjectTypeQuery::ObjectTypeQuery3 };
     TArray<AActor*> actorsToIgnore{ GetOwner() };
-    EDrawDebugTrace::Type debugTrace{ DebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
+    EDrawDebugTrace::Type debugTrace{ bShowDebugLines ? EDrawDebugTrace::ForDuration : EDrawDebugTrace::None };
     TArray<FHitResult> outHits;
 
     UKismetSystemLibrary::SphereTraceMultiForObjects(GetWorld(), center, center, range, objectsType, false, actorsToIgnore, debugTrace, outHits, true,
-        FLinearColor::Red, FLinearColor::Green, DebugLinesDuration);
+        FLinearColor::Red, FLinearColor::Green, debugLinesDuration);
 
     ProcessHits(outHits);
 }
 
-void UHitboxComponent::DetectCone(float range, float halfAngleDeg, const FVector& offset)
+void UHitboxComponent::DetectCone(float range, float halfAngleDeg, const FVector& offset, bool bShowDebugLines, float debugLinesDuration)
 {
     TArray<TEnumAsByte<EObjectTypeQuery>> objectsType{ EObjectTypeQuery::ObjectTypeQuery3 };
     TArray<AActor*> actorsToIgnore{ GetOwner(), OwnerWeapon };
@@ -109,18 +112,18 @@ void UHitboxComponent::DetectCone(float range, float halfAngleDeg, const FVector
             coneHits.Add(hit);
     }
 
-    if (DebugLines)
+    if (bShowDebugLines)
     {
         DrawDebugCone(GetWorld(), center, forward, range,
             FMath::DegreesToRadians(halfAngleDeg),
             FMath::DegreesToRadians(halfAngleDeg),
-            12, FColor::Yellow, false, DebugLinesDuration);
+            12, FColor::Yellow, false, debugLinesDuration);
     }
 
     ProcessHits(coneHits);
 }
 
-void UHitboxComponent::DetectBox(const FVector& extent, float range, const FVector& offset)
+void UHitboxComponent::DetectBox(const FVector& extent, float range, const FVector& offset, bool bShowDebugLines, float debugLinesDuration)
 {
     AActor* owner{ GetOwner() };
     FVector worldOffset{ owner->GetActorTransform().TransformVector(offset) };
@@ -135,8 +138,8 @@ void UHitboxComponent::DetectBox(const FVector& extent, float range, const FVect
     GetWorld()->SweepMultiByObjectType(outHits, center, center, FQuat(rotation), FCollisionObjectQueryParams(ECollisionChannel::ECC_Pawn),
         FCollisionShape::MakeBox(extent), queryParams);
 
-    if (DebugLines)
-        DrawDebugBox(GetWorld(), center, extent, FQuat(rotation), FColor::Blue, false, DebugLinesDuration);
+    if (bShowDebugLines)
+        DrawDebugBox(GetWorld(), center, extent, FQuat(rotation), FColor::Blue, false, debugLinesDuration);
 
     ProcessHits(outHits);
 }
