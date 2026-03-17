@@ -273,7 +273,7 @@ void UFSCombatComponent::OnAttackInputReceived(EAttackType attackType)
         return;
     
     const FAttackData* ongoingAttack{ GetOngoingAttack() };
-    if (!ongoingAttack)
+    if (!ongoingAttack || (ongoingAttack && ongoingAttack->bOnCooldown))
         return;
 
     UAnimMontage* animAttack{ ongoingAttack->Montage };
@@ -321,7 +321,9 @@ void UFSCombatComponent::ExecuteAttack(UAnimMontage* attackMontage)
 {
     PlayerOwner->PlayAnimMontage(attackMontage);
 
-    OngoingCombo->GetAttackAt(ComboIndex)->OnAttackExecuted.ExecuteIfBound();
+    FAttackData* ongoingAttack{ &OngoingCombo->Attacks[ComboIndex] };
+    ongoingAttack->OnAttackExecuted.ExecuteIfBound();
+    ongoingAttack->StartCooldown(GetWorld());
 }
 
 void UFSCombatComponent::CancelAttack(float blendOutTime)
@@ -424,7 +426,7 @@ void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
     if (bIsLastAttack && lastAttack && bIsLastAttackChainableWithCurrentType)
     {
         FCombo* nextCombo{ GetComboFromContext(attackType) };
-        if (nextCombo && nextCombo->IsValid())
+        if (nextCombo && nextCombo->IsValid() && !nextCombo->GetFirstAttack()->bOnCooldown)
         {
             bComboInputWindowOpen = false;
             bContinueCombo = true;
@@ -436,7 +438,7 @@ void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
 
     // Continuing in the same combo
     const FAttackData* nextAttack{ OngoingCombo->GetAttackAt(ComboIndex + 1) };
-    if (!nextAttack)
+    if (!nextAttack || (nextAttack && nextAttack->bOnCooldown))
         return;
 
     bool bIsNextAttackSameType{ nextAttack->AttackType == attackType };

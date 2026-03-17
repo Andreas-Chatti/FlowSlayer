@@ -18,12 +18,12 @@ enum class EActionType : uint8
 };
 
 DECLARE_DELEGATE(FOnMiddleMouseButtonClicked);
-DECLARE_DELEGATE(FOnShiftKeyTriggered);
-DECLARE_DELEGATE(FOnLeftClickTriggered);
-DECLARE_DELEGATE(FOnRightClickTriggered);
-DECLARE_DELEGATE(FOnLauncherKeyTriggered);
-DECLARE_DELEGATE(FOnSpinKeyTriggered);
-DECLARE_DELEGATE(FOnForwardPowerKeyTriggered);
+DECLARE_DELEGATE(FOnLShiftKeyTriggered);
+DECLARE_DELEGATE(FOnLMBTriggered);
+DECLARE_DELEGATE(FOnRMBTriggered);
+DECLARE_DELEGATE(FOnAKeyTriggered);
+DECLARE_DELEGATE(FOnEKeyTriggered);
+DECLARE_DELEGATE(FOnFKeyTriggered);
 DECLARE_DELEGATE_OneParam(FOnSwitchLockOnTargetKeyTriggered, float xAxisValue);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -59,22 +59,22 @@ public:
 	FOnMiddleMouseButtonClicked OnMiddleMouseButtonClicked;
 
 	/** LSHIFT - Dash and dash attacks */
-	FOnShiftKeyTriggered OnShiftKeyTriggered;
+	FOnLShiftKeyTriggered OnLShiftKeyTriggered;
 
 	/** LMB - Light attack variants (standing, running, air, slam) */
-	FOnLeftClickTriggered OnLeftClickTriggered;
+	FOnLMBTriggered OnLMBTriggered;
 
 	/** RMB - Heavy attack variants (standing, running, air, slam) */
-	FOnRightClickTriggered OnRightClickTriggered;
+	FOnRMBTriggered OnRMBTriggered;
 
 	/** A + LMB/RMB - Launcher attacks */
-	FOnLauncherKeyTriggered OnLauncherKeyTriggered;
+	FOnAKeyTriggered OnAKeyTriggered;
 
 	/** E + LMB/RMB - Spin attacks */
-	FOnSpinKeyTriggered OnSpinKeyTriggered;
+	FOnEKeyTriggered OnEKeyTriggered;
 
 	/** F + Z/S - Forward power attacks */
-	FOnForwardPowerKeyTriggered OnForwardPowerKeyTriggered;
+	FOnFKeyTriggered OnFKeyTriggered;
 
 	/** Broadcasted when mouse moves enough during lock-on to switch target */
 	FOnSwitchLockOnTargetKeyTriggered OnSwitchLockOnTargetKeyTriggered;
@@ -110,45 +110,45 @@ private:
 	// NOTE: Simplified to base actions only - variants detected via LMB/RMB and direction in callbacks
 	// ===========================================
 
-	/** LMB - Light attack */
+	/** LMB InputAction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* LeftClickAction;
+	UInputAction* LMBAction;
 
-	/** RMB - Heavy attack */
+	/** RMB InputAction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* RightClickAction;
+	UInputAction* RMBAction;
 
-	/** A + LMB/RMB - Launcher attacks (Launcher, PowerLauncher) */
+	/** 'A' InputAction*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* LauncherAttackAction;
+	UInputAction* A_KeyAction;
 
-	/** E + LMB/RMB - Spin attacks (SpinAttack, HorizontalSweep) */
+	/** 'E' InputAction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* SpinAttackAction;
+	UInputAction* E_KeyAction;
 
-	/** F + Z/S - Forward power attacks (PierceThrust, PowerSlash) */
+	/** 'F' InputAction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* ForwardPowerAttackAction;
+	UInputAction* F_KeyAction;
 
-	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
+	/** Middle mouse button InputAction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* MiddleMouseAction;
 
-	/** Jump Input Action */
+	/** Jump (Space) Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* JumpAction;
 
-	/** Move Input Action */
+	/** Move ('Z', 'Q', 'S', 'D') Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* MoveAction;
 
-	/** Look Input Action */
+	/** Look (Mouse movements) Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
-	/** Dash Input Action */
+	/** Dash (LShift) Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* ShiftAction;
+	UInputAction* LShiftAction;
 
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);
@@ -160,23 +160,23 @@ private:
 	void Look(const FInputActionValue& Value);
 
 	/** Called for dashing input */
-	void OnShiftTriggered(const FInputActionValue& Value);
+	void OnLShiftTriggered(const FInputActionValue& Value);
 
 	/** Called ONCE, when LEFT click is PRESSED */
-	void OnLeftClickStarted(const FInputActionInstance& Value);
+	void OnLMBActionStarted(const FInputActionInstance& Value);
 
 	/** Called ONCE, when RIGHT click is PRESSED */
-	void OnRightClickStarted(const FInputActionInstance& Value);
+	void OnRMBActionStarted(const FInputActionInstance& Value);
 
 	/** A + LMB / RMB */
-	void OnLauncherActionStarted(const FInputActionInstance& Value);
+	void OnAKeyActionStarted(const FInputActionInstance& Value);
 
 	/** E + LMB / RMB */
-	void OnSpinAttackActionStarted(const FInputActionInstance& Value);
+	void OnEKeyActionStarted(const FInputActionInstance& Value);
 
 	/** F + Z / F + S */
-	void OnForwardPowerActionStarted(const FInputActionInstance& Value);
+	void OnFKeyActionStarted(const FInputActionInstance& Value);
 
 	/** Middle mouse button */
-	void HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value);
+	void OnMiddleMouseButtonStarted(const FInputActionInstance& Value);
 };
