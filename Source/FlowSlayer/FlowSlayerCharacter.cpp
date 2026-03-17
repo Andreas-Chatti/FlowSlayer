@@ -177,10 +177,7 @@ void AFlowSlayerCharacter::OnDashAction()
 	EAttackType attackType{ GetDashAttackFromInput() };
 
 	if (attackType == EAttackType::None)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Dash"));
 		DashComponent->StartDash(InputManagerComponent->GetMoveInputAxis());
-	}
 	else
 		OnAttackTriggered(attackType);
 }
@@ -192,10 +189,7 @@ EAttackType AFlowSlayerCharacter::GetDashAttackFromInput()
 	{
 		// LSHIFT + LMB + 'Q' / 'D'
 		if (InputManagerComponent->GetInputKeyState(EKeys::Q) || InputManagerComponent->GetInputKeyState(EKeys::D))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("DashSpinningSlash"));
 			return EAttackType::DashSpinningSlash;
-		}
 
 		// LSHIFT + LMB + 'Z'
 		else if (InputManagerComponent->GetInputKeyState(EKeys::Z))

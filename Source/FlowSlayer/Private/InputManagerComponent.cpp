@@ -104,7 +104,21 @@ void UInputManagerComponent::Look(const FInputActionValue& Value)
 
 void UInputManagerComponent::OnLShiftTriggered(const FInputActionValue& Value)
 {
-	OnLShiftKeyTriggered.ExecuteIfBound();
+	if (bLShiftBufferActive)
+		return;
+
+	bLShiftBufferActive = true;
+
+	GetWorld()->GetTimerManager().SetTimer(
+		LShiftBufferTimer,
+		[this]()
+		{
+			bLShiftBufferActive = false;
+			OnLShiftKeyTriggered.ExecuteIfBound();
+		},
+		0.05f,
+		false
+	);
 }
 
 void UInputManagerComponent::OnLMBActionStarted(const FInputActionInstance& Value)

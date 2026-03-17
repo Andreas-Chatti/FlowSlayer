@@ -106,6 +106,12 @@ private:
 
 	bool bLockOnActive{ false };
 
+	/** Prevents LSHIFT from re-triggering while waiting for chord keys (LMB + Q/D) to register */
+	bool bLShiftBufferActive{ false };
+
+	/** Buffer window timer — fires OnLShiftKeyTriggered after all chord keys have had time to register */
+	FTimerHandle LShiftBufferTimer;
+
 	// ========== ATTACK INPUT ACTIONS ==========
 	// NOTE: Simplified to base actions only - variants detected via LMB/RMB and direction in callbacks
 	// ===========================================
