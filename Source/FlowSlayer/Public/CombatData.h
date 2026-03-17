@@ -132,6 +132,31 @@ struct FAttackData : public FTableRowBase
     */
     FOnAttackExecuted OnAttackExecuted;
 
+    /** Delay before an attack can be used again */
+    UPROPERTY(EditAnywhere, meta = (ClampMin = "0.1"))
+    float CooldownDelay{ 5.f };
+
+    /** State to check if that attack can be used or not */
+    bool bOnCooldown{ false };
+
+    /** TimerHandle of the cooldown */
+    FTimerHandle CooldownTimer;
+
+    void StartCooldown(UWorld* world)
+    {
+        if (!world)
+            return;
+
+        bOnCooldown = true;
+
+        world->GetTimerManager().SetTimer(
+            CooldownTimer,
+            [this]() { bOnCooldown = false; },
+            CooldownDelay,
+            false
+        );
+    }
+
     // === LATER (Phase 2+) ===
     // USoundBase* HitSound;
     // UNiagaraSystem* HitVFX;

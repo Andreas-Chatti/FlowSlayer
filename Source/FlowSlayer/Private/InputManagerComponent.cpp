@@ -32,25 +32,25 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::Look);
 
 	// Dashing action - LSHIFT
-	EnhancedInputComponent->BindAction(ShiftAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnShiftTriggered);
+	EnhancedInputComponent->BindAction(LShiftAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnLShiftTriggered);
 
 	// Launcher attacks - A + LMB/RMB
-	EnhancedInputComponent->BindAction(LauncherAttackAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnLauncherActionStarted);
+	EnhancedInputComponent->BindAction(A_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnAKeyActionStarted);
 
 	// Spin attacks - E + LMB/RMB
-	EnhancedInputComponent->BindAction(SpinAttackAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnSpinAttackActionStarted);
+	EnhancedInputComponent->BindAction(E_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnEKeyActionStarted);
 
 	// Forward power attacks - F + Z/S
-	EnhancedInputComponent->BindAction(ForwardPowerAttackAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnForwardPowerActionStarted);
+	EnhancedInputComponent->BindAction(F_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnFKeyActionStarted);
 
 	// Light attack - LMB
-	EnhancedInputComponent->BindAction(LeftClickAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnLeftClickStarted);
+	EnhancedInputComponent->BindAction(LMBAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnLMBActionStarted);
 
 	// Heavy attack - RMB
-	EnhancedInputComponent->BindAction(RightClickAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnRightClickStarted);
+	EnhancedInputComponent->BindAction(RMBAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnRMBActionStarted);
 
 	// Lock-on - Middle mouse button
-	EnhancedInputComponent->BindAction(MiddleMouseAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnMiddleMouseButtonStarted);
+	EnhancedInputComponent->BindAction(MiddleMouseAction, ETriggerEvent::Started, this, &UInputManagerComponent::OnMiddleMouseButtonStarted);
 }
 
 void UInputManagerComponent::Move(const FInputActionValue& Value)
@@ -97,42 +97,42 @@ void UInputManagerComponent::Look(const FInputActionValue& Value)
 	OwningPlayer->AddControllerYawInput(LookAxisVector.X);
 	OwningPlayer->AddControllerPitchInput(LookAxisVector.Y);
 
-	// Switch lock-on target si mouvement de souris suffisant
+	// Switch lock-on target if mouse movement is strong enough
 	if (FMath::Abs(LookAxisVector.X) > 1.0f && bLockOnActive)
 		OnSwitchLockOnTargetKeyTriggered.ExecuteIfBound(LookAxisVector.X);
 }
 
-void UInputManagerComponent::OnShiftTriggered(const FInputActionValue& Value)
+void UInputManagerComponent::OnLShiftTriggered(const FInputActionValue& Value)
 {
-	OnShiftKeyTriggered.ExecuteIfBound();
+	OnLShiftKeyTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::OnLeftClickStarted(const FInputActionInstance& Value)
+void UInputManagerComponent::OnLMBActionStarted(const FInputActionInstance& Value)
 {
-	OnLeftClickTriggered.ExecuteIfBound();
+	OnLMBTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::OnRightClickStarted(const FInputActionInstance& Value)
+void UInputManagerComponent::OnRMBActionStarted(const FInputActionInstance& Value)
 {
-	OnRightClickTriggered.ExecuteIfBound();
+	OnRMBTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::OnLauncherActionStarted(const FInputActionInstance& Value)
+void UInputManagerComponent::OnAKeyActionStarted(const FInputActionInstance& Value)
 {
-	OnLauncherKeyTriggered.ExecuteIfBound();
+	OnAKeyTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::OnSpinAttackActionStarted(const FInputActionInstance& Value)
+void UInputManagerComponent::OnEKeyActionStarted(const FInputActionInstance& Value)
 {
-	OnSpinKeyTriggered.ExecuteIfBound();
+	OnEKeyTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::OnForwardPowerActionStarted(const FInputActionInstance& Value)
+void UInputManagerComponent::OnFKeyActionStarted(const FInputActionInstance& Value)
 {
-	OnForwardPowerKeyTriggered.ExecuteIfBound();
+	OnFKeyTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value)
+void UInputManagerComponent::OnMiddleMouseButtonStarted(const FInputActionInstance& Value)
 {
 	OnMiddleMouseButtonClicked.ExecuteIfBound();
 }
