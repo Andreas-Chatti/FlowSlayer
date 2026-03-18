@@ -169,7 +169,7 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation);
 
-    const AFSWeapon* GetEquippedWeapon() const { return equippedWeapon; }
+    AFSWeapon* GetEquippedWeapon() const { return equippedWeapon; }
 
     void SetLockedOnTargetRef(AActor* lockedOnTarget) { LockedOnTarget = lockedOnTarget; }
 

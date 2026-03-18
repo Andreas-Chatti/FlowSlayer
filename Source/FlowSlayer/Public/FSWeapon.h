@@ -24,15 +24,19 @@ public:
 
     AFSWeapon();
 
-    void ActivateTrail() const { SwordTrailComponent->Activate(); }
-    void DeactivateTrail() const { SwordTrailComponent->Deactivate(); }
+    /** Trail component attached at weapon base socket */
+    UNiagaraComponent* GetTrailNiagaraBaseComponent() const { return TrailNiagaraBaseComponent; }
+
+    /** Trail component attached at weapon tip socket */
+    UNiagaraComponent* GetTrailNiagaraTipComponent() const { return TrailNiagaraTipComponent; }
+
+    FName GetBaseSocketName() const { return BaseSocket; }
+    FName GetTipSocketName() const { return TipSocket; }
 
     FVector GetBaseSocketLocation() const { return WeaponMesh->GetSocketLocation(BaseSocket); }
     FVector GetTipSocketLocation() const { return WeaponMesh->GetSocketLocation(TipSocket); }
 
 protected:
-
-    virtual void BeginPlay() override;
 
     /** Root component for the weapon actor */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -42,25 +46,19 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
     UStaticMeshComponent* WeaponMesh;
 
-    /** Sword trail VFX component
-    * Activated/deactivated when hitbox is enabled/disabled
-    */
+    /** Sword trail Niagara VFX component attached at weapon base socket */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-    UNiagaraComponent* SwordTrailComponent{ nullptr };
+    UNiagaraComponent* TrailNiagaraBaseComponent{ nullptr };
 
-    /** Sword trail VFX system asset */
-    UPROPERTY(EditDefaultsOnly, Category = "VFX")
-    UNiagaraSystem* SwordTrailSystem;
+    /** Sword trail Niagara VFX component attached at weapon tip socket */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+    UNiagaraComponent* TrailNiagaraTipComponent{ nullptr };
 
-    /* Socket name of the base weapon where the hitbox starts 
-    * Can be empty if there's no socket
-    */
+    /** Socket name at the base of the weapon where the hitbox starts */
     UPROPERTY(EditDefaultsOnly, Category = "Sockets")
     FName BaseSocket{ "S_WeaponBase" };
 
-    /* Socket name of the tip of the weapon where the hitbox ends
-    * Can be empty if there's no socket
-    */
+    /** Socket name at the tip of the weapon where the hitbox ends */
     UPROPERTY(EditDefaultsOnly, Category = "Sockets")
     FName TipSocket{ "S_WeaponTip" };
 

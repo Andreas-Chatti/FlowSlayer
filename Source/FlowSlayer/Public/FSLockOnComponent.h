@@ -51,7 +51,6 @@ public:
 
 	/** Switch lock-on target based on camera look direction
 	* @param axisValueX Mouse/controller X axis input (negative = left, positive = right)
-	* @return TRUE if successfully switched to new target, FALSE otherwise
 	*/
 	UFUNCTION(BlueprintCallable)
 	void SwitchLockOnTarget(float axisValueX);
@@ -69,6 +68,7 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+
 	/** Player owner reference */
 	UPROPERTY()
 	ACharacter* PlayerOwner{ nullptr };
@@ -77,22 +77,18 @@ private:
 	UPROPERTY()
 	UFSCombatComponent* CombatComponent{ nullptr };
 
-	/** List of valid targets currently in lock-on detection radius
-	* Only the nearest target is locked-on
-	*/
+	/** List of valid targets currently in lock-on detection radius */
 	UPROPERTY()
 	TSet<AActor*> TargetsInLockOnRadius{};
 
-	/** Current locked-on target nearest to the player */
+	/** Current locked-on target */
 	UPROPERTY()
 	AActor* CurrentLockedOnTarget{ nullptr };
 
-	/** IFSDamageable version of the current locked-on target
-	* Mainly to access IsDead() method to disengage lock-on when target dies
-	*/
+	/** IFSDamageable cache of the current locked-on target */
 	IFSDamageable* CachedDamageableLockOnTarget{ nullptr };
 
-	/** IFSFocusable reference of the current locked-on target */
+	/** IFSFocusable cache of the current locked-on target */
 	IFSFocusable* CachedFocusableTarget{ nullptr };
 
 	/** Radius where focusable targets can be detected and locked-on */
@@ -102,60 +98,76 @@ private:
 	/** TRUE if player is locked-on to a target */
 	bool bIsLockedOnEngaged{ false };
 
-	/** Disable the lock-on if the target is outside the detection radius
-	* Is call every LockOnDistanceCheckDelay in EngageLockOn()
-	* If distance between player and locked-on target is >= LockOnDetectionRadius
-	* OR target is dead
-	* Calls DisengageLockOn() which deactivate the LockOnValidCheckTimer to stop this method running every
-	*/
-	void LockOnValidCheck();
-
-	/** Update Pitch and Yaw rotation of the camera every frame (called in Tick) based on the locked-on target distance from the player
-	* Yaw and pitch values will be interpolated based on LockOnDetectionRadius / 2
-	* At minimum distance yaw and pitch offset will be equal to CloseCameraPitchOffset and CloseCameraYawOffset
-	* At maximum distance (LockOnDetectionRadius / 2), yaw and pitch offset will be equal to FarCameraPitchOffset and FarCameraYawOffset
-	* Check whether the target is on the right or left side of the screen and adjust dynamically the yaw (negative or positive) based on the target's position
-	*/
-	void UpdateLockOnCamera(float deltaTime);
-
-	/** Helper to find all targets in lock-on radius using sphere trace
-	* @param outHits Array to fill with hit results
-	* @return TRUE if any targets found, FALSE otherwise
-	*/
-	bool FindTargetsInRadius(TArray<FHitResult>& outHits);
-
-	/** Helper to hide previous target widgets based on health state
-	* Hides all widgets if target is full health or dead, otherwise only hides lock-on widget
-	*/
-	void HidePreviousTargetWidgets();
-
-	/** Min pitch offset when locked-on FAR from target */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-	float FarCameraPitchOffset{ -10.0f };
-
-	/** Max pitch offset when locked-on CLOSE to target */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-	float CloseCameraPitchOffset{ -5.0f };
-
-	/** Max yaw offset when locked-on CLOSE an enemy */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-	float CloseCameraYawOffset{ 30.0f };
-
-	/** Min yaw offset when locked-on FAR an enemy */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-	float FarCameraYawOffset{ 0.0f };
-
-	/** Camera rotation interp speed */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
-	float CameraRotationInterpSpeed{ 8.0f };
-
 	/** Timer responsible for the lock-on delay in-between targets */
 	UPROPERTY()
 	FTimerHandle delaySwitchLockOnTimer;
 
-	UPROPERTY()
-	FTimerHandle LockOnValidCheckTimer;
+	// ==================== Camera offsets ====================
 
-	/** Delay in-between each distance checks */
-	float LockOnDistanceCheckDelay{ 0.5f };
+	/** Pitch offset when locked-on FAR from target */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+	float FarCameraPitchOffset{ -10.0f };
+
+	/** Pitch offset when locked-on CLOSE to target */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+	float CloseCameraPitchOffset{ -5.0f };
+
+	/** Yaw offset when locked-on CLOSE to target */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+	float CloseCameraYawOffset{ 30.0f };
+
+	/** Yaw offset when locked-on FAR from target */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+	float FarCameraYawOffset{ 0.0f };
+
+	/** Camera rotation interpolation speed */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Lock-On System", meta = (AllowPrivateAccess = "true"))
+	float CameraRotationInterpSpeed{ 8.0f };
+
+	// ==================== Core ====================
+
+	/** Checks every tick if the current target is still valid (alive and in range).
+	 * Attempts to switch target on death before disengaging.
+	 */
+	void LockOnValidCheck();
+
+	/** Rotates the player character to face the locked-on target */
+	void UpdatePlayerFacingTarget(float deltaTime);
+
+	/** Updates the camera rotation to face the locked-on target with distance-based offsets */
+	void UpdateCameraFacingTarget(float deltaTime);
+
+	/** Calls UpdatePlayerFacingTarget and UpdateCameraFacingTarget */
+	void UpdateLockOnCamera(float deltaTime);
+
+	// ==================== Helpers ====================
+
+	/** @return TRUE if the actor is a valid lock-on candidate (Focusable, Damageable, alive) */
+	bool IsValidLockOnTarget(AActor* actor) const;
+
+	/** Assigns CurrentLockedOnTarget, CachedDamageableLockOnTarget and CachedFocusableTarget */
+	void SetCurrentTarget(AActor* newTarget);
+
+	/** Configures player movement and input mode for lock-on or free movement */
+	void SetPlayerLockOnMovementMode(bool bLockOnActive);
+
+	/** Populates TargetsInLockOnRadius with valid targets from the hit results */
+	void CollectValidTargets(const TArray<FHitResult>& hits);
+
+	/** Scores and returns the best target from TargetsInLockOnRadius based on camera alignment */
+	AActor* FindBestScoredTarget(const FVector& cameraForward) const;
+
+	/** Returns the best target in the given horizontal direction relative to the camera */
+	AActor* FindBestTargetInDirection(const TArray<FHitResult>& hits, bool bLookingRight) const;
+
+	/** Switches to the nearest valid target regardless of direction.
+	 * @return The new locked-on target, or nullptr if no valid target was found
+	 */
+	AActor* SwitchToNearestTarget();
+
+	/** Sphere trace to find all pawns in lock-on radius */
+	bool FindTargetsInRadius(TArray<FHitResult>& outHits);
+
+	/** Hides widgets of the previous target based on its health state */
+	void HidePreviousTargetWidgets();
 };

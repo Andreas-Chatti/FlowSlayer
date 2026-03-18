@@ -131,6 +131,8 @@ void AFlowSlayerCharacter::HandleOnDeath()
 {
 	InputManagerComponent->DisableAllInputs();
 
+	AnimInstance->StopAllMontages(0.3f);
+
 	OnPlayerDeath.Broadcast(this);
 }
 
@@ -161,8 +163,8 @@ void AFlowSlayerCharacter::ToggleLockOn() const
 {
 	if (!LockOnComponent->IsLockedOnTarget())
 	{
-		LockOnComponent->EngageLockOn();
-		GetCharacterMovement()->MaxWalkSpeed = RunSpeedThreshold;
+		if (LockOnComponent->EngageLockOn())
+			GetCharacterMovement()->MaxWalkSpeed = RunSpeedThreshold;
 	}
 
 	else

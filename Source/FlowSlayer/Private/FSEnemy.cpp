@@ -120,6 +120,9 @@ void AFSEnemy::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
 
 void AFSEnemy::HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
 {
+    if (instigatorActor->IsA<AFSEnemy>())
+        return;
+
     HitFeedbackComponent->OnReceiveHit(instigatorActor->GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
     HealthComponent->ReceiveDamage(usedAttack.Damage, instigatorActor);
 
