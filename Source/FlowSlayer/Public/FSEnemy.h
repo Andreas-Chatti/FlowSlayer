@@ -29,8 +29,6 @@ public:
 
     AFSEnemy();
 
-    bool IsStunned() const;
-
     UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Combat")
     void Attack();
 
@@ -44,11 +42,16 @@ public:
 
     float GetAttackRange() const { return AttackRange; }
     bool IsAttacking() const { return bIsAttacking; }
+    bool CanAttack() const { return bCanAttack; }
 
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
 
     FOnProjectileSpawned OnProjectileSpawned;
+
+    UPROPERTY(BlueprintAssignable, Category = "Combat")
     FOnEnemyDeath OnEnemyDeath;
+
+    UPROPERTY(BlueprintAssignable, Category = "Combat")
     FOnHitReceived OnHitReceived;
 
 protected:
@@ -71,8 +74,11 @@ protected:
     UFUNCTION()
     void HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack);
 
+    /** Called by HealthComponent (UHealthComponent) 
+    * Called when received damage from any source
+    */
     UFUNCTION()
-    void HandleOnDamageReceived(AActor* damageInstigator, float damageAmount, float currentHealth, float maxHealth);
+    void HandleOnDamageReceived(AActor* instigatorActor, float damageAmount, float currentHealth, float maxHealth);
 
     /** Called when owning spawned projectile has hit a target */
     void HandleOnFSProjectileHit(AActor* hitActor, const FVector& hitLocation);
@@ -83,22 +89,12 @@ protected:
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     float AttackRange{ 150.f };
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
-    float CcImuneDelay{ 6.f };
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
     FAttackData MainAttack;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations")
-    UAnimMontage* HitMontage;
-
-    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animations")
-    UAnimMontage* DeathMontage;
-
-    bool bIsDead{ false };
     bool bIsAttacking{ false };
-    bool bIsStunned{ false };
-    bool bIsCcImune{ false };
+
+    bool bCanAttack{ true };
 
     /** Player Reference */
     UPROPERTY()
@@ -118,14 +114,13 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
     UHealthComponent* HealthComponent;
 
+
 private:
 
     static constexpr float destroyDelay{ 5.f };
 
     UFUNCTION()
-    void OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted);
-
-    void PlayDeathMontage();
+    void HandleOnMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 
     UFUNCTION()
     virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) override;

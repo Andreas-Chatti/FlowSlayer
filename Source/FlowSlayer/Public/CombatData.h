@@ -77,7 +77,7 @@ struct FAttackData : public FTableRowBase
     FName Name{ "" };
 
     /** Animation montage for this attack */
-    UPROPERTY(EditDefaultsOnly)
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
     UAnimMontage* Montage{ nullptr };
 
     /** Damage dealt by this attack

@@ -37,16 +37,11 @@ void AFSEnemy::BeginPlay()
 
     UAnimInstance* AnimInstance{ GetMesh()->GetAnimInstance() };
     if (AnimInstance)
-        AnimInstance->OnMontageEnded.AddDynamic(this, &AFSEnemy::OnAttackMontageEnded);
+        AnimInstance->OnMontageEnded.AddDynamic(this, &AFSEnemy::HandleOnMontageEnded);
 
     // Ignoring Player's camera collision to avoid weird camera snap
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-}
-
-bool AFSEnemy::IsStunned() const
-{
-    return bIsStunned;
 }
 
 void AFSEnemy::Attack_Implementation()
@@ -57,38 +52,12 @@ void AFSEnemy::Attack_Implementation()
         PlayAnimMontage(MainAttack.Montage);
 }
 
-void AFSEnemy::OnAttackMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+void AFSEnemy::HandleOnMontageEnded(UAnimMontage* Montage, bool bInterrupted)
 {
     if (Montage == MainAttack.Montage)
         bIsAttacking = false;
-
-    else if (Montage == HitMontage)
-        bIsStunned = false;
-}
-
-void AFSEnemy::PlayDeathMontage()
-{
-    if (!DeathMontage)
-        return;
-
-    PlayAnimMontage(DeathMontage);
-    
-    float MontageLength{ DeathMontage->GetPlayLength() };
-    float BlendOutTime{ DeathMontage->BlendOut.GetBlendTime() };
-    float TimerDelay{ MontageLength - BlendOutTime };
-    
-    FTimerHandle DeathTimerHandle;
-    GetWorld()->GetTimerManager().SetTimer(
-        DeathTimerHandle,
-        [this]()
-        {
-            USkeletalMeshComponent* Mesh{ GetMesh() };
-            if (Mesh && Mesh->GetAnimInstance())
-                Mesh->bPauseAnims = true;
-        },
-        TimerDelay,
-        false
-    );
+    else
+        bCanAttack = true;
 }
 
 void AFSEnemy::DisplayLockedOnWidget(bool bShowWidget)
@@ -120,6 +89,7 @@ void AFSEnemy::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation)
 
 void AFSEnemy::HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
 {
+    // Prevent ennemies from hitting each other
     if (instigatorActor->IsA<AFSEnemy>())
         return;
 
@@ -135,27 +105,9 @@ void AFSEnemy::NotifyHitReceived(AActor* instigator, const FAttackData& usedAtta
     OnHitReceived.Broadcast(instigator, usedAttack);
 }
 
-void AFSEnemy::HandleOnDamageReceived(AActor* damageInstigator, float damageAmount, float currentHealth, float maxHealth)
+void AFSEnemy::HandleOnDamageReceived(AActor* instigatorActor, float damageAmount, float currentHealth, float maxHealth)
 {
-    if (HitMontage && !bIsCcImune)
-    {
-        PlayAnimMontage(HitMontage);
-        bIsStunned = true;
-        bIsCcImune = true;
-    
-        TWeakObjectPtr<AFSEnemy> WeakThis{ this };
-        FTimerHandle ccImuneTimer;
-        GetWorld()->GetTimerManager().SetTimer(
-            ccImuneTimer,
-            [WeakThis]()
-            {
-                if (WeakThis.IsValid())
-                    WeakThis->bIsCcImune = false;
-            },
-            CcImuneDelay,
-            false
-        );
-    }
+    bCanAttack = false;
 }
 
 void AFSEnemy::HandleOnFSProjectileHit(AActor* hitActor, const FVector& hitLocation)
@@ -171,7 +123,7 @@ void AFSEnemy::HandleOnDeath()
     GetCapsuleComponent()->SetCollisionProfileName("Ragdoll");
     GetCharacterMovement()->DisableMovement();
 
-    PlayDeathMontage();
+    GetMesh()->GetAnimInstance()->StopAllMontages(0.3f);
 
     // TODO: Award XP to player
     // TODO: Spawn loot/pickups
