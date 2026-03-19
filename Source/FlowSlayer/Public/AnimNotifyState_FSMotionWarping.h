@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "FSLockOnComponent.h"
 #include "GameFramework/Character.h"
+#include "MotionWarpingComponent.h"
 #include "AnimNotifyState_MotionWarping.h"
 #include "AnimNotifyState_FSMotionWarping.generated.h"
 

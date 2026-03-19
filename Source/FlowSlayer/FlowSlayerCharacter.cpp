@@ -145,6 +145,7 @@ void AFlowSlayerCharacter::HandleOnLockOnStarted(AActor* lockedOnTarget)
 {
 	CombatComponent->SetLockedOnTargetRef(lockedOnTarget);
 	InputManagerComponent->SetIsLockedOn(static_cast<bool>(lockedOnTarget));
+	GetCharacterMovement()->MaxWalkSpeed = RunSpeedThreshold;
 }
 
 void AFlowSlayerCharacter::HandleOnLockOnStopped()
@@ -162,16 +163,10 @@ void AFlowSlayerCharacter::HandleOnHitLanded(AActor* hitActor, const FVector& hi
 void AFlowSlayerCharacter::ToggleLockOn() const
 {
 	if (!LockOnComponent->IsLockedOnTarget())
-	{
-		if (LockOnComponent->EngageLockOn())
-			GetCharacterMovement()->MaxWalkSpeed = RunSpeedThreshold;
-	}
+		LockOnComponent->EngageLockOn();
 
 	else
-	{
 		LockOnComponent->DisengageLockOn();
-		GetCharacterMovement()->MaxWalkSpeed = SprintSpeedThreshold;
-	}
 }
 
 void AFlowSlayerCharacter::OnDashAction()

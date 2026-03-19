@@ -141,6 +141,13 @@ public:
 	UDashComponent* GetDashComponent() const { return DashComponent; }
 	virtual UHealthComponent* GetHealthComponent() override { return HealthComponent; }
 	UInputManagerComponent* GetInputManagerComponent() const { return InputManagerComponent; }
+	UFSLockOnComponent* GetLockOnComponent() const { return LockOnComponent; }
+
+	// --- WalkSpeed accessors ---
+
+	float GetWalkSpeedThreshold() const { return WalkSpeedThreshold; }
+	float GetRunSpeedThreshold() const { return RunSpeedThreshold; }
+	float GetSprintSpeedThreshold() const { return SprintSpeedThreshold; }
 
 	// --- Delegates ---
 

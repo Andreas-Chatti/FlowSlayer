@@ -7,6 +7,8 @@ UAnimNotifyState_AnimCancelWindow::UAnimNotifyState_AnimCancelWindow()
 
 void UAnimNotifyState_AnimCancelWindow::NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference)
 {
+	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
+
 	if (!MeshComp)
 		return;
 
@@ -15,19 +17,31 @@ void UAnimNotifyState_AnimCancelWindow::NotifyBegin(USkeletalMeshComponent* Mesh
 	if (!FSCharacter)
 		return;
 
-	UDashComponent* DashComp{ FSCharacter->GetDashComponent() };
-	if (DashComp)
-	{
-		DashComp->OnDashStarted.AddLambda([this](float flowCost) { bDashInputPressed = true; });
-		DashComp->OnDashEnded.AddLambda([this]() { bDashInputPressed = false; });
-	}
+	if (CancelActionTrigger == EAnimCancelWindowActionType::Move)
+		return;
 }
 
 void UAnimNotifyState_AnimCancelWindow::NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference)
 {
-	if (!FSCharacter)
+	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
+
+	if (!FSCharacter || bAnimCancelTrigger)
 		return;
 
-	if (bDashInputPressed || FSCharacter->GetInputManagerComponent()->HasMovementInput())
+	bool bDashCancel{ FSCharacter->GetInputManagerComponent()->GetInputKeyState(EKeys::LeftShift) && FSCharacter->GetInputManagerComponent()->HasMovementInput() && CancelActionTrigger == EAnimCancelWindowActionType::Dash};
+	bool bMoveCancel{ FSCharacter->GetInputManagerComponent()->HasMovementInput() && CancelActionTrigger == EAnimCancelWindowActionType::Move };
+	bool bAnyCancel{ CancelActionTrigger == EAnimCancelWindowActionType::Any && (FSCharacter->GetInputManagerComponent()->GetInputKeyState(EKeys::LeftShift) || FSCharacter->GetInputManagerComponent()->HasMovementInput()) };
+
+	if (bDashCancel || bMoveCancel || bAnyCancel)
+	{
+		bAnimCancelTrigger = true;
 		FSCharacter->OnAnimationCanceled.Broadcast();
+	}
+}
+
+void UAnimNotifyState_AnimCancelWindow::NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+	Super::NotifyEnd(MeshComp, Animation, EventReference);
+
+	bAnimCancelTrigger = false;
 }

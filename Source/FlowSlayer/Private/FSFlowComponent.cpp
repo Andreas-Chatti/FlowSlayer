@@ -3,6 +3,9 @@
 UFSFlowComponent::UFSFlowComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+
+	FlowChanged.AddUniqueDynamic(this, &UFSFlowComponent::OnFlowChanged);
+	FlowTierChanged.AddUniqueDynamic(this, &UFSFlowComponent::OnFlowTierChanged);
 }
 
 
@@ -61,8 +64,8 @@ void UFSFlowComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	FlowChanged.AddUniqueDynamic(this, &UFSFlowComponent::OnFlowChanged);
-	FlowTierChanged.AddUniqueDynamic(this, &UFSFlowComponent::OnFlowTierChanged);
+	if (bInfiniteFlow)
+		AddFlow(MaxFlow);
 }
 
 void UFSFlowComponent::AddFlow(float amount)
@@ -88,7 +91,7 @@ void UFSFlowComponent::AddFlow(float amount)
 
 void UFSFlowComponent::RemoveFlow(float amount)
 {
-	if (GetWorld()->GetTimerManager().IsTimerActive(ImmunityTimer))
+	if (GetWorld()->GetTimerManager().IsTimerActive(ImmunityTimer) || bInfiniteFlow)
 		return;
 
 	CurrentFlow = FMath::Clamp(CurrentFlow - amount, 0.f, MaxFlow);

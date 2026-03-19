@@ -4,6 +4,14 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AnimNotifyState_AnimCancelWindow.generated.h"
 
+UENUM(BlueprintType)
+enum class EAnimCancelWindowActionType : uint8
+{
+	Dash,
+	Move,
+	Any
+};
+
 /**
  * Defines a time window during an animation where the player can cancel into another action.
  * Used for combo transitions and skill-based animation canceling.
@@ -17,8 +25,12 @@ public:
 
 	UAnimNotifyState_AnimCancelWindow();
 
+
+protected:
+
 	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
 	virtual void NotifyTick(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, float FrameDeltaTime, const FAnimNotifyEventReference& EventReference) override;
+	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
 private:
 
@@ -26,6 +38,10 @@ private:
 	UPROPERTY()
 	const AFlowSlayerCharacter* FSCharacter { nullptr };
 
-	/** Whether the player tried to dash during a cancel window */
-	bool bDashInputPressed{ false };
+	/** Type of action that will cancel the current animation during this window */
+	UPROPERTY(EditAnywhere)
+	EAnimCancelWindowActionType CancelActionTrigger{ EAnimCancelWindowActionType::Any };
+
+	/** TRUE once OnAnimationCanceled has been broadcast — prevents firing multiple times per window */
+	bool bAnimCancelTrigger{ false };
 };

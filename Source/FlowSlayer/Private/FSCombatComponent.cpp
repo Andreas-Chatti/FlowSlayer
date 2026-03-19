@@ -193,29 +193,6 @@ void UFSCombatComponent::InitializeComboAttackData()
     SpinAttack.Attacks.SetNum(1);
     SpinAttack.Attacks[0] = *GetAttackData("SpinAttack");
 
-    SpinAttack.Attacks[0].OnAttackExecuted.BindLambda([this]()
-        {
-            constexpr float spinAttackMaxWalkSpeed{ 300.f };
-            constexpr float walkSpeedDelay{ 1.09f };
-            if (PlayerOwner)
-                PlayerOwner->GetCharacterMovement()->MaxWalkSpeed = spinAttackMaxWalkSpeed;
-            constexpr float runSpeedThreshold{ 600.f };
-            constexpr float sprintSpeedThreshold{ 900.f };
-            FTimerHandle spinAttackTimer;
-            TWeakObjectPtr playerOwner(MakeWeakObjectPtr(PlayerOwner));
-            TWeakObjectPtr lockedOnTarget(MakeWeakObjectPtr(LockedOnTarget));
-            GetWorld()->GetTimerManager().SetTimer(
-                spinAttackTimer,
-                [playerOwner, lockedOnTarget, runSpeedThreshold, sprintSpeedThreshold]() 
-                { 
-                    if (playerOwner.IsValid())
-                        playerOwner->GetCharacterMovement()->MaxWalkSpeed = lockedOnTarget.IsValid() ? runSpeedThreshold : sprintSpeedThreshold;
-                },
-                walkSpeedDelay,
-                false
-            );
-        });
-
     // === HORIZONTAL SWEEP ===
     HorizontalSweepAttack.Attacks.SetNum(1);
     HorizontalSweepAttack.Attacks[0] = *GetAttackData("HorizontalSweep");
