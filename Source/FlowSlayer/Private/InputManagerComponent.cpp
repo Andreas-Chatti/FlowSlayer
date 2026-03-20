@@ -21,8 +21,8 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 	checkf(EnhancedInputComponent, TEXT("FATAL: EnhancedInputComponent is NULL or INVALID !"));
 
 	// Jumping action - SPACE
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, OwningPlayer, &ACharacter::Jump);
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, OwningPlayer, &ACharacter::StopJumping);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &UInputManagerComponent::OnSpaceKeyActionStarted);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &UInputManagerComponent::OnSpaceKeyActionCompleted);
 
 	// Moving action
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::Move);
@@ -35,7 +35,7 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 	EnhancedInputComponent->BindAction(LShiftAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnLShiftTriggered);
 
 	// Launcher attacks - A + LMB/RMB
-	EnhancedInputComponent->BindAction(A_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnAKeyActionStarted);
+	EnhancedInputComponent->BindAction(A_KeyAction, ETriggerEvent::Started, this, &UInputManagerComponent::OnAKeyActionStarted);
 
 	// Spin attacks - E + LMB/RMB
 	EnhancedInputComponent->BindAction(E_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnEKeyActionStarted);
@@ -53,32 +53,21 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 	EnhancedInputComponent->BindAction(MiddleMouseAction, ETriggerEvent::Started, this, &UInputManagerComponent::OnMiddleMouseButtonStarted);
 }
 
+void UInputManagerComponent::OnSpaceKeyActionStarted(const FInputActionValue& Value)
+{
+	OnSpaceKeyStarted.ExecuteIfBound();
+}
+
+void UInputManagerComponent::OnSpaceKeyActionCompleted(const FInputActionValue& Value)
+{
+	OnSpaceKeyCompleted.ExecuteIfBound();
+}
+
 void UInputManagerComponent::Move(const FInputActionValue& Value)
 {
 	MoveInputAxis = Value.Get<FVector2D>();
 	bHasMovementInput = MoveInputAxis.SquaredLength() > 0.01f;
-
-	// === MODE LOCK-ON ===
-	if (bLockOnActive)
-	{
-		const FVector Forward{ OwningPlayer->GetActorForwardVector() };
-		const FVector Right{ OwningPlayer->GetActorRightVector() };
-
-		OwningPlayer->AddMovementInput(Forward, MoveInputAxis.Y);
-		OwningPlayer->AddMovementInput(Right, MoveInputAxis.X);
-
-		return;
-	}
-
-	// === MODE LIBRE (hors lock-on) ===
-	const FRotator ControlRot{ OwningPlayer->Controller->GetControlRotation() };
-	const FRotator YawRotation{ 0, ControlRot.Yaw, 0 };
-
-	const FVector ForwardDirection{ FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X) };
-	const FVector RightDirection{ FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y) };
-
-	OwningPlayer->AddMovementInput(ForwardDirection, MoveInputAxis.Y);
-	OwningPlayer->AddMovementInput(RightDirection, MoveInputAxis.X);
+	OnMoveInput.ExecuteIfBound(MoveInputAxis);
 }
 
 void UInputManagerComponent::StopMoving(const FInputActionValue& Value)
@@ -89,21 +78,12 @@ void UInputManagerComponent::StopMoving(const FInputActionValue& Value)
 
 void UInputManagerComponent::Look(const FInputActionValue& Value)
 {
-	FVector2D LookAxisVector{ Value.Get<FVector2D>() };
-
-	if (!OwningPlayer->Controller)
-		return;
-
-	OwningPlayer->AddControllerYawInput(LookAxisVector.X);
-	OwningPlayer->AddControllerPitchInput(LookAxisVector.Y);
-
-	// Switch lock-on target if mouse movement is strong enough
-	if (FMath::Abs(LookAxisVector.X) > 1.0f && bLockOnActive)
-		OnSwitchLockOnTargetKeyTriggered.ExecuteIfBound(LookAxisVector.X);
+	OnLookInput.ExecuteIfBound(Value.Get<FVector2D>());
 }
 
 void UInputManagerComponent::OnLShiftTriggered(const FInputActionValue& Value)
 {
+	/*
 	if (bLShiftBufferActive)
 		return;
 
@@ -119,6 +99,8 @@ void UInputManagerComponent::OnLShiftTriggered(const FInputActionValue& Value)
 		0.05f,
 		false
 	);
+	*/
+	OnLShiftKeyTriggered.ExecuteIfBound();
 }
 
 void UInputManagerComponent::OnLMBActionStarted(const FInputActionInstance& Value)

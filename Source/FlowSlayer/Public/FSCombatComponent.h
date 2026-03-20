@@ -140,7 +140,18 @@ public:
 
     UHitFeedbackComponent* GetHitFeedbackComponent() const { return HitFeedBackComponent; }
 
+    // ===== GUARD =====
+
+    /** Toggle Guard base on current player's state */
+    void ToggleGuard();
+
+    UFUNCTION(BlueprintPure)
+    bool IsGuarding() const { return bGuardActivated; }
+
 protected:
+
+    UPROPERTY(BlueprintReadOnly)
+    bool bGuardActivated{ false };
 
     virtual void BeginPlay() override;
 
@@ -196,6 +207,9 @@ private:
     AActor* LockedOnTarget;
 
     bool InitializeAndAttachWeapon();
+
+    /** Snaps the player's yaw to match the camera's control rotation */
+    void RotatePlayerTowardControlRotation();
 
     // === COMBAT - COMBO SYSTEM ===
 

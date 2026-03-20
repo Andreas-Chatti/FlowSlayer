@@ -62,6 +62,7 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	DashComponent = CreateDefaultSubobject<UDashComponent>(TEXT("DashComponent"));
 	checkf(DashComponent, TEXT("FATAL: DashComponent is NULL or INVALID !"));
 	DashComponent->OnDashStarted.AddUObject(FlowComponent, &UFSFlowComponent::RemoveFlow);
+	DashComponent->OnDashStarted.AddUObject(this, &AFlowSlayerCharacter::HandleOnDashStarted);
 	DashComponent->CanAffordDash.BindUObject(FlowComponent, &UFSFlowComponent::HasEnoughFlow);
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
@@ -79,12 +80,15 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	checkf(InputManagerComponent, TEXT("FATAL: InputManagerComponent is NULL or INVALID !"));
 	InputManagerComponent->OnMiddleMouseButtonClicked.BindUObject(this, &AFlowSlayerCharacter::ToggleLockOn);
 	InputManagerComponent->OnLShiftKeyTriggered.BindUObject(this, &AFlowSlayerCharacter::OnDashAction);
+	InputManagerComponent->OnSpaceKeyStarted.BindUObject(this, &AFlowSlayerCharacter::HandleOnSpaceKeyStarted);
+	InputManagerComponent->OnSpaceKeyCompleted.BindUObject(this, &AFlowSlayerCharacter::HandleOnSpaceKeyCompleted);
 	InputManagerComponent->OnLMBTriggered.BindUObject(this, &AFlowSlayerCharacter::OnLeftClickAction);
 	InputManagerComponent->OnRMBTriggered.BindUObject(this, &AFlowSlayerCharacter::OnRightClickAction);
 	InputManagerComponent->OnAKeyTriggered.BindUObject(this, &AFlowSlayerCharacter::OnLauncherAction);
 	InputManagerComponent->OnEKeyTriggered.BindUObject(this, &AFlowSlayerCharacter::OnSpinAttackAction);
 	InputManagerComponent->OnFKeyTriggered.BindUObject(this, &AFlowSlayerCharacter::OnForwardPowerAction);
-	InputManagerComponent->OnSwitchLockOnTargetKeyTriggered.BindUObject(LockOnComponent, &UFSLockOnComponent::SwitchLockOnTarget);
+	InputManagerComponent->OnMoveInput.BindUObject(this, &AFlowSlayerCharacter::HandleMoveInput);
+	InputManagerComponent->OnLookInput.BindUObject(this, &AFlowSlayerCharacter::HandleLookInput);
 	
 	JumpMaxCount = 2;
 }
@@ -144,7 +148,6 @@ void AFlowSlayerCharacter::HandleOnAnimationCanceled()
 void AFlowSlayerCharacter::HandleOnLockOnStarted(AActor* lockedOnTarget)
 {
 	CombatComponent->SetLockedOnTargetRef(lockedOnTarget);
-	InputManagerComponent->SetIsLockedOn(static_cast<bool>(lockedOnTarget));
 	GetCharacterMovement()->MaxWalkSpeed = RunSpeedThreshold;
 }
 
@@ -152,7 +155,6 @@ void AFlowSlayerCharacter::HandleOnLockOnStopped()
 {
 	GetCharacterMovement()->MaxWalkSpeed = SprintSpeedThreshold;
 	CombatComponent->SetLockedOnTargetRef(nullptr);
-	InputManagerComponent->SetIsLockedOn(false);
 }
 
 void AFlowSlayerCharacter::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation, const FAttackData& usedAttack)
@@ -167,6 +169,25 @@ void AFlowSlayerCharacter::ToggleLockOn() const
 
 	else
 		LockOnComponent->DisengageLockOn();
+}
+
+void AFlowSlayerCharacter::HandleOnSpaceKeyStarted()
+{
+	Jump();
+
+	if (CombatComponent->IsGuarding())
+		CombatComponent->ToggleGuard();
+}
+
+void AFlowSlayerCharacter::HandleOnSpaceKeyCompleted()
+{
+	StopJumping();
+}
+
+void AFlowSlayerCharacter::HandleOnDashStarted(float flowCost)
+{
+	if (CombatComponent->IsGuarding())
+		CombatComponent->ToggleGuard();
 }
 
 void AFlowSlayerCharacter::OnDashAction()
@@ -201,6 +222,10 @@ EAttackType AFlowSlayerCharacter::GetDashAttackFromInput()
 	else if (InputManagerComponent->GetInputKeyState(EKeys::F))
 		return EAttackType::DashDoubleSlash;
 
+	// LSHIFT + A
+	else if (InputManagerComponent->GetInputKeyState(EKeys::A))
+		return EAttackType::JumpForwardSlam;
+
 	return EAttackType::None;
 }
 
@@ -208,6 +233,37 @@ void AFlowSlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 	InputManagerComponent->SetupInputBindings(PlayerInputComponent);
+}
+
+void AFlowSlayerCharacter::HandleMoveInput(FVector2D moveAxis)
+{
+	if (CombatComponent->IsGuarding())
+		CombatComponent->ToggleGuard();
+
+	if (LockOnComponent->IsLockedOnTarget())
+	{
+		AddMovementInput(GetActorForwardVector(), moveAxis.Y);
+		AddMovementInput(GetActorRightVector(), moveAxis.X);
+		return;
+	}
+
+	const FRotator ControlRot{ Controller->GetControlRotation() };
+	const FRotator YawRotation{ 0, ControlRot.Yaw, 0 };
+
+	AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X), moveAxis.Y);
+	AddMovementInput(FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y), moveAxis.X);
+}
+
+void AFlowSlayerCharacter::HandleLookInput(FVector2D lookAxis)
+{
+	if (!Controller)
+		return;
+
+	AddControllerYawInput(lookAxis.X);
+	AddControllerPitchInput(lookAxis.Y);
+
+	if (FMath::Abs(lookAxis.X) > 1.0f && LockOnComponent->IsLockedOnTarget())
+		LockOnComponent->SwitchLockOnTarget(lookAxis.X);
 }
 
 void AFlowSlayerCharacter::NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
@@ -261,7 +317,16 @@ void AFlowSlayerCharacter::OnRightClickAction()
 
 void AFlowSlayerCharacter::OnLauncherAction()
 {
-	OnAttackTriggered(GetLauncherAttackFromInput());
+	// When Shift is held, OnDashAction handles the attack
+	if (InputManagerComponent->GetInputKeyState(EKeys::LeftShift))
+		return;
+
+	EAttackType attackType{ GetLauncherAttackFromInput() };
+
+	if (attackType == EAttackType::None)
+		CombatComponent->ToggleGuard();
+	else
+		OnAttackTriggered(attackType);
 }
 
 void AFlowSlayerCharacter::OnSpinAttackAction()
@@ -286,15 +351,9 @@ EAttackType AFlowSlayerCharacter::GetJumpAttackFromInput()
 {
 	auto [isLMBPressed, isRMBPressed] { InputManagerComponent->GetMouseButtonStates() };
 
-	if (isLMBPressed)
-	{
-		if (InputManagerComponent->GetInputKeyState(EKeys::S))
-			return EAttackType::JumpSlam;
-		else if (InputManagerComponent->GetInputKeyState(EKeys::Z))
-			return EAttackType::JumpForwardSlam;
-		else if (CombatComponent->CanAirAttack())
-			return EAttackType::AirCombo;
-	}
+	if (isLMBPressed && CombatComponent->CanAirAttack())
+		return EAttackType::AirCombo;
+
 	else if (isRMBPressed)
 	{
 		if (InputManagerComponent->GetInputKeyState(EKeys::Z))
@@ -334,10 +393,19 @@ EAttackType AFlowSlayerCharacter::GetSpinAttackFromInput()
 {
 	auto [isLMBPressed, isRMBPressed] { InputManagerComponent->GetMouseButtonStates() };
 
+	// E + RMB
 	if (isRMBPressed)
 		return EAttackType::HorizontalSweep;
 
-	return EAttackType::SpinAttack;
+	// E + LMB
+	else if (isLMBPressed)
+		return EAttackType::SpinAttack; 
+
+	// E + Z
+	else if (InputManagerComponent->GetInputKeyState(EKeys::Z))
+		return EAttackType::JumpSlam;
+
+	return EAttackType::None;
 }
 
 EAttackType AFlowSlayerCharacter::GetForwardPowerAttackFromInput()
@@ -357,6 +425,9 @@ void AFlowSlayerCharacter::OnAttackTriggered(EAttackType attackType)
 
 void AFlowSlayerCharacter::HandleOnHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)
 {
+	if (CombatComponent->IsGuarding())
+		return;
+
 	CombatComponent->GetHitFeedbackComponent()->OnReceiveHit(instigatorActor->GetActorLocation(), usedAttack.KnockbackForce, usedAttack.KnockbackUpForce);
 	HealthComponent->ReceiveDamage(usedAttack.Damage, instigatorActor);
 }

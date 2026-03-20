@@ -19,12 +19,15 @@ enum class EActionType : uint8
 
 DECLARE_DELEGATE(FOnMiddleMouseButtonClicked);
 DECLARE_DELEGATE(FOnLShiftKeyTriggered);
+DECLARE_DELEGATE(FOnSpaceKeyStarted);
+DECLARE_DELEGATE(FOnSpaceKeyCompleted);
 DECLARE_DELEGATE(FOnLMBTriggered);
 DECLARE_DELEGATE(FOnRMBTriggered);
 DECLARE_DELEGATE(FOnAKeyTriggered);
 DECLARE_DELEGATE(FOnEKeyTriggered);
 DECLARE_DELEGATE(FOnFKeyTriggered);
-DECLARE_DELEGATE_OneParam(FOnSwitchLockOnTargetKeyTriggered, float xAxisValue);
+DECLARE_DELEGATE_OneParam(FOnMoveInput, FVector2D);
+DECLARE_DELEGATE_OneParam(FOnLookInput, FVector2D);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class FLOWSLAYER_API UInputManagerComponent : public UActorComponent
@@ -53,13 +56,18 @@ public:
 	void SetupInputBindings(UInputComponent* PlayerInputComponent);
 
 	void DisableAllInputs();
-	void SetIsLockedOn(bool bIsLockedOn) { bLockOnActive = bIsLockedOn; }
 
 	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
 	FOnMiddleMouseButtonClicked OnMiddleMouseButtonClicked;
 
 	/** LSHIFT - Dash and dash attacks */
 	FOnLShiftKeyTriggered OnLShiftKeyTriggered;
+
+	/** SPACE - Jump started */
+	FOnSpaceKeyStarted OnSpaceKeyStarted;
+
+	/** SPACE - Jump completed (key released) */
+	FOnSpaceKeyCompleted OnSpaceKeyCompleted;
 
 	/** LMB - Light attack variants (standing, running, air, slam) */
 	FOnLMBTriggered OnLMBTriggered;
@@ -76,8 +84,11 @@ public:
 	/** F + Z/S - Forward power attacks */
 	FOnFKeyTriggered OnFKeyTriggered;
 
-	/** Broadcasted when mouse moves enough during lock-on to switch target */
-	FOnSwitchLockOnTargetKeyTriggered OnSwitchLockOnTargetKeyTriggered;
+	/** Broadcasted every frame movement input is active, with the 2D axis value */
+	FOnMoveInput OnMoveInput;
+
+	/** Broadcasted every frame look input is active, with the 2D axis value */
+	FOnLookInput OnLookInput;
 
 protected:
 
@@ -103,8 +114,6 @@ private:
 
 	UPROPERTY()
 	UEnhancedInputComponent* EnhancedInputComponent{ nullptr };
-
-	bool bLockOnActive{ false };
 
 	/** Prevents LSHIFT from re-triggering while waiting for chord keys (LMB + Q/D) to register */
 	bool bLShiftBufferActive{ false };
@@ -155,6 +164,12 @@ private:
 	/** Dash (LShift) Input Action */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
 	UInputAction* LShiftAction;
+
+	/** Called when SPACE is pressed */
+	void OnSpaceKeyActionStarted(const FInputActionValue& Value);
+
+	/** Called when SPACE is released */
+	void OnSpaceKeyActionCompleted(const FInputActionValue& Value);
 
 	/** Called for movement input */
 	void Move(const FInputActionValue& Value);

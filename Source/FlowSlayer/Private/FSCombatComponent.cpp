@@ -155,7 +155,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         {
             if (PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying())
                 AnimInstance->Montage_JumpToSection(FName("AirStart"), AnimInstance->GetCurrentActiveMontage());
-            else if (bIsAttacking)
+            else
                 AnimInstance->Montage_JumpToSection(FName("ComboStart"), AnimInstance->GetCurrentActiveMontage());
         });
 
@@ -166,7 +166,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         {
             if (PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying())
                 AnimInstance->Montage_JumpToSection(FName("AirStart"), AnimInstance->GetCurrentActiveMontage());
-            else if (bIsAttacking)
+            else
                 AnimInstance->Montage_JumpToSection(FName("ComboStart"), AnimInstance->GetCurrentActiveMontage());
         });
 
@@ -177,7 +177,7 @@ void UFSCombatComponent::InitializeComboAttackData()
         {
             if (PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying())
                 AnimInstance->Montage_JumpToSection(FName("AirStart"), AnimInstance->GetCurrentActiveMontage());
-            else if (bIsAttacking)
+            else
                 AnimInstance->Montage_JumpToSection(FName("ComboStart"), AnimInstance->GetCurrentActiveMontage());
         });
 
@@ -258,6 +258,7 @@ void UFSCombatComponent::OnAttackInputReceived(EAttackType attackType)
         return;
 
     bIsAttacking = true;
+    bGuardActivated = false;
 
     ExecuteAttack(animAttack);
 
@@ -498,4 +499,30 @@ float UFSCombatComponent::GetComboTimeRatio() const
         return 0.f;
 
     return FMath::Clamp(ComboTimeRemaining / OngoingAttackComboWindowDuration, 0.f, 1.f);
+}
+
+void UFSCombatComponent::ToggleGuard()
+{
+    bool bInAir{ PlayerOwner->GetCharacterMovement()->IsFalling() || PlayerOwner->GetCharacterMovement()->IsFlying() };
+
+    if (bIsAttacking || bInAir)
+    {
+        bGuardActivated = false;
+        return;
+    }
+
+    bGuardActivated = !bGuardActivated;
+
+    if (bGuardActivated)
+        RotatePlayerTowardControlRotation();
+}
+
+void UFSCombatComponent::RotatePlayerTowardControlRotation()
+{
+    AController* controller{ PlayerOwner->GetController() };
+    if (!controller)
+        return;
+
+    float controlYaw{ static_cast<float>(controller->GetControlRotation().Yaw) };
+    PlayerOwner->SetActorRotation(FRotator(0.f, controlYaw, 0.f));
 }

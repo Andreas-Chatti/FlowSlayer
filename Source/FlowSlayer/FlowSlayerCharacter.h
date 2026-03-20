@@ -231,8 +231,23 @@ private:
 	// Bound to InputManagerComponent delegates in the constructor.
 	// Each handler reads input state and calls OnAttackTriggered with the resolved EAttackType.
 
+	/** Handles movement input: applies AddMovementInput in lock-on or free mode */
+	void HandleMoveInput(FVector2D moveAxis);
+
+	/** Handles look input: rotates controller and switches lock-on target on strong mouse movement */
+	void HandleLookInput(FVector2D lookAxis);
+
 	/** LSHIFT - Starts a dash and optionally triggers a dash attack if LMB/RMB is held */
 	void OnDashAction();
+
+	/** Called when DashComponent starts a dash - receives the flow cost of the dash */
+	void HandleOnDashStarted(float flowCost);
+
+	/** Called when SPACE is pressed - triggers Jump */
+	void HandleOnSpaceKeyStarted();
+
+	/** Called when SPACE is released - triggers StopJumping */
+	void HandleOnSpaceKeyCompleted();
 
 	/** LMB - Dispatches to the correct light attack getter based on current state */
 	void OnLeftClickAction();
