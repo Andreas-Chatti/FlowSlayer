@@ -141,6 +141,13 @@ public:
 	UDashComponent* GetDashComponent() const { return DashComponent; }
 	virtual UHealthComponent* GetHealthComponent() override { return HealthComponent; }
 	UInputManagerComponent* GetInputManagerComponent() const { return InputManagerComponent; }
+	UFSLockOnComponent* GetLockOnComponent() const { return LockOnComponent; }
+
+	// --- WalkSpeed accessors ---
+
+	float GetWalkSpeedThreshold() const { return WalkSpeedThreshold; }
+	float GetRunSpeedThreshold() const { return RunSpeedThreshold; }
+	float GetSprintSpeedThreshold() const { return SprintSpeedThreshold; }
 
 	// --- Delegates ---
 
@@ -195,6 +202,14 @@ protected:
 	////////////////////////////////////////////////
 private:
 
+	/** Maps each attack-specific InputAction to its corresponding EAttackType
+	* Populated in BeginPlay — used by OnAttackInputActionReceived to resolve the correct attack
+	*/
+	TMap<const UInputAction*, EAttackType> InputActionToAttackType;
+
+	/** Populates InputActionToAttackType with all attack InputAction → EAttackType pairs */
+	void InitializeInputActionMap();
+
 	/** Called when the animation cancel window opens and the player inputs a cancel action */
 	UFUNCTION()
 	void HandleOnAnimationCanceled();
@@ -222,50 +237,31 @@ private:
 
 	// --- Input delegate handlers ---
 	// Bound to InputManagerComponent delegates in the constructor.
-	// Each handler reads input state and calls OnAttackTriggered with the resolved EAttackType.
+	// Each handler receives input from InputManagerComponent and forwards it to CombatComponent.
+
+	/** Handles movement input: applies AddMovementInput in lock-on or free mode */
+	void HandleMoveInput(FVector2D moveAxis);
+
+	/** Handles look input: rotates controller and switches lock-on target on strong mouse movement */
+	void HandleLookInput(FVector2D lookAxis);
+
+	/** Handle guard input: when 'A' key is pressed, activate/deactivate guard */
+	void HandleGuardInput();
 
 	/** LSHIFT - Starts a dash and optionally triggers a dash attack if LMB/RMB is held */
 	void OnDashAction();
 
-	/** LMB - Dispatches to the correct light attack getter based on current state */
-	void OnLeftClickAction();
+	/** Called when DashComponent starts a dash - receives the flow cost of the dash */
+	void HandleOnDashStarted(float flowCost);
 
-	/** RMB - Dispatches to the correct heavy attack getter based on current state */
-	void OnRightClickAction();
+	/** Called when SPACE is pressed - triggers Jump */
+	void HandleOnSpaceKeyStarted();
 
-	/** A + LMB/RMB - Resolves and triggers Launcher or PowerLauncher */
-	void OnLauncherAction();
-
-	/** E + LMB/RMB - Resolves and triggers SpinAttack or HorizontalSweep */
-	void OnSpinAttackAction();
-
-	/** F + Z/S - Resolves and triggers PierceThrust or PowerSlash */
-	void OnForwardPowerAction();
-
-	// --- Attack type getters ---
-	// Pure input-reading functions that return the correct EAttackType.
-	// Never call OnAttackTriggered directly — that is the caller's responsibility.
-
-	/** LSHIFT + LMB/RMB - Returns the correct dash attack based on direction and mouse button */
-	EAttackType GetDashAttackFromInput();
-
-	/** SPACE + LMB/RMB (or while airborne) - Returns the correct air attack type */
-	EAttackType GetJumpAttackFromInput();
-
-	/** S + LMB/RMB - Returns DiagonalRetourne or GroundSlam */
-	EAttackType GetSlamAttackFromInput();
-
-	/** A + LMB/RMB - Returns Launcher or PowerLauncher */
-	EAttackType GetLauncherAttackFromInput();
-
-	/** E + LMB/RMB - Returns SpinAttack or HorizontalSweep */
-	EAttackType GetSpinAttackFromInput();
-
-	/** F + Z/S - Returns PierceThrust or PowerSlash */
-	EAttackType GetForwardPowerAttackFromInput();
+	/** Called when SPACE is released - triggers StopJumping */
+	void HandleOnSpaceKeyCompleted();
 
 	// --- Attack trigger ---
 
 	/** Forwards the resolved attack type to CombatComponent with the current movement context */
-	void OnAttackTriggered(EAttackType attackType);
+	void OnAttackInputActionReceived(const UInputAction* inputAction);
 };

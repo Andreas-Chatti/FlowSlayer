@@ -86,6 +86,9 @@ protected:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+	UPROPERTY(EditAnywhere, Category = "Debug")
+	bool bInfiniteFlow{ false };
+
 private:
 
 	/** Maximum flow value. Defines the 100% cap. */

@@ -15,9 +15,6 @@ void UHitboxComponent::BeginPlay()
 
 void UHitboxComponent::HandleActiveFrameStarted(const FHitboxProfile* hitboxProfile)
 {
-    if (OwnerWeapon)
-        OwnerWeapon->ActivateTrail();
-
     if (!hitboxProfile)
         return;
 
@@ -44,9 +41,6 @@ void UHitboxComponent::HandleActiveFrameStarted(const FHitboxProfile* hitboxProf
 void UHitboxComponent::HandleActiveFrameStopped()
 {
     ActorsHitThisAttack.Empty();
-
-    if (OwnerWeapon)
-        OwnerWeapon->DeactivateTrail();
 }
 
 void UHitboxComponent::DetectWeaponSweep(float radius, bool bShowDebugLines, float debugLinesDuration)

@@ -49,6 +49,10 @@ public:
     UFUNCTION(BlueprintPure)
     bool IsDashing() const { return bIsDashing; }
 
+    /** Returns the world-space normalized direction of the current or last dash */
+    UFUNCTION(BlueprintPure)
+    FVector GetDashDirectionWorld() const { return DashDirectionWorld; }
+
     UFUNCTION(BlueprintPure)
     bool CanDash() const;
 
@@ -114,6 +118,9 @@ private:
 
     /** Curve output from the previous frame — used to compute per-frame delta displacement */
     float lastCurveValue{ 0.f };
+
+    /** World-space normalized direction of the current or last dash */
+    FVector DashDirectionWorld{FVector::ZeroVector};
 
     bool bIsDashing{ false };
     bool bIsOnCooldown{ false };

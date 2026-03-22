@@ -54,6 +54,7 @@ void UDashComponent::StartDash(const FVector2D& inputDirection)
     FVector right{ FRotationMatrix(cameraYaw).GetUnitAxis(EAxis::Y) };
 
     FVector dashDirection{ (forward * snappedInput.Y + right * snappedInput.X).GetSafeNormal() };
+    DashDirectionWorld = dashDirection;
 
     dashStart = OwningPlayer->GetActorLocation();
     dashEnd = dashStart + dashDirection * DashDistance;

@@ -10,15 +10,19 @@ void AFSEnemyAIController::BeginPlay()
     Super::BeginPlay();
 
     UPathFollowingComponent* PathFollowingComp{ GetPathFollowingComponent() };
-    if (PathFollowingComp)
-        PathFollowingComp->OnRequestFinished.AddUObject(this, &AFSEnemyAIController::OnMoveToTargetCompleted);
+    checkf(PathFollowingComp, TEXT("FATAL: PathFollowingComp is NULL or INVALID !"));
+    PathFollowingComp->OnRequestFinished.AddUObject(this, &AFSEnemyAIController::OnMoveToTargetCompleted);
+
+    PlayerRef = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+    verifyf(PlayerRef, TEXT("WARNING: PlayerRef is NULL or INVALID !"));
 }
 
 void AFSEnemyAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
 
-    OwnedEnemyPawn = Cast<AFSEnemy>(InPawn);
+    OwnedEnemy = Cast<AFSEnemy>(InPawn);
+    checkf(OwnedEnemy, TEXT("FATAL: OwnedEnemy is NULL or INVALID !"));
 }
 
 void AFSEnemyAIController::OnMoveToTargetCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result)
@@ -27,58 +31,38 @@ void AFSEnemyAIController::OnMoveToTargetCompleted(FAIRequestID RequestID, const
     if (ResultCode != EPathFollowingResult::Success)
         return;
 
-    if (OwnedEnemyPawn && !OwnedEnemyPawn->GetHealthComponent()->IsDead())
-    {
-        RotateToPlayer();
-        OwnedEnemyPawn->Attack();
-    }
+    if (OwnedEnemy && !OwnedEnemy->GetHealthComponent()->IsDead() && OwnedEnemy->CanAttack())
+        OwnedEnemy->Attack();
 }
 
 void AFSEnemyAIController::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    if (OwnedEnemyPawn && !OwnedEnemyPawn->IsAttacking() && !OwnedEnemyPawn->GetHealthComponent()->IsDead() && !OwnedEnemyPawn->IsStunned())
+    if (OwnedEnemy && !OwnedEnemy->IsAttacking() && !OwnedEnemy->GetHealthComponent()->IsDead() && OwnedEnemy->CanAttack())
         FollowPlayer();
 }
 
 void AFSEnemyAIController::FollowPlayer()
 {
-    UWorld* World{ GetWorld() };
-    APawn* PlayerPawn{ UGameplayStatics::GetPlayerPawn(World, 0) };
-    if (!World || !PlayerPawn)
+    if (!PlayerRef)
         return;
 
     EPathFollowingStatus::Type Status{ GetMoveStatus() };
     if (Status == EPathFollowingStatus::Idle)
     {
-        FAIMoveRequest MoveRequest{ PlayerPawn };
-        MoveRequest.SetAcceptanceRadius(OwnedEnemyPawn->GetAttackRange());
+        FAIMoveRequest MoveRequest{ PlayerRef };
+        MoveRequest.SetAcceptanceRadius(OwnedEnemy->GetAttackRange());
         MoveTo(MoveRequest);
     }
 }
 
-void AFSEnemyAIController::RotateToPlayer()
-{
-    UWorld* World{ GetWorld() };
-    APawn* PlayerPawn{ UGameplayStatics::GetPlayerPawn(World, 0) };
-    if (!World || !PlayerPawn)
-        return;
-
-    FVector DirectionToPlayer = PlayerPawn->GetActorLocation() - OwnedEnemyPawn->GetActorLocation();
-    DirectionToPlayer.Z = 0.0f;
-
-    FRotator LookAtRotation = DirectionToPlayer.Rotation();
-    OwnedEnemyPawn->SetActorRotation(LookAtRotation);
-}
-
 void AFSEnemyAIController::JumpToDestination(FVector Destination)
 {
-    ACharacter* localChar{ Cast<ACharacter>(GetPawn()) };
-    if (!localChar)
+    if (!OwnedEnemy)
         return;
 
-    FVector StartLocation{ localChar->GetActorLocation() };
+    FVector StartLocation{ OwnedEnemy->GetActorLocation() };
     FVector OutLaunchVelocity;
 
     FVector HorizontalDelta{ Destination - StartLocation };
@@ -110,5 +94,5 @@ void AFSEnemyAIController::JumpToDestination(FVector Destination)
     ) };
 
     if (bSuccess)
-        localChar->LaunchCharacter(OutLaunchVelocity, true, true);
+        OwnedEnemy->LaunchCharacter(OutLaunchVelocity, true, true);
 }

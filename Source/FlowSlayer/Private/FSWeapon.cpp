@@ -1,4 +1,4 @@
-﻿#include "FSWeapon.h"
+#include "FSWeapon.h"
 
 AFSWeapon::AFSWeapon()
 {
@@ -16,17 +16,13 @@ void AFSWeapon::InitializeComponents()
     WeaponMesh->SetupAttachment(RootComponent);
     WeaponMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    /** Trail VFX */
-    SwordTrailComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("SwordTrail"));
-    verifyf(SwordTrailComponent, TEXT("WARNING: SwordTrailComponent is NULL or INVALID !"));
-    SwordTrailComponent->SetupAttachment(WeaponMesh, "S_WeaponMid");
-    SwordTrailComponent->bAutoActivate = false;
-}
+    TrailNiagaraBaseComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraTrailBase"));
+    verifyf(TrailNiagaraBaseComponent, TEXT("WARNING: TrailNiagaraBaseComponent is NULL or INVALID !"));
+    TrailNiagaraBaseComponent->SetupAttachment(WeaponMesh, "S_WeaponBase");
+    TrailNiagaraBaseComponent->bAutoActivate = false;
 
-void AFSWeapon::BeginPlay()
-{
-    Super::BeginPlay();
-
-    if (SwordTrailSystem && SwordTrailComponent)
-        SwordTrailComponent->SetAsset(SwordTrailSystem);
+    TrailNiagaraTipComponent = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraTrailTip"));
+    verifyf(TrailNiagaraTipComponent, TEXT("WARNING: TrailNiagaraTipComponent is NULL or INVALID !"));
+    TrailNiagaraTipComponent->SetupAttachment(WeaponMesh, "S_WeaponTip");
+    TrailNiagaraTipComponent->bAutoActivate = false;
 }

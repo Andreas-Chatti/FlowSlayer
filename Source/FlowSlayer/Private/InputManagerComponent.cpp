@@ -13,153 +13,98 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 	PlayerController = Cast<APlayerController>(OwningPlayer->GetController());
 	checkf(PlayerController, TEXT("FATAL: PlayerController is NULL or INVALID !"));
 
-	UEnhancedInputLocalPlayerSubsystem* Subsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) };
-	if (PlayerController && Subsystem)
-		Subsystem->AddMappingContext(DefaultMappingContext, 0);
+	Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer());
+	checkf(Subsystem, TEXT("FATAL: Subsystem is NULL or INVALID !"));
+
+	Subsystem->AddMappingContext(DefaultMappingContext, 0);
 
 	EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent);
 	checkf(EnhancedInputComponent, TEXT("FATAL: EnhancedInputComponent is NULL or INVALID !"));
 
 	// Jumping action - SPACE
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, OwningPlayer, &ACharacter::Jump);
-	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, OwningPlayer, &ACharacter::StopJumping);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnJumpStarted);
+	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &UInputManagerComponent::HandleOnJumpCompleted);
 
 	// Moving action
-	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::Move);
-	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &UInputManagerComponent::StopMoving);
+	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::HandleOnMoveTriggered);
+	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &UInputManagerComponent::HandleOnMoveCompleted);
 
 	// Looking action
-	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::Look);
+	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::HandleOnLookTriggered);
 
-	// Dashing action - LSHIFT
-	EnhancedInputComponent->BindAction(LShiftAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnLShiftTriggered);
+	// Dash - LShift alone (with disambiguation logic)
+	EnhancedInputComponent->BindAction(LShiftAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::HandleOnDashTriggered);
 
-	// Launcher attacks - A + LMB/RMB
-	EnhancedInputComponent->BindAction(A_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnAKeyActionStarted);
-
-	// Spin attacks - E + LMB/RMB
-	EnhancedInputComponent->BindAction(E_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnEKeyActionStarted);
-
-	// Forward power attacks - F + Z/S
-	EnhancedInputComponent->BindAction(F_KeyAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnFKeyActionStarted);
-
-	// Light attack - LMB
-	EnhancedInputComponent->BindAction(LMBAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnLMBActionStarted);
-
-	// Heavy attack - RMB
-	EnhancedInputComponent->BindAction(RMBAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::OnRMBActionStarted);
+	// Guard - 'A' Key (with launcher disambiguation)
+	EnhancedInputComponent->BindAction(GuardAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnGuardTriggered);
 
 	// Lock-on - Middle mouse button
-	EnhancedInputComponent->BindAction(MiddleMouseAction, ETriggerEvent::Started, this, &UInputManagerComponent::OnMiddleMouseButtonStarted);
+	EnhancedInputComponent->BindAction(MiddleMouseAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnMiddleMouseButtonStarted);
+
+	// All standard attack actions — no special conditions, forward source action directly to OnAttackInputReceived
+	const TArray<UInputAction*> AttackActions
+	{
+		DashPierceAction, DashSpinningSlashAction, DashDoubleSlashAction, DashBackSlashAction,
+		JumpSlamAttackAction, JumpForwardSlamAttackAction, JumpUpperSlamAttackAction,
+		LauncherAttackAction, PowerLauncherAttackAction,
+		SpinAttackAction, HorizontalSweepAttackAction,
+		PowerSlashAttackAction, PierceThrustAttackAction, GroundSlamAttackAction, DiagonalRetourneAttackAction
+	};
+
+	for (UInputAction* Action : AttackActions)
+		EnhancedInputComponent->BindActionValueLambda(Action, ETriggerEvent::Started, [this, Action](const FInputActionValue& InputActionValue) { OnAttackInputReceived.ExecuteIfBound(Action); });
+	for (UInputAction* Action : { LightAttackAction, HeavyAttackAction })
+		EnhancedInputComponent->BindActionValueLambda(Action, ETriggerEvent::Triggered, [this, Action](const FInputActionValue& InputActionValue) { OnAttackInputReceived.ExecuteIfBound(Action); });
 }
 
-void UInputManagerComponent::Move(const FInputActionValue& Value)
+void UInputManagerComponent::HandleOnJumpStarted(const FInputActionValue& Value)
+{
+	OnSpaceKeyStarted.ExecuteIfBound();
+}
+
+void UInputManagerComponent::HandleOnJumpCompleted(const FInputActionValue& Value)
+{
+	OnSpaceKeyCompleted.ExecuteIfBound();
+}
+
+void UInputManagerComponent::HandleOnMoveTriggered(const FInputActionValue& Value)
 {
 	MoveInputAxis = Value.Get<FVector2D>();
 	bHasMovementInput = MoveInputAxis.SquaredLength() > 0.01f;
-
-	// === MODE LOCK-ON ===
-	if (bLockOnActive)
-	{
-		const FVector Forward{ OwningPlayer->GetActorForwardVector() };
-		const FVector Right{ OwningPlayer->GetActorRightVector() };
-
-		OwningPlayer->AddMovementInput(Forward, MoveInputAxis.Y);
-		OwningPlayer->AddMovementInput(Right, MoveInputAxis.X);
-
-		return;
-	}
-
-	// === MODE LIBRE (hors lock-on) ===
-	const FRotator ControlRot{ OwningPlayer->Controller->GetControlRotation() };
-	const FRotator YawRotation{ 0, ControlRot.Yaw, 0 };
-
-	const FVector ForwardDirection{ FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X) };
-	const FVector RightDirection{ FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y) };
-
-	OwningPlayer->AddMovementInput(ForwardDirection, MoveInputAxis.Y);
-	OwningPlayer->AddMovementInput(RightDirection, MoveInputAxis.X);
+	OnMoveInput.ExecuteIfBound(MoveInputAxis);
 }
 
-void UInputManagerComponent::StopMoving(const FInputActionValue& Value)
+void UInputManagerComponent::HandleOnMoveCompleted(const FInputActionValue& Value)
 {
 	bHasMovementInput = false;
 	MoveInputAxis = FVector2D::ZeroVector;
 }
 
-void UInputManagerComponent::Look(const FInputActionValue& Value)
+void UInputManagerComponent::HandleOnLookTriggered(const FInputActionValue& Value)
 {
-	FVector2D LookAxisVector{ Value.Get<FVector2D>() };
+	OnLookInput.ExecuteIfBound(Value.Get<FVector2D>());
+}
 
-	if (!OwningPlayer->Controller)
+void UInputManagerComponent::HandleOnDashTriggered(const FInputActionValue& Value)
+{
+	if (IsInputActionDown(DashPierceAction) || IsInputActionDown(DashSpinningSlashAction)
+		|| IsInputActionDown(DashDoubleSlashAction) || IsInputActionDown(DashBackSlashAction))
 		return;
 
-	OwningPlayer->AddControllerYawInput(LookAxisVector.X);
-	OwningPlayer->AddControllerPitchInput(LookAxisVector.Y);
-
-	// Switch lock-on target if mouse movement is strong enough
-	if (FMath::Abs(LookAxisVector.X) > 1.0f && bLockOnActive)
-		OnSwitchLockOnTargetKeyTriggered.ExecuteIfBound(LookAxisVector.X);
+	OnLShiftKeyTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::OnLShiftTriggered(const FInputActionValue& Value)
+void UInputManagerComponent::HandleOnGuardTriggered(const FInputActionValue& Value)
 {
-	if (bLShiftBufferActive)
+	if (IsInputActionDown(LauncherAttackAction) || IsInputActionDown(PowerLauncherAttackAction))
 		return;
 
-	bLShiftBufferActive = true;
-
-	GetWorld()->GetTimerManager().SetTimer(
-		LShiftBufferTimer,
-		[this]()
-		{
-			bLShiftBufferActive = false;
-			OnLShiftKeyTriggered.ExecuteIfBound();
-		},
-		0.05f,
-		false
-	);
+	OnGuardActionTriggered.ExecuteIfBound();
 }
 
-void UInputManagerComponent::OnLMBActionStarted(const FInputActionInstance& Value)
-{
-	OnLMBTriggered.ExecuteIfBound();
-}
-
-void UInputManagerComponent::OnRMBActionStarted(const FInputActionInstance& Value)
-{
-	OnRMBTriggered.ExecuteIfBound();
-}
-
-void UInputManagerComponent::OnAKeyActionStarted(const FInputActionInstance& Value)
-{
-	OnAKeyTriggered.ExecuteIfBound();
-}
-
-void UInputManagerComponent::OnEKeyActionStarted(const FInputActionInstance& Value)
-{
-	OnEKeyTriggered.ExecuteIfBound();
-}
-
-void UInputManagerComponent::OnFKeyActionStarted(const FInputActionInstance& Value)
-{
-	OnFKeyTriggered.ExecuteIfBound();
-}
-
-void UInputManagerComponent::OnMiddleMouseButtonStarted(const FInputActionInstance& Value)
+void UInputManagerComponent::HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value)
 {
 	OnMiddleMouseButtonClicked.ExecuteIfBound();
-}
-
-TPair<bool, bool> UInputManagerComponent::GetMouseButtonStates() const
-{
-	if (!PlayerController)
-		return TPair<bool, bool>(false, false);
-
-	bool isLMBPressed{ PlayerController->IsInputKeyDown(EKeys::LeftMouseButton) };
-	bool isRMBPressed{ PlayerController->IsInputKeyDown(EKeys::RightMouseButton) };
-
-	return TPair<bool, bool>{ isLMBPressed, isRMBPressed };
 }
 
 bool UInputManagerComponent::GetInputKeyState(FKey inputKey) const
@@ -170,12 +115,21 @@ bool UInputManagerComponent::GetInputKeyState(FKey inputKey) const
 	return PlayerController->WasInputKeyJustPressed(inputKey) || PlayerController->IsInputKeyDown(inputKey);
 }
 
+bool UInputManagerComponent::IsInputActionDown(const UInputAction* inputAction) const
+{
+	if (!Subsystem)
+		return false;
+
+	FInputActionValue inputActionValue{ Subsystem->GetPlayerInput()->GetActionValue(inputAction) };
+
+	return inputActionValue.Get<bool>();
+}
+
 void UInputManagerComponent::DisableAllInputs()
 {
 	if (!PlayerController)
 		return;
 
-	UEnhancedInputLocalPlayerSubsystem* Subsystem{ ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PlayerController->GetLocalPlayer()) };
 	if (Subsystem && DefaultMappingContext)
 		Subsystem->RemoveMappingContext(DefaultMappingContext);
 

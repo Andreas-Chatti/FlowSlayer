@@ -12,8 +12,7 @@ void UAnimNotifyState_FSMotionWarping::NotifyBegin(USkeletalMeshComponent* MeshC
     if (!warpModifier || !LockOnCompRef || !MotionWarpingComponent)
         return;
 
-    const AActor* currentLockedOnTarget{ LockOnCompRef->GetCurrentLockedOnTarget() };
-    const AActor* targetActor{ currentLockedOnTarget ? currentLockedOnTarget : GetTargetForMotionWarp(SearchRadius, bDebugLines) };
+    const AActor* targetActor{ GetTargetForMotionWarp(SearchRadius, bDebugLines) };
 
     if (attackType == EFSMotionWarpingAttackType::Ground)
         SetupGroundAttackMotionWarp(warpModifier->WarpTargetName, targetActor, ForwardOffset, bDebugLines);

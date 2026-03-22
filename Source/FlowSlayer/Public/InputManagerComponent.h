@@ -6,25 +6,14 @@
 #include "Components/ActorComponent.h"
 #include "InputManagerComponent.generated.h"
 
-class UCharacterMovementComponent;
-
-UENUM(BlueprintType)
-enum class EActionType : uint8
-{
-	NONE,
-	Jump,
-	Dash,
-	Move
-};
-
 DECLARE_DELEGATE(FOnMiddleMouseButtonClicked);
 DECLARE_DELEGATE(FOnLShiftKeyTriggered);
-DECLARE_DELEGATE(FOnLMBTriggered);
-DECLARE_DELEGATE(FOnRMBTriggered);
-DECLARE_DELEGATE(FOnAKeyTriggered);
-DECLARE_DELEGATE(FOnEKeyTriggered);
-DECLARE_DELEGATE(FOnFKeyTriggered);
-DECLARE_DELEGATE_OneParam(FOnSwitchLockOnTargetKeyTriggered, float xAxisValue);
+DECLARE_DELEGATE(FOnSpaceKeyStarted);
+DECLARE_DELEGATE(FOnSpaceKeyCompleted);
+DECLARE_DELEGATE(FOnGuardActionTriggered);
+DECLARE_DELEGATE_OneParam(FOnAttackInputReceived, const UInputAction*);
+DECLARE_DELEGATE_OneParam(FOnMoveInput, FVector2D);
+DECLARE_DELEGATE_OneParam(FOnLookInput, FVector2D);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class FLOWSLAYER_API UInputManagerComponent : public UActorComponent
@@ -35,14 +24,14 @@ public:
 
 	UInputManagerComponent();
 
-	/** Helper to query mouse button states (returns pair: {isLMBPressed, isRMBPressed}) */
-	TPair<bool, bool> GetMouseButtonStates() const;
-
 	/** Helper to know if a specific key is PRESSED or was just PRESSED
 	* @param inputKey we want to know the state
 	* @return TRUE if the specific key has been either pressed or is currently pressed
 	*/
 	bool GetInputKeyState(FKey inputKey) const;
+
+	/** Returns true if any key mapped to the given InputAction is currently held down */
+	bool IsInputActionDown(const UInputAction* inputAction) const;
 
 	UFUNCTION(BlueprintPure, Category = "Input")
 	FVector2D GetMoveInputAxis() const { return MoveInputAxis; }
@@ -53,31 +42,50 @@ public:
 	void SetupInputBindings(UInputComponent* PlayerInputComponent);
 
 	void DisableAllInputs();
-	void SetIsLockedOn(bool bIsLockedOn) { bLockOnActive = bIsLockedOn; }
+
+	// --- Attack InputAction getters ---
+	const UInputAction* GetDashPierceAction() const { return DashPierceAction; }
+	const UInputAction* GetDashSpinningSlashAction() const { return DashSpinningSlashAction; }
+	const UInputAction* GetDashDoubleSlashAction() const { return DashDoubleSlashAction; }
+	const UInputAction* GetDashBackSlashAction() const { return DashBackSlashAction; }
+	const UInputAction* GetJumpSlamAttackAction() const { return JumpSlamAttackAction; }
+	const UInputAction* GetJumpForwardSlamAttackAction() const { return JumpForwardSlamAttackAction; }
+	const UInputAction* GetJumpUpperSlamAttackAction() const { return JumpUpperSlamAttackAction; }
+	const UInputAction* GetLauncherAttackAction() const { return LauncherAttackAction; }
+	const UInputAction* GetPowerLauncherAttackAction() const { return PowerLauncherAttackAction; }
+	const UInputAction* GetSpinAttackAction() const { return SpinAttackAction; }
+	const UInputAction* GetHorizontalSweepAttackAction() const { return HorizontalSweepAttackAction; }
+	const UInputAction* GetPowerSlashAttackAction() const { return PowerSlashAttackAction; }
+	const UInputAction* GetPierceThrustAttackAction() const { return PierceThrustAttackAction; }
+	const UInputAction* GetGroundSlamAttackAction() const { return GroundSlamAttackAction; }
+	const UInputAction* GetDiagonalRetourneAttackAction() const { return DiagonalRetourneAttackAction; }
+	const UInputAction* GetLightAttackAction() const { return LightAttackAction; }
+	const UInputAction* GetHeavyAttackAction() const { return HeavyAttackAction; }
+	const UInputAction* GetGuardAction() const { return GuardAction; }
 
 	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
 	FOnMiddleMouseButtonClicked OnMiddleMouseButtonClicked;
 
-	/** LSHIFT - Dash and dash attacks */
+	/** LSHIFT alone — regular dash */
 	FOnLShiftKeyTriggered OnLShiftKeyTriggered;
 
-	/** LMB - Light attack variants (standing, running, air, slam) */
-	FOnLMBTriggered OnLMBTriggered;
+	/** SPACE - Jump started */
+	FOnSpaceKeyStarted OnSpaceKeyStarted;
 
-	/** RMB - Heavy attack variants (standing, running, air, slam) */
-	FOnRMBTriggered OnRMBTriggered;
+	/** SPACE - Jump completed (key released) */
+	FOnSpaceKeyCompleted OnSpaceKeyCompleted;
 
-	/** A + LMB/RMB - Launcher attacks */
-	FOnAKeyTriggered OnAKeyTriggered;
+	/** Broadcasted for every attack input — consumer receives the source UInputAction* and resolves it to EAttackType */
+	FOnAttackInputReceived OnAttackInputReceived;
 
-	/** E + LMB/RMB - Spin attacks */
-	FOnEKeyTriggered OnEKeyTriggered;
+	/** Broadcasted every frame movement input is active, with the 2D axis value */
+	FOnMoveInput OnMoveInput;
 
-	/** F + Z/S - Forward power attacks */
-	FOnFKeyTriggered OnFKeyTriggered;
+	/** Broadcasted every frame look input is active, with the 2D axis value */
+	FOnLookInput OnLookInput;
 
-	/** Broadcasted when mouse moves enough during lock-on to switch target */
-	FOnSwitchLockOnTargetKeyTriggered OnSwitchLockOnTargetKeyTriggered;
+	/** 'A' Key — guard toggle */
+	FOnGuardActionTriggered OnGuardActionTriggered;
 
 protected:
 
@@ -102,87 +110,131 @@ private:
 	APlayerController* PlayerController{ nullptr };
 
 	UPROPERTY()
+	UEnhancedInputLocalPlayerSubsystem* Subsystem{ nullptr };
+
+	UPROPERTY()
 	UEnhancedInputComponent* EnhancedInputComponent{ nullptr };
 
-	bool bLockOnActive{ false };
-
-	/** Prevents LSHIFT from re-triggering while waiting for chord keys (LMB + Q/D) to register */
-	bool bLShiftBufferActive{ false };
-
-	/** Buffer window timer — fires OnLShiftKeyTriggered after all chord keys have had time to register */
-	FTimerHandle LShiftBufferTimer;
-
-	// ========== ATTACK INPUT ACTIONS ==========
-	// NOTE: Simplified to base actions only - variants detected via LMB/RMB and direction in callbacks
-	// ===========================================
-
-	/** LMB InputAction */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* LMBAction;
-
-	/** RMB InputAction */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* RMBAction;
-
-	/** 'A' InputAction*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* A_KeyAction;
-
-	/** 'E' InputAction */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* E_KeyAction;
-
-	/** 'F' InputAction */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* F_KeyAction;
-
-	/** Middle mouse button InputAction */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
-	UInputAction* MiddleMouseAction;
+	// ========== BASE INPUT ACTIONS ==========
 
 	/** Jump (Space) Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
 	UInputAction* JumpAction;
 
 	/** Move ('Z', 'Q', 'S', 'D') Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
 	UInputAction* MoveAction;
 
 	/** Look (Mouse movements) Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
 	UInputAction* LookAction;
 
+	/** Middle mouse button InputAction */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
+	UInputAction* MiddleMouseAction;
+
+	/** Guard ('A') InputAction */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
+	UInputAction* GuardAction;
+
+	// ========== ATTACK INPUT ACTIONS ==========
+	// Each attack has its own InputAction — chord combinations are configured in the editor
+
+	/** LMB — covers StandingLight, RunningLight, AirCombo (state-determined) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks", meta = (AllowPrivateAccess = "true"))
+	UInputAction* LightAttackAction;
+
+	/** RMB — covers StandingHeavy, RunningHeavy, AerialSlam (state-determined) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks", meta = (AllowPrivateAccess = "true"))
+	UInputAction* HeavyAttackAction;
+
 	/** Dash (LShift) Input Action */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Dash", meta = (AllowPrivateAccess = "true"))
 	UInputAction* LShiftAction;
 
+	/** DashPierce — LShift + 'Z' + LMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Dash", meta = (AllowPrivateAccess = "true"))
+	UInputAction* DashPierceAction;
+
+	/** DashSpinningSlash — LShift + 'Q' + LMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Dash", meta = (AllowPrivateAccess = "true"))
+	UInputAction* DashSpinningSlashAction;
+
+	/** DashDoubleSlash — LShift + F (ground only) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Dash", meta = (AllowPrivateAccess = "true"))
+	UInputAction* DashDoubleSlashAction;
+
+	/** DashBackSlash — LShift + E (ground only) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Dash", meta = (AllowPrivateAccess = "true"))
+	UInputAction* DashBackSlashAction;
+
+	/** JumpSlam — E + Z (ground + air) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Jump", meta = (AllowPrivateAccess = "true"))
+	UInputAction* JumpSlamAttackAction;
+
+	/** JumpForwardSlam — LShift + A (ground + air) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Jump", meta = (AllowPrivateAccess = "true"))
+	UInputAction* JumpForwardSlamAttackAction;
+
+	/** JumpUpperSlam — RMB + Z (ground + air) — TODO: revoir les touches */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Jump", meta = (AllowPrivateAccess = "true"))
+	UInputAction* JumpUpperSlamAttackAction;
+
+	/** Launcher — 'A' + LMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Launcher", meta = (AllowPrivateAccess = "true"))
+	UInputAction* LauncherAttackAction;
+
+	/** PowerLauncher — 'A' + RMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Launcher", meta = (AllowPrivateAccess = "true"))
+	UInputAction* PowerLauncherAttackAction;
+
+	/** SpinAttack — 'E' + LMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Spin", meta = (AllowPrivateAccess = "true"))
+	UInputAction* SpinAttackAction;
+
+	/** HorizontalSweep — 'E' + RMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|Spin", meta = (AllowPrivateAccess = "true"))
+	UInputAction* HorizontalSweepAttackAction;
+
+	/** PowerSlash — 'Z' + Hold RMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|PowerAttack", meta = (AllowPrivateAccess = "true"))
+	UInputAction* PowerSlashAttackAction;
+
+	/** PierceThrust — 'Z' + LMB (double tap) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|PowerAttack", meta = (AllowPrivateAccess = "true"))
+	UInputAction* PierceThrustAttackAction;
+
+	/** GroundSlam — 'S' + RMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|PowerAttack", meta = (AllowPrivateAccess = "true"))
+	UInputAction* GroundSlamAttackAction;
+
+	/** DiagonalRetourne — 'S' + LMB */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Attacks|PowerAttack", meta = (AllowPrivateAccess = "true"))
+	UInputAction* DiagonalRetourneAttackAction;
+
+	// ========== HANDLER METHODS ==========
+
+	/** Called when SPACE is pressed */
+	void HandleOnJumpStarted(const FInputActionValue& Value);
+
+	/** Called when SPACE is released */
+	void HandleOnJumpCompleted(const FInputActionValue& Value);
+
 	/** Called for movement input */
-	void Move(const FInputActionValue& Value);
+	void HandleOnMoveTriggered(const FInputActionValue& Value);
 
 	/** Called when movement input is released */
-	void StopMoving(const FInputActionValue& Value);
+	void HandleOnMoveCompleted(const FInputActionValue& Value);
 
 	/** Called for looking input */
-	void Look(const FInputActionValue& Value);
+	void HandleOnLookTriggered(const FInputActionValue& Value);
 
-	/** Called for dashing input */
-	void OnLShiftTriggered(const FInputActionValue& Value);
+	/** Called for regular dash input (LShift alone) */
+	void HandleOnDashTriggered(const FInputActionValue& Value);
 
-	/** Called ONCE, when LEFT click is PRESSED */
-	void OnLMBActionStarted(const FInputActionInstance& Value);
-
-	/** Called ONCE, when RIGHT click is PRESSED */
-	void OnRMBActionStarted(const FInputActionInstance& Value);
-
-	/** A + LMB / RMB */
-	void OnAKeyActionStarted(const FInputActionInstance& Value);
-
-	/** E + LMB / RMB */
-	void OnEKeyActionStarted(const FInputActionInstance& Value);
-
-	/** F + Z / F + S */
-	void OnFKeyActionStarted(const FInputActionInstance& Value);
+	/** Called for guard input ('A' Key) */
+	void HandleOnGuardTriggered(const FInputActionValue& Value);
 
 	/** Middle mouse button */
-	void OnMiddleMouseButtonStarted(const FInputActionInstance& Value);
+	void HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value);
 };
