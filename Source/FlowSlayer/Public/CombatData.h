@@ -19,13 +19,13 @@ enum class EAttackType : uint8
     // Dash attacks
     DashPierce,           // SHIFT + Z + LMB
     DashSpinningSlash,    // SHIFT + Q/D + LMB
-    DashDoubleSlash,      // SHIFT + Z + RMB
-    DashBackSlash,        // SHIFT + S + RMB
+    DashDoubleSlash,      // SHIFT + F (ground)
+    DashBackSlash,        // SHIFT + E (ground)
 
     // Jump attacks
-    JumpSlam,             // S + LMB (airborne)
-    JumpForwardSlam,      // Z + LMB (airborne)
-    JumpUpperSlam,        // Z + RMB (airborne)
+    JumpSlam,             // E + Z (ground + air)
+    JumpForwardSlam,      // SHIFT + A (ground + air)
+    JumpUpperSlam,        // RMB + Z (ground + air) TODO: revoir les touches
 
     // Launcher attacks
     Launcher,             // A + LMB
