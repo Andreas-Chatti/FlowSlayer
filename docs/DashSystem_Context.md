@@ -146,6 +146,53 @@ The Niagara system asset is assigned in Blueprint defaults via `DashVFX`.
 
 ---
 
+## Animation Blueprint — Dash Transitions (ABP_GreatSwordChar)
+*Last updated: 2026-03-23*
+
+### Dash States in Locomotion
+The Locomotion state machine has 3 dash states, entered via DashingConduit:
+
+| State | Type | Condition | Use case |
+|---|---|---|---|
+| **Dashing8D** | BlendSpacePlayer (DashForward, DashLateral) | `bLockOn` | Lock-on: 8-dir blend space |
+| **DashToRun** | SequencePlayer | `NOT bLockOn AND speed > RunSpeedThreshold` | Free: sprint-speed dash |
+| **DashToWalk** | SequencePlayer | `NOT bLockOn AND speed <= RunSpeedThreshold` | Free: walk/run-speed dash |
+
+### Entry Flow
+```
+WalkRun/Idle → InDashingStateAlias (bIsDashing) → DashingConduit (always true) → route by bLockOn + speed
+```
+
+### Exit Flow
+- **Dashing8D** → WalkRun (`bHasMovementInput`) or Idle (`NOT bHasMovementInput`)
+- **DashToRun / DashToWalk** → WalkRun (Automatic Rule Based on Sequence Player, `bCanEnterTransition=False` pattern)
+
+### bDashAnimCompleted Variable
+State callbacks bound to all 3 dash states:
+- `On State EntryDash` → `bDashAnimCompleted = false`
+- `On State Fully Blended OutDash` → `bDashAnimCompleted = true`
+
+Used by the EventGraph to control DashForward/DashLateral calculation (zeroed when dash complete).
+
+### Stop Conduit — Dual Transition Rules
+The Stop conduit has **two transition rules per stop animation** (SprintToIdle, RunToIdle, WalkToIdle):
+
+1. **Dash-specific route** (higher priority): `NOT bDashAnimCompleted AND [speed routing]`
+   - Fires during the dash blend-out period (bDashAnimCompleted still false)
+   - Ensures the correct stop animation plays even when WalkRun is entered mid-blend from a dash state
+
+2. **Normal route** (lower priority): `[speed routing]` only
+   - Fires for regular walk/run stops (bDashAnimCompleted = true or never changed)
+
+Speed routing uses `FrozenLastSpeed` (captured in EventGraph when `bHasMovementInput = true`) with NearlyEqual tolerance of 1.0.
+
+### FrozenLastSpeed
+- Set in EventGraph: `if (bHasMovementInput) → FrozenLastSpeed = speed`
+- Used only in Stop conduit routes to determine which stop animation to play
+- Not used in WalkRun state (removed to prevent running-in-place bug)
+
+---
+
 ## Not Yet Implemented
 
 - Aerial dash variant
