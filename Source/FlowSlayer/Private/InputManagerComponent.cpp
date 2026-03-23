@@ -87,8 +87,9 @@ void UInputManagerComponent::HandleOnLookTriggered(const FInputActionValue& Valu
 
 void UInputManagerComponent::HandleOnDashTriggered(const FInputActionValue& Value)
 {
-	if (IsInputActionDown(DashPierceAction) || IsInputActionDown(DashSpinningSlashAction)
-		|| IsInputActionDown(DashDoubleSlashAction) || IsInputActionDown(DashBackSlashAction))
+	if (IsInputActionTriggered(DashPierceAction) || IsInputActionTriggered(DashSpinningSlashAction)
+		|| IsInputActionTriggered(DashDoubleSlashAction) || IsInputActionTriggered(DashBackSlashAction)
+		|| IsInputActionTriggered(JumpForwardSlamAttackAction))
 		return;
 
 	OnLShiftKeyTriggered.ExecuteIfBound();
@@ -96,7 +97,8 @@ void UInputManagerComponent::HandleOnDashTriggered(const FInputActionValue& Valu
 
 void UInputManagerComponent::HandleOnGuardTriggered(const FInputActionValue& Value)
 {
-	if (IsInputActionDown(LauncherAttackAction) || IsInputActionDown(PowerLauncherAttackAction))
+	if (IsInputActionTriggered(LauncherAttackAction) || IsInputActionTriggered(PowerLauncherAttackAction)
+		|| IsInputActionTriggered(JumpForwardSlamAttackAction))
 		return;
 
 	OnGuardActionTriggered.ExecuteIfBound();
@@ -115,14 +117,18 @@ bool UInputManagerComponent::GetInputKeyState(FKey inputKey) const
 	return PlayerController->WasInputKeyJustPressed(inputKey) || PlayerController->IsInputKeyDown(inputKey);
 }
 
-bool UInputManagerComponent::IsInputActionDown(const UInputAction* inputAction) const
+bool UInputManagerComponent::IsInputActionTriggered(const UInputAction* inputAction) const
 {
 	if (!Subsystem)
 		return false;
 
-	FInputActionValue inputActionValue{ Subsystem->GetPlayerInput()->GetActionValue(inputAction) };
+	const FInputActionInstance* instanceData{ Subsystem->GetPlayerInput()->FindActionInstanceData(inputAction) };
+	if (!instanceData)
+		return false;
 
-	return inputActionValue.Get<bool>();
+	ETriggerEvent triggerEvent{ instanceData->GetTriggerEvent() };
+
+	return triggerEvent == ETriggerEvent::Triggered || triggerEvent == ETriggerEvent::Started;
 }
 
 void UInputManagerComponent::DisableAllInputs()

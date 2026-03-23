@@ -1,5 +1,5 @@
 # Input System — Context
-*Last updated: 2026-03-22 (remove HandleOnGenericAttackStarted — replaced by inline BindActionValueLambda loop)*
+*Last updated: 2026-03-23 (dual mappings for all chorded attacks, IsInputActionTriggered replaces IsInputActionDown, JumpForwardSlam added to dash+guard disambiguation)*
 
 ## Key Files
 | File | Role |
@@ -70,19 +70,19 @@
 | `HeavyAttackAction` | RMB | Triggered |
 | `DashPierceAction` | LMB + chord(LShift) + chord(Z) | Started |
 | `DashSpinningSlashAction` | LMB + chord(LShift) + chord(Q or D) | Started |
-| `DashDoubleSlashAction` | F + chord(LShift) — ground only | Started |
-| `DashBackSlashAction` | E + chord(LShift) — ground only | Started |
-| `JumpSlamAttackAction` | E + chord(Z) — ground + air | Started |
-| `JumpForwardSlamAttackAction` | A + chord(LShift) — ground + air | Started |
-| `JumpUpperSlamAttackAction` | RMB + chord(Z) — ground + air ⚠️ TODO: revoir les touches | Started |
+| `DashDoubleSlashAction` | F + chord(LShift) **OR** LShift + chord(F) — ground only | Started |
+| `DashBackSlashAction` | E + chord(LShift) **OR** LShift + chord(E) — ground only | Started |
+| `JumpSlamAttackAction` | E + chord(Z) **OR** Z + chord(E) — ground + air | Started |
+| `JumpForwardSlamAttackAction` | LShift + chord(A) **OR** A + chord(LShift) — ground + air | Started |
+| `JumpUpperSlamAttackAction` | RMB + chord(Z) **OR** Z + chord(RMB) — ground + air | Started |
 | `LauncherAttackAction` | LMB + chord(A) | Started |
 | `PowerLauncherAttackAction` | RMB + chord(A) | Started |
-| `SpinAttackAction` | LMB + chord(E) | Started |
-| `HorizontalSweepAttackAction` | RMB + chord(E) | Started |
-| `PowerSlashAttackAction` | RMB + chord(F) + chord(S) | Started |
-| `PierceThrustAttackAction` | LMB + chord(F) + chord(Z) | Started |
-| `GroundSlamAttackAction` | RMB + chord(S) | Started |
-| `DiagonalRetourneAttackAction` | LMB + chord(S) | Started |
+| `SpinAttackAction` | E + chord(LMB) **OR** LMB + chord(E) | Started |
+| `HorizontalSweepAttackAction` | E + chord(RMB) **OR** RMB + chord(E) | Started |
+| `PowerSlashAttackAction` | F + chord(S) **OR** S + chord(F) | Started |
+| `PierceThrustAttackAction` | F + chord(Z) **OR** Z + chord(F) | Started |
+| `GroundSlamAttackAction` | S + chord(RMB) **OR** RMB + chord(S) | Started |
+| `DiagonalRetourneAttackAction` | S + chord(LMB) **OR** LMB + chord(S) | Started |
 
 ---
 
@@ -137,29 +137,30 @@ else → EAttackType::StandingHeavy
 
 ## Dash Disambiguation
 
-Dash (LShift) and dash attacks share the LShift key. Disambiguation logic:
+Dash (LShift) and LShift-chorded attacks share the LShift key. Disambiguation logic:
 
 ```cpp
 void HandleOnDashTriggered()
 {
-    // If any dash attack chord is active, LShift is part of a chord — don't fire the dash
-    if (IsInputActionDown(DashPierceAction) || IsInputActionDown(DashSpinningSlashAction)
-     || IsInputActionDown(DashDoubleSlashAction) || IsInputActionDown(DashBackSlashAction))
+    // If any LShift-involved attack is active, don't fire the dash
+    if (IsInputActionTriggered(DashPierceAction) || IsInputActionTriggered(DashSpinningSlashAction)
+     || IsInputActionTriggered(DashDoubleSlashAction) || IsInputActionTriggered(DashBackSlashAction)
+     || IsInputActionTriggered(JumpForwardSlamAttackAction))
         return;
 
     OnLShiftKeyTriggered.ExecuteIfBound();
 }
 ```
 
-`IsInputActionDown()` uses `Subsystem->GetPlayerInput()->GetActionValue(inputAction).Get<bool>()`.
+`IsInputActionTriggered()` uses `FindActionInstanceData()->GetTriggerEvent()` — checks if the action is truly in `Started` or `Triggered` state (full chord satisfied), not just raw input value.
 
 ---
 
 ## Chorded Action Rules (Critical)
 
 - **Never use ZQSD as primary trigger** — it consumes movement input and stops the character
-- **Never use LShift as primary trigger for dash attacks** — it fires the regular dash too
-- Use the "safe" key as primary trigger: LMB or RMB (conflicts with LightAttack/HeavyAttack handled by UE's Chorded priority)
+- **Dual mappings**: every 2-key chord has TWO IMC entries (A/B reversed) so both press orders work. Example: `F + chord(LShift)` AND `LShift + chord(F)` for DashDoubleSlash
+- **Disambiguation required**: any action whose key is also a solo-action (LShift=dash, A=guard) must be added to that solo-action's disambiguation guard
 - **OR-chord** (e.g., Q or D for DashSpinningSlash): two separate key mappings on the same `UInputAction`
 - `bConsumeInput` on the chorded action asset controls whether the primary key is consumed from other actions
 
@@ -168,8 +169,9 @@ void HandleOnDashTriggered()
 ## Helper Methods
 
 ```cpp
-// Check if an InputAction is currently held (any key in its mappings is pressed)
-bool IsInputActionDown(const UInputAction* inputAction) const;
+// Check if an InputAction is truly in Started or Triggered state (full chord satisfied)
+// Uses FindActionInstanceData()->GetTriggerEvent() — NOT raw GetActionValue()
+bool IsInputActionTriggered(const UInputAction* inputAction) const;
 
 // Check if a raw key is pressed or was just pressed (used by AnimNotifies)
 bool GetInputKeyState(FKey inputKey) const;
@@ -191,17 +193,19 @@ LMB et RMB utilisent `Triggered` (fire chaque frame tant que le bouton est tenu)
 `CombatComponent` gère la fréquence via `bIsAttacking` et les fenêtres de combo.
 
 ### Dash disambiguation
-`HandleOnDashTriggered` vérifie les **4** dash attacks avant de fire le dash normal :
+`HandleOnDashTriggered` vérifie toutes les attaques utilisant LShift avant de fire le dash normal :
 ```cpp
-if (IsInputActionDown(DashPierceAction) || IsInputActionDown(DashSpinningSlashAction)
- || IsInputActionDown(DashDoubleSlashAction) || IsInputActionDown(DashBackSlashAction))
+if (IsInputActionTriggered(DashPierceAction) || IsInputActionTriggered(DashSpinningSlashAction)
+ || IsInputActionTriggered(DashDoubleSlashAction) || IsInputActionTriggered(DashBackSlashAction)
+ || IsInputActionTriggered(JumpForwardSlamAttackAction))
     return;
 ```
 
 ### Guard disambiguation
-`HandleOnGuardTriggered` vérifie les launchers (`A + LMB/RMB`) — pas les dash attacks :
+`HandleOnGuardTriggered` vérifie toutes les attaques utilisant A avant de fire la garde :
 ```cpp
-if (IsInputActionDown(LauncherAttackAction) || IsInputActionDown(PowerLauncherAttackAction))
+if (IsInputActionTriggered(LauncherAttackAction) || IsInputActionTriggered(PowerLauncherAttackAction)
+ || IsInputActionTriggered(JumpForwardSlamAttackAction))
     return;
 ```
 

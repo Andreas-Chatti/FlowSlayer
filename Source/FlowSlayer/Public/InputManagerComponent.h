@@ -31,7 +31,7 @@ public:
 	bool GetInputKeyState(FKey inputKey) const;
 
 	/** Returns true if any key mapped to the given InputAction is currently held down */
-	bool IsInputActionDown(const UInputAction* inputAction) const;
+	bool IsInputActionTriggered(const UInputAction* inputAction) const;
 
 	UFUNCTION(BlueprintPure, Category = "Input")
 	FVector2D GetMoveInputAxis() const { return MoveInputAxis; }
