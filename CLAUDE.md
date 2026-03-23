@@ -6,6 +6,8 @@ Unreal Engine 5.4.4 | ~95% C++ gameplay, Blueprints for asset wiring only | PC (
 
 For architecture, file roles, and system details → see `README_CLAUDE.md` and `docs/`.
 
+> **Claude Code Unreal Engine plugin** — also read `CLAUDE_UE_PLUGIN.md` for additional context optimization rules specific to in-editor usage. The CLI agent does not use that file.
+
 ---
 
 ## Code Style
