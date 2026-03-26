@@ -2,6 +2,8 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "AFSSpawnZone.h"
+#include "../FlowSlayerCharacter.h"
+#include "ProgressionComponent.h"
 #include "FSArenaManager.generated.h"
 
 /** Broadcasted when the arena encounter starts */
@@ -176,4 +178,8 @@ private:
 
 	/** Max retry attempts before giving up on SpawnZone discovery */
 	static constexpr int32 MaxSpawnZoneInitTries{ 10 };
+
+	/** Cached player reference — used to award XP on enemy death */
+	UPROPERTY()
+	AFlowSlayerCharacter* PlayerCharacter{ nullptr };
 };
