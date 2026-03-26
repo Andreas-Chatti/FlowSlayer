@@ -6,7 +6,9 @@ Unreal Engine 5.4.4 | ~95% C++ gameplay, Blueprints for asset wiring only | PC (
 
 For architecture, file roles, and system details → see `README_CLAUDE.md` and `docs/`.
 
-> **Claude Code Unreal Engine plugin** — also read `CLAUDE_UE_PLUGIN.md` for additional context optimization rules specific to in-editor usage. The CLI agent does not use that file.
+> **Agent with Unreal Editor MCP tools** (`mcp__unreal-editor__*`) — if these tools are available in your environment, you **must** also follow the rules in `CLAUDE_UE_PLUGIN.md` when interacting with the editor. These rules are mandatory for any agent that has access to the Betide Studio Agent Integration Kit MCP tools.
+>
+> **Agent without MCP tools** (CLI-only) — ignore `CLAUDE_UE_PLUGIN.md`, it does not apply to you.
 
 ---
 

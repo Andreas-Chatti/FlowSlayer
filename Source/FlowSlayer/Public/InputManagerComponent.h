@@ -11,6 +11,7 @@ DECLARE_DELEGATE(FOnLShiftKeyTriggered);
 DECLARE_DELEGATE(FOnSpaceKeyStarted);
 DECLARE_DELEGATE(FOnSpaceKeyCompleted);
 DECLARE_DELEGATE(FOnGuardActionTriggered);
+DECLARE_DELEGATE(FOnHealActionTriggered);
 DECLARE_DELEGATE_OneParam(FOnAttackInputReceived, const UInputAction*);
 DECLARE_DELEGATE_OneParam(FOnMoveInput, FVector2D);
 DECLARE_DELEGATE_OneParam(FOnLookInput, FVector2D);
@@ -62,6 +63,7 @@ public:
 	const UInputAction* GetLightAttackAction() const { return LightAttackAction; }
 	const UInputAction* GetHeavyAttackAction() const { return HeavyAttackAction; }
 	const UInputAction* GetGuardAction() const { return GuardAction; }
+	const UInputAction* GetHealAction() const { return HealAction; }
 
 	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
 	FOnMiddleMouseButtonClicked OnMiddleMouseButtonClicked;
@@ -86,6 +88,9 @@ public:
 
 	/** 'A' Key — guard toggle */
 	FOnGuardActionTriggered OnGuardActionTriggered;
+
+	/** LSHIFT + SPACE - Heal skill */
+	FOnHealActionTriggered OnHealActionTriggered;
 
 protected:
 
@@ -136,6 +141,10 @@ private:
 	/** Guard ('A') InputAction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
 	UInputAction* GuardAction;
+
+	/** Heal (LSHIFT + SPACE) InputAction */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
+	UInputAction* HealAction;
 
 	// ========== ATTACK INPUT ACTIONS ==========
 	// Each attack has its own InputAction — chord combinations are configured in the editor
@@ -234,6 +243,9 @@ private:
 
 	/** Called for guard input ('A' Key) */
 	void HandleOnGuardTriggered(const FInputActionValue& Value);
+
+	/** Called for Heal input (LSHIFT + SPACE) */
+	void HandleOnHealTriggered(const FInputActionValue& Value);
 
 	/** Middle mouse button */
 	void HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value);

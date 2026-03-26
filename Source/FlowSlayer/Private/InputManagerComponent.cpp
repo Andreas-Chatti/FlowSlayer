@@ -26,17 +26,21 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 	EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &UInputManagerComponent::HandleOnJumpCompleted);
 
 	// Moving action
+	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnMoveTriggered);
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::HandleOnMoveTriggered);
 	EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Completed, this, &UInputManagerComponent::HandleOnMoveCompleted);
 
 	// Looking action
 	EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::HandleOnLookTriggered);
 
-	// Dash - LShift alone (with disambiguation logic)
+	// Dash - LSHIFT + 'Z' / 'Q' / 'S' / 'D' key
 	EnhancedInputComponent->BindAction(LShiftAction, ETriggerEvent::Triggered, this, &UInputManagerComponent::HandleOnDashTriggered);
 
-	// Guard - 'A' Key (with launcher disambiguation)
+	// Guard - 'A' Key
 	EnhancedInputComponent->BindAction(GuardAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnGuardTriggered);
+
+	// Heal - LSHIFT + SPACE
+	EnhancedInputComponent->BindAction(HealAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnHealTriggered);
 
 	// Lock-on - Middle mouse button
 	EnhancedInputComponent->BindAction(MiddleMouseAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnMiddleMouseButtonStarted);
@@ -48,12 +52,11 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 		JumpSlamAttackAction, JumpForwardSlamAttackAction, JumpUpperSlamAttackAction,
 		LauncherAttackAction, PowerLauncherAttackAction,
 		SpinAttackAction, HorizontalSweepAttackAction,
-		PowerSlashAttackAction, PierceThrustAttackAction, GroundSlamAttackAction, DiagonalRetourneAttackAction
+		PowerSlashAttackAction, PierceThrustAttackAction, GroundSlamAttackAction, DiagonalRetourneAttackAction,
+		LightAttackAction, HeavyAttackAction
 	};
 
 	for (UInputAction* Action : AttackActions)
-		EnhancedInputComponent->BindActionValueLambda(Action, ETriggerEvent::Started, [this, Action](const FInputActionValue& InputActionValue) { OnAttackInputReceived.ExecuteIfBound(Action); });
-	for (UInputAction* Action : { LightAttackAction, HeavyAttackAction })
 		EnhancedInputComponent->BindActionValueLambda(Action, ETriggerEvent::Triggered, [this, Action](const FInputActionValue& InputActionValue) { OnAttackInputReceived.ExecuteIfBound(Action); });
 }
 
@@ -89,7 +92,7 @@ void UInputManagerComponent::HandleOnDashTriggered(const FInputActionValue& Valu
 {
 	if (IsInputActionTriggered(DashPierceAction) || IsInputActionTriggered(DashSpinningSlashAction)
 		|| IsInputActionTriggered(DashDoubleSlashAction) || IsInputActionTriggered(DashBackSlashAction)
-		|| IsInputActionTriggered(JumpForwardSlamAttackAction))
+  		|| IsInputActionTriggered(JumpForwardSlamAttackAction))
 		return;
 
 	OnLShiftKeyTriggered.ExecuteIfBound();
@@ -102,6 +105,11 @@ void UInputManagerComponent::HandleOnGuardTriggered(const FInputActionValue& Val
 		return;
 
 	OnGuardActionTriggered.ExecuteIfBound();
+}
+
+void UInputManagerComponent::HandleOnHealTriggered(const FInputActionValue& Value)
+{
+	OnHealActionTriggered.ExecuteIfBound();
 }
 
 void UInputManagerComponent::HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value)
