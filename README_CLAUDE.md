@@ -7,7 +7,7 @@
 ## Project Overview
 
 3D hack'n'slash roguelite (Hades / Devil May Cry / Dead Cells / Furi).
-- **Engine:** Unreal Engine 5.4.4
+- **Engine:** Unreal Engine 5.7.4
 - **Language:** ~95% C++ for gameplay, Blueprints only for asset wiring (montages, VFX, datatable refs)
 - **Platform:** PC (KB+M), third-person 3D
 - **Main branch:** `main`
@@ -31,8 +31,14 @@ Source/FlowSlayer/
 │   ├── DashComponent.h              # Dash movement + cooldown + flow cost
 │   ├── HealthComponent.h            # HP, damage reception, death event
 │   ├── InputManagerComponent.h      # Enhanced Input → fires delegates (UInputAction*)
+│   ├── ProgressionComponent.h       # XP, level-up (30 levels/run), milestones every 5 levels
 │   ├── HitboxComponent.h            # Sweep/overlap hit detection during attacks
 │   ├── HitFeedbackComponent.h       # Knockback, hitstop, camera shake on hit
+│   │
+│   ├── FSArenaManager.h             # Arena encounter manager — owns ExitPortal, awards XP
+│   ├── RunManager.h                 # Run orchestration — arena transitions, run completion
+│   ├── ArenaPortal.h                # Teleportation actor — hidden until ShowPortal(), DestinationActor ref
+│   ├── AFSSpawnZone.h               # Enemy spawn zone
 │   │
 │   ├── FSWeapon.h                   # Weapon actor (attached to character socket)
 │   ├── FSDamageable.h               # Interface: NotifyHitReceived()
@@ -43,20 +49,19 @@ Source/FlowSlayer/
 │   ├── FSEnemy_Runner.h             # Runner enemy variant
 │   ├── FSEnemyAIController.h        # AI controller (BehaviorTree-driven)
 │   │
-│   ├── FSArenaManager.h             # Arena/room manager
-│   ├── AFSSpawnZone.h               # Enemy spawn zone
 │   ├── FSProjectile.h               # Projectile actor
 │   │
 │   └── AnimNotify*/
-│       ├── AnimNotifyState_Hitbox.h           # Activates hitbox during attack window
-│       ├── AnimNotifyState_ComboWindow.h      # Opens/closes combo input window
-│       ├── AnimNotifyState_AnimCancelWindow.h # Opens dash/jump cancel window
-│       ├── AnimNotifyState_FSMotionWarping.h  # Sets motion warp target
-│       ├── AnimNotifyState_MovementSpeed.h    # Overrides MaxWalkSpeed during anim
-│       ├── AnimNotifyState_RotateToTarget.h   # Snaps character yaw toward target
-│       ├── AnimNotifyState_AirStall.h         # Sets GravityScale=0 during aerial attacks
-│       ├── AnimNotifyState_WeaponTrail.h      # Triggers weapon trail VFX
-│       └── AnimNotify_Launch.h                # Applies launch impulse to hit target
+│       ├── AnimNotifyState_Hitbox.h              # Activates hitbox during attack window
+│       ├── AnimNotifyState_ComboWindow.h         # Opens/closes combo input window
+│       ├── AnimNotifyState_AnimCancelWindow.h    # Opens dash/jump cancel window
+│       ├── AnimNotifyState_FSMotionWarping.h     # Sets motion warp target
+│       ├── AnimNotifyState_MovementSpeed.h       # Overrides MaxWalkSpeed during anim
+│       ├── AnimNotifyState_RotateToTarget.h      # Snaps character yaw toward target
+│       ├── AnimNotifyState_AirStall.h            # Sets GravityScale=0 during aerial attacks
+│       ├── AnimNotifyState_WeaponTrail.h         # Triggers weapon trail VFX
+│       ├── AnimNotifyState_SafeMoveUpdated.h     # Executes dash movement frame-accurately
+│       └── AnimNotify_Launch.h                   # Applies launch impulse to hit target
 │
 └── Private/                         # Implementations (mirrors Public/)
 ```
@@ -81,13 +86,6 @@ Source/FlowSlayer/
 
 **Key constraint:** `InputManagerComponent` has **no dependency on `CombatData.h`**. It only speaks `UInputAction*`. `FlowSlayerCharacter` is the bridge between input domain and combat domain.
 
-#### Chorded Attack Disambiguation
-- Each attack has its own `UInputAction` asset with Chorded Action triggers set in editor
-- **Never use ZQSD as primary trigger** — it consumes movement input and stops the character
-- Example: DashPierce (LShift+Z+LMB) → LMB is main trigger, Z and LShift are chord conditions
-- Dash vs DashAttack conflict: `HandleOnDashTriggered` calls `IsInputActionDown(DashPierceAction)` before firing regular dash
-- OR-chord (e.g., DashSpinningSlash on Q or D): two mappings on the same `UInputAction`, different chord key each
-
 ---
 
 ### Combat State Machine (FSCombatComponent)
@@ -111,12 +109,49 @@ Key state variables:
 
 ---
 
+### Game Loop (RunSystem)
+
+```
+ARunManager::BeginPlay()
+    → ActivateArena(Arenas[0])
+        → bind Arena->OnArenaCleared
+        → bind Arena->GetExitPortal()->OnPlayerTeleported → StartNextArena
+
+FSArenaManager::CheckArenaCompletion()
+    → ExitPortal->ShowPortal()
+    → OnArenaCleared.Broadcast()
+        → RunManager::HandleOnArenaCleared()
+            → [last arena] OnRunCompleted.Broadcast()
+            → [otherwise]  OnRunArenaCleared.Broadcast()
+
+Player overlaps portal
+    → AArenaPortal::TeleportPlayer(DestinationActor)
+    → OnPlayerTeleported → RunManager::StartNextArena()
+```
+
+- `FSArenaManager` owns its `AArenaPortal* ExitPortal` — set in Details panel
+- `AArenaPortal` uses `AActor* DestinationActor` (a `ATargetPoint` placed in level) as arrival point
+- Portal is hidden at runtime by default; `OnConstruction` shows VFX in editor contexts only
+- RunManager has no direct dependency on `AArenaPortal` in its `.h`
+
+---
+
 ### Flow/Momentum System (FSFlowComponent)
 
 - **Gains** flow on hits landed → `HandleOnHitLanded`
 - **Loses** flow on dash → `DashComponent::OnDashStarted`
 - **Loses** flow on hit received → `HealthComponent::OnDamageReceived`
 - At max tier: damage received is negated (hit immunity)
+
+---
+
+### Progression System (ProgressionComponent)
+
+- 30 levels per run, XP threshold: `60 + (Level - 1) * 5`
+- Delegates: `OnXPGained(Amount, NewTotal)`, `OnLevelUp(NewLevel)`, `OnMilestoneLevelUp(NewLevel)`
+- Milestone every 5 levels — future upgrade screen trigger
+- XP awarded by `FSArenaManager` on enemy death (mediator pattern — no direct FSEnemy↔Player coupling)
+- `OnXPGained` broadcasts **after** the level-up loop — `GetXPRatio()` always returns [0, 1]
 
 ---
 
@@ -148,10 +183,15 @@ PowerSlash, PierceThrust, GroundSlam, DiagonalRetourne
 - [x] Guard system (toggle, cancelled by dash/jump/move)
 - [x] Lock-on with target switching (mouse X axis threshold)
 - [x] Double jump
-- [x] Dash (flow cost, cooldown, cancel window from attacks)
+- [x] Dash (flow cost, cooldown, cancel window from attacks, 8-dir animation blend)
+- [x] Heal skill (LSHIFT+SPACE, Flow cost)
 - [x] Weapon trail VFX
 - [x] Enemy stun + death animations (Grunt, Runner)
-- [x] Arena manager + spawn zones
-- [ ] Procedural dungeon generation
+- [x] Arena system with spawn escalation and max-alive cap
+- [x] XP + level progression (30 levels/run, milestones every 5)
+- [x] XP bar UI (WBP_PlayerXpBarUi)
+- [x] Full game loop (RunManager, ArenaPortal, arena transitions — validated)
+- [ ] Death screen + OpenLevel on player death
+- [ ] Chest placeholder on arena clear
+- [ ] Upgrade screen at milestone level-up
 - [ ] Modular weapon craft (Blade + Handle + Gem)
-- [ ] Full gameloop / run structure
