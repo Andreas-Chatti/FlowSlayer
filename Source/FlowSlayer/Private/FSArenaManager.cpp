@@ -7,13 +7,7 @@ AFSArenaManager::AFSArenaManager()
 
 void AFSArenaManager::BeginPlay()
 {
-	GetWorld()->GetTimerManager().SetTimer(
-		SpawnZonesInitTimer,
-		this,
-		&AFSArenaManager::InitialiseSpawnZones,
-		1.f,
-		true
-	);
+	PlayerCharacter = Cast<AFlowSlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 
 	if (bForceActivate)
 		StartArena();
@@ -39,6 +33,14 @@ void AFSArenaManager::StartArena()
 
 	OnArenaStarted.Broadcast();
 	ScheduleNextSpawn();
+}
+
+void AFSArenaManager::StopArena()
+{
+	bIsArenaActive = false;
+	GetWorld()->GetTimerManager().ClearTimer(SpawnTimerHandle);
+
+	UE_LOG(LogTemp, Log, TEXT("[FSArenaManager] Arena stopped."));
 }
 
 void AFSArenaManager::TrySpawnEnemy()
@@ -95,6 +97,9 @@ void AFSArenaManager::HandleOnEnemyDeath(AFSEnemy* Enemy)
 	UE_LOG(LogTemp, Log, TEXT("[FSArenaManager] Enemy killed. Kills: %d, Alive: %d, Remaining to spawn: %d"),
 		TotalKills, AliveEnemyCount, TotalEnemiesToSpawn - TotalSpawned);
 
+	if (PlayerCharacter)
+		PlayerCharacter->GetProgressionComponent()->AddXP(Enemy->GetXPReward());
+
 	CheckCapEscalation();
 	CheckArenaCompletion();
 
@@ -132,27 +137,9 @@ void AFSArenaManager::CheckArenaCompletion()
 
 		UE_LOG(LogTemp, Log, TEXT("[FSArenaManager] Arena cleared! Total kills: %d"), TotalKills);
 
+		if (ExitPortal)
+			ExitPortal->ShowPortal();
+
 		OnArenaCleared.Broadcast();
 	}
-}
-
-void AFSArenaManager::InitialiseSpawnZones()
-{
-	TArray<AActor*> foundZones;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAFSSpawnZone::StaticClass(), foundZones);
-
-	if (foundZones.IsEmpty())
-	{
-		SpawnZoneInitTries++;
-
-		if (SpawnZoneInitTries >= MaxSpawnZoneInitTries)
-			GetWorld()->GetTimerManager().ClearTimer(SpawnZonesInitTimer);
-
-		return;
-	}
-
-	for (AActor* zone : foundZones)
-		SpawnZones.Add(Cast<AAFSSpawnZone>(zone));
-
-	GetWorld()->GetTimerManager().ClearTimer(SpawnZonesInitTimer);
 }

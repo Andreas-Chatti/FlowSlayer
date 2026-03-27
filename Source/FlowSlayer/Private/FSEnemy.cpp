@@ -125,9 +125,7 @@ void AFSEnemy::HandleOnDeath()
 
     GetMesh()->GetAnimInstance()->StopAllMontages(0.3f);
 
-    // TODO: Award XP to player
     // TODO: Spawn loot/pickups
-
     OnEnemyDeath.Broadcast(this);
 
     SetLifeSpan(destroyDelay);

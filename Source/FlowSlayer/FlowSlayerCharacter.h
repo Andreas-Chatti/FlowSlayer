@@ -23,6 +23,7 @@
 #include "Public/DashComponent.h"
 #include "Public/HealthComponent.h"
 #include "Public/InputManagerComponent.h"
+#include "Public/ProgressionComponent.h"
 #include "Components/WidgetComponent.h"
 #include "FlowSlayerCharacter.generated.h"
 
@@ -84,6 +85,10 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Combat, meta = (AllowPrivateAccess = "true"))
 	UInputManagerComponent* InputManagerComponent;
 
+	/** Tracks player level and XP — entry point for the upgrade system */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Progression, meta = (AllowPrivateAccess = "true"))
+	UProgressionComponent* ProgressionComponent;
+
 	////////////////////////////////////////////////
 	// CACHED REFERENCES
 	////////////////////////////////////////////////
@@ -142,6 +147,7 @@ public:
 	virtual UHealthComponent* GetHealthComponent() override { return HealthComponent; }
 	UInputManagerComponent* GetInputManagerComponent() const { return InputManagerComponent; }
 	UFSLockOnComponent* GetLockOnComponent() const { return LockOnComponent; }
+	UProgressionComponent* GetProgressionComponent() const { return ProgressionComponent; }
 
 	// --- WalkSpeed accessors ---
 
@@ -247,6 +253,9 @@ private:
 
 	/** Handle guard input: when 'A' key is pressed, activate/deactivate guard */
 	void HandleGuardInput();
+
+	/** Handle Heal input: when LSHIFT + SPACE are pressed, activates healing skill */
+	void HandleHealInput();
 
 	/** LSHIFT - Starts a dash and optionally triggers a dash attack if LMB/RMB is held */
 	void OnDashAction();

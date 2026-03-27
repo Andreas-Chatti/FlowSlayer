@@ -51,6 +51,24 @@ void UHealthComponent::ReceiveDamage(float damageAmount, AActor* instigator)
     }
 }
 
+void UHealthComponent::Heal()
+{
+    if (bIsHealOnCooldown)
+        return;
+
+    CurrentHealth = MaxHealth;
+    bIsHealOnCooldown = true;
+
+    GetWorld()->GetTimerManager().SetTimer(
+        HealCooldownTimer,
+        [this]() { bIsHealOnCooldown = false; },
+        HealCooldown,
+        false
+    );
+
+    OnHeal.Broadcast();
+}
+
 void UHealthComponent::InitializeLifeBarWidgetRef()
 {
     if (!LifeBarWidget)

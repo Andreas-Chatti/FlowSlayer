@@ -2,8 +2,7 @@
 
 UDashComponent::UDashComponent()
 {
-    PrimaryComponentTick.bCanEverTick = true;
-    PrimaryComponentTick.bStartWithTickEnabled = false;
+    PrimaryComponentTick.bCanEverTick = false;
 }
 
 void UDashComponent::BeginPlay()
@@ -12,10 +11,6 @@ void UDashComponent::BeginPlay()
 
     OwningPlayer = Cast<ACharacter>(GetOwner());
     checkf(OwningPlayer, TEXT("FATAL: Owner is invalid or NULL !"));
-
-    checkf(DashCurve, TEXT("FATAL: DashCurve is invalid or NULL !"));
-
-    InitDashVFXComp();
 }
 
 bool UDashComponent::CanDash() const
@@ -29,6 +24,9 @@ bool UDashComponent::CanDash() const
 void UDashComponent::OnAttackingStarted()
 {
     bIsAttacking = true;
+
+    if (bIsDashing)
+        EndDash();
 }
 
 void UDashComponent::OnAttackingEnded()
@@ -38,108 +36,52 @@ void UDashComponent::OnAttackingEnded()
 
 void UDashComponent::StartDash(const FVector2D& inputDirection)
 {
-    if (!OwningPlayer || !DashCurve || !CanDash() || inputDirection.IsNearlyZero())
+    if (!OwningPlayer || !CanDash() || inputDirection.IsNearlyZero())
         return;
-
+    UE_LOG(LogTemp, Warning, TEXT("Start Dashing"));
     // Snap input to 8 directions
     float inputAngle{ static_cast<float>(FMath::Atan2(inputDirection.Y, inputDirection.X)) };
-    float snappedAngle{ FMath::RoundToFloat(inputAngle / HALF_PI * 4.f) * HALF_PI / 4.f };
+    float snappedAngle{ FMath::RoundToFloat(inputAngle / HALF_PI * 2.f) * HALF_PI / 2.f };
 
-    // Rebuild the snapped direction in 2D
+    // Rebuild the snapped direction in 2D and store it — AnimNotifyState will recompute the world direction at NotifyBegin
     FVector2D snappedInput{ FMath::Cos(snappedAngle), FMath::Sin(snappedAngle) };
+    SnappedInput2D = snappedInput;
 
-    // Convert to world direction relative to camera
+    // Compute world direction from camera yaw to derive blend weights for the ABP 8D blend space
     FRotator cameraYaw{ 0.f, OwningPlayer->GetControlRotation().Yaw, 0.f };
-    FVector forward{ FRotationMatrix(cameraYaw).GetUnitAxis(EAxis::X) };
-    FVector right{ FRotationMatrix(cameraYaw).GetUnitAxis(EAxis::Y) };
+    FVector camForward{ FRotationMatrix(cameraYaw).GetUnitAxis(EAxis::X) };
+    FVector camRight{ FRotationMatrix(cameraYaw).GetUnitAxis(EAxis::Y) };
+    FVector dashDirection{ (camForward * snappedInput.Y + camRight * snappedInput.X).GetSafeNormal() };
 
-    FVector dashDirection{ (forward * snappedInput.Y + right * snappedInput.X).GetSafeNormal() };
-    DashDirectionWorld = dashDirection;
+    // Capture blend weights once so the ABP blend space doesn't drift if the character rotates during the animation
+    DashForward = FVector::DotProduct(dashDirection, OwningPlayer->GetActorForwardVector());
+    DashLateral = FVector::DotProduct(dashDirection, OwningPlayer->GetActorRightVector());
 
-    dashStart = OwningPlayer->GetActorLocation();
-    dashEnd = dashStart + dashDirection * DashDistance;
-
-    dashElapsed = 0.f;
-    lastCurveValue = 0.f;
     bIsDashing = true;
 
-    OnDashStarted.Broadcast(FlowCost);
-
-    if (AfterImagesVFXComp)
-        AfterImagesVFXComp->Activate();
-
-    UGameplayStatics::PlaySoundAtLocation(
-        GetWorld(),
-        DashSound,
-        OwningPlayer->GetActorLocation()
-    );
-
-    SetComponentTickEnabled(true);
-}
-
-void UDashComponent::TickComponent(float deltaTime, ELevelTick tickType,
-    FActorComponentTickFunction* thisTickFunction)
-{
-    Super::TickComponent(deltaTime, tickType, thisTickFunction);
-
-    if (!bIsDashing)
-        return;
-
-    dashElapsed += deltaTime;
-
-    // Alpha = normalized time progression between 0 and 1
-    float alpha{ FMath::Clamp(dashElapsed / DashDuration, 0.f, 1.f) };
-
-    // The curve transforms linear time into custom movement
-    float curveValue{ DashCurve->GetFloatValue(alpha) };
-
-    // Delta displacement — only move the difference since last frame
-    // Avoids error accumulation and allows proper collision handling
-    float deltaCurve{ curveValue - lastCurveValue };
-    FVector deltaMove{ (dashEnd - dashStart) * deltaCurve };
-    lastCurveValue = curveValue;
-
-    FHitResult hitResult;
-    OwningPlayer->GetCharacterMovement()->SafeMoveUpdatedComponent(deltaMove, OwningPlayer->GetActorRotation(), true, hitResult);
-
-    if (alpha >= 1.f)
-        endDash();
-}
-
-void UDashComponent::InitDashVFXComp()
-{
-    if (!DashVFX)
-        return;
-
-    AfterImagesVFXComp = UNiagaraFunctionLibrary::SpawnSystemAttached(
-        DashVFX,
-        OwningPlayer->GetMesh(),
-        NAME_None,
-        FVector::ZeroVector,
-        FRotator::ZeroRotator,
-        EAttachLocation::SnapToTarget,
-        false,
+    // Safety fallback — if NotifyEnd never fires (e.g. montage interrupted before NotifyBegin), force-end the dash
+    GetWorld()->GetTimerManager().SetTimer(
+        SafetyTimer,
+        [this]() { if (bIsDashing) EndDash(); },
+        MaxDashDuration,
         false
     );
-}
-
-void UDashComponent::endDash()
-{
-    bIsDashing = false;
-    lastCurveValue = 0.f;
-    SetComponentTickEnabled(false);
-
-    OnDashEnded.Broadcast();
-
-    if (AfterImagesVFXComp)
-        AfterImagesVFXComp->Deactivate();
 
     // Cooldown
     bIsOnCooldown = true;
     GetWorld()->GetTimerManager().SetTimer(
         cooldownTimer,
         [this]() { bIsOnCooldown = false; },
-        DashCooldown,
+        CooldownDuration,
         false
     );
+
+    OnDashStarted.Broadcast(FlowCost);
+}
+
+void UDashComponent::EndDash()
+{
+    bIsDashing = false;
+
+    OnDashEnded.Broadcast();
 }

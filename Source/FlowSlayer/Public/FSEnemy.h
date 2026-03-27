@@ -43,6 +43,7 @@ public:
     float GetAttackRange() const { return AttackRange; }
     bool IsAttacking() const { return bIsAttacking; }
     bool CanAttack() const { return bCanAttack; }
+    int32 GetXPReward() const { return XPReward; }
 
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
 

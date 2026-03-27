@@ -78,6 +78,9 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 
 	InputManagerComponent = CreateDefaultSubobject<UInputManagerComponent>(TEXT("InputManagerComponent"));
 	checkf(InputManagerComponent, TEXT("FATAL: InputManagerComponent is NULL or INVALID !"));
+
+	ProgressionComponent = CreateDefaultSubobject<UProgressionComponent>(TEXT("ProgressionComponent"));
+	checkf(ProgressionComponent, TEXT("FATAL: ProgressionComponent is NULL or INVALID !"));
 	InputManagerComponent->OnMiddleMouseButtonClicked.BindUObject(this, &AFlowSlayerCharacter::ToggleLockOn);
 	InputManagerComponent->OnLShiftKeyTriggered.BindUObject(this, &AFlowSlayerCharacter::OnDashAction);
 	InputManagerComponent->OnSpaceKeyStarted.BindUObject(this, &AFlowSlayerCharacter::HandleOnSpaceKeyStarted);
@@ -86,6 +89,7 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	InputManagerComponent->OnLookInput.BindUObject(this, &AFlowSlayerCharacter::HandleLookInput);
 	InputManagerComponent->OnAttackInputReceived.BindUObject(this, &AFlowSlayerCharacter::OnAttackInputActionReceived);
 	InputManagerComponent->OnGuardActionTriggered.BindUObject(this, &AFlowSlayerCharacter::HandleGuardInput);
+	InputManagerComponent->OnHealActionTriggered.BindUObject(this, &AFlowSlayerCharacter::HandleHealInput);
 	
 	JumpMaxCount = 2;
 }
@@ -234,6 +238,16 @@ void AFlowSlayerCharacter::HandleLookInput(FVector2D lookAxis)
 void AFlowSlayerCharacter::HandleGuardInput()
 {
 	CombatComponent->ToggleGuard();
+}
+
+void AFlowSlayerCharacter::HandleHealInput()
+{
+	float healCost{ HealthComponent->GetHealFlowCost() };
+	if (FlowComponent->HasEnoughFlow(healCost) && !HealthComponent->IsHealOnCooldown())
+	{
+		HealthComponent->Heal();
+		FlowComponent->ConsumeFlow(healCost);
+	}
 }
 
 void AFlowSlayerCharacter::NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack)

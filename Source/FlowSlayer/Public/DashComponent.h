@@ -32,10 +32,11 @@ public:
     /** Initiates a dash in the given 2D input direction (raw axis values) */
     void StartDash(const FVector2D& inputDirection);
 
-    virtual void BeginPlay() override;
+    /** Reset dash state and starts cooldown */
+    UFUNCTION(BlueprintCallable)
+    void EndDash();
 
-    virtual void TickComponent(float deltaTime, ELevelTick tickType,
-        FActorComponentTickFunction* thisTickFunction) override;
+    virtual void BeginPlay() override;
 
     /** Broadcast when the dash starts — used to trigger animations, VFX, etc. */
     FOnDashStarted OnDashStarted;
@@ -49,9 +50,20 @@ public:
     UFUNCTION(BlueprintPure)
     bool IsDashing() const { return bIsDashing; }
 
-    /** Returns the world-space normalized direction of the current or last dash */
+    /** Returns the snapped 2D input direction set at StartDash — used by AnimNotifyState to recompute world direction at movement start */
+    FVector2D GetSnappedInput2D() const { return SnappedInput2D; }
+
+    /** Forward blend weight for the 8D dash blend space — dot(dashDir, actorForward), captured once at StartDash */
     UFUNCTION(BlueprintPure)
-    FVector GetDashDirectionWorld() const { return DashDirectionWorld; }
+    float GetDashForward() const { return DashForward; }
+
+    /** Lateral blend weight for the 8D dash blend space — dot(dashDir, actorRight), captured once at StartDash */
+    UFUNCTION(BlueprintPure)
+    float GetDashLateral() const { return DashLateral; }
+
+    /** Returns the distance travelled by the player during a completed dash */
+    UFUNCTION(BlueprintPure)
+    float GetDashDistance() const { return Distance; }
 
     UFUNCTION(BlueprintPure)
     bool CanDash() const;
@@ -69,69 +81,48 @@ public:
 
 protected:
 
-    /** Drives the dash movement profile (acceleration, deceleration, etc.)
-     *  X axis = normalized time [0, 1] — Y axis = normalized displacement [0, 1] */
-    UPROPERTY(EditDefaultsOnly, Category = "Dash")
-    UCurveFloat* DashCurve{ nullptr };
-
-    /** Total distance covered by the dash in Unreal units */
-    UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.0"))
-    float DashDistance{ 600.f };
-
-    /** Total duration of the dash in seconds */
-    UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.01"))
-    float DashDuration{ 0.2f };
-
     /** Time in seconds before the player can dash again after landing */
     UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.0"))
-    float DashCooldown{ 0.5f };
+    float CooldownDuration{ 0.5f };
+
+    /** Distance (in meter) the player travels when doing a complete dash */
+    UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "1.0"))
+    float Distance{ 300.f };
+
+    /** Maximum allowed dash duration — EndDash() is force-called if NotifyEnd hasn't fired by then */
+    UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.1"))
+    float MaxDashDuration{ 1.8f };
 
     /** Flow cost per dash usage */
     UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.0", ClampMax = "100.0"))
     float FlowCost{ 10.f };
-
-    UPROPERTY(EditDefaultsOnly, Category = "Dash")
-    UAnimMontage* DashMontage;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash")
-    USoundBase* DashSound{ nullptr };
-
-    /** Niagara system asset used for the after-image trail effect during the dash */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash")
-    UNiagaraSystem* DashVFX;
-
-    /** Runtime Niagara component attached to the mesh — activated during dash, deactivated on end */
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
-    UNiagaraComponent* AfterImagesVFXComp{ nullptr };
 
 private:
 
     /** Reference to the owning character, cached on BeginPlay */
     ACharacter* OwningPlayer{ nullptr };
 
-    /** World-space start and end positions computed at dash launch */
-    FVector dashStart{ FVector::ZeroVector };
-    FVector dashEnd{ FVector::ZeroVector };
+    /** Snapped 2D input direction, set at StartDash — AnimNotifyState recomputes the world direction from this at NotifyBegin */
+    FVector2D SnappedInput2D{ FVector2D::ZeroVector };
 
-    /** Time elapsed since dash started, used to compute normalized alpha [0, 1] */
-    float dashElapsed{ 0.f };
+    /** Forward blend weight — dot(dashDir, actorForward), captured once at StartDash to prevent ABP blend space drift during animation */
+    float DashForward{ 0.f };
 
-    /** Curve output from the previous frame — used to compute per-frame delta displacement */
-    float lastCurveValue{ 0.f };
+    /** Lateral blend weight — dot(dashDir, actorRight), captured once at StartDash to prevent ABP blend space drift during animation */
+    float DashLateral{ 0.f };
 
-    /** World-space normalized direction of the current or last dash */
-    FVector DashDirectionWorld{FVector::ZeroVector};
-
+    /** True while the dash movement is in progress */
     bool bIsDashing{ false };
+
+    /** True during the delay between a completed dash and the next allowed dash */
     bool bIsOnCooldown{ false };
 
     /** Set by UFSCombatComponent via delegates — prevents dashing during an attack */
     bool bIsAttacking{ false };
 
+    /** Timer handle for the post-dash cooldown */
     FTimerHandle cooldownTimer;
 
-    /** Spawns and attaches the Niagara after-image component to the character's mesh */
-    void InitDashVFXComp();
-
-    void endDash();
+    /** Safety fallback — fires EndDash() if NotifyEnd never triggers (e.g. montage interrupted before NotifyBegin) */
+    FTimerHandle SafetyTimer;
 };
