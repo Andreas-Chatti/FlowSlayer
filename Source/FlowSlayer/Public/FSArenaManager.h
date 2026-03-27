@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "AFSSpawnZone.h"
+#include "ArenaPortal.h"
 #include "../FlowSlayerCharacter.h"
 #include "ProgressionComponent.h"
 #include "FSArenaManager.generated.h"
@@ -35,8 +36,8 @@ struct FCapEscalationStep
  * Manages total enemies to spawn, max alive limit, escalation,
  * and arena lifecycle (start/clear).
  *
- * Place this actor in the level and assign SpawnZones in the editor.
- * Call StartArena() to begin the encounter (e.g. from a trigger volume overlap).
+ * Place this actor in the level, assign SpawnZones manually in the editor.
+ * RunManager calls StartArena() when the player enters this arena.
  */
 UCLASS()
 class FLOWSLAYER_API AFSArenaManager : public AActor
@@ -61,9 +62,13 @@ public:
 
 	// ==================== PUBLIC API ====================
 
-	/** Starts the arena encounter. Begins spawning enemies. */
+	/** Starts the arena encounter. Called by RunManager when the player enters this arena. */
 	UFUNCTION(BlueprintCallable, Category = "Arena")
 	void StartArena();
+
+	/** Stops the arena and clears all timers. Called by RunManager on run reset. */
+	UFUNCTION(BlueprintCallable, Category = "Arena")
+	void StopArena();
 
 	/** Returns true if the arena is currently active */
 	UFUNCTION(BlueprintCallable, Category = "Arena")
@@ -85,12 +90,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Arena")
 	int32 GetCurrentMaxAlive() const { return CurrentMaxAlive; }
 
+	/** Returns the exit portal assigned to this arena — used by RunManager to bind OnPlayerTeleported */
+	AArenaPortal* GetExitPortal() const { return ExitPortal; }
+
 private:
 
 	// ==================== CONFIGURATION ====================
 
-	/** Spawn zones managed by this arena */
-	UPROPERTY()
+	/** Spawn zones owned by this arena — assign manually in the editor */
+	UPROPERTY(EditAnywhere, Category = "Arena|Spawning")
 	TArray<AAFSSpawnZone*> SpawnZones;
 
 	/** Total number of enemies to spawn in this arena */
@@ -121,7 +129,11 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Arena|SpawnTiming")
 	float MaxSpawnCooldown{ 3.f };
 
-	UPROPERTY(EditAnywhere, Category = "Arena | Debug")
+	/** Exit portal revealed when this arena is cleared — null for the last arena */
+	UPROPERTY(EditAnywhere, Category = "Arena|Navigation")
+	AArenaPortal* ExitPortal{nullptr};
+
+	UPROPERTY(EditAnywhere, Category = "Arena|Debug")
 	bool bForceActivate{ false };
 
 	// ==================== RUNTIME STATE ====================
@@ -164,20 +176,6 @@ private:
 
 	/** Checks if the arena is completed (all enemies spawned and killed) */
 	void CheckArenaCompletion();
-
-	/** Finds all AAFSSpawnZone actors in the level and populates the SpawnZones array.
-	* Retries on a timer if no zones are found yet (actors may not be loaded).
-	*/
-	void InitialiseSpawnZones();
-
-	/** Timer handle for retrying SpawnZone discovery */
-	FTimerHandle SpawnZonesInitTimer;
-
-	/** Current number of init retry attempts */
-	int32 SpawnZoneInitTries{ 0 };
-
-	/** Max retry attempts before giving up on SpawnZone discovery */
-	static constexpr int32 MaxSpawnZoneInitTries{ 10 };
 
 	/** Cached player reference — used to award XP on enemy death */
 	UPROPERTY()

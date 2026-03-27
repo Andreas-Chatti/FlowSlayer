@@ -13,9 +13,8 @@ void UProgressionComponent::AddXP(int32 Amount)
 		return;
 
 	CurrentXP += Amount;
-	OnXPGained.Broadcast(Amount, CurrentXP);
 
-	// Handle multi-levelup in a single XP gain (e.g. burst kill at low XP)
+	// Process level up(s) BEFORE broadcasting OnXPGained so GetXPRatio() is always in [0, 1]
 	while (CurrentXP >= XPToNextLevel)
 	{
 		CurrentXP -= XPToNextLevel;
@@ -27,6 +26,9 @@ void UProgressionComponent::AddXP(int32 Amount)
 		if (IsMilestoneLevel(CurrentLevel))
 			OnMilestoneLevelUp.Broadcast(CurrentLevel);
 	}
+
+	// Broadcast after level up so ratio = CurrentXP/XPToNextLevel is always in [0, 1]
+	OnXPGained.Broadcast(Amount, CurrentXP);
 }
 
 float UProgressionComponent::GetXPRatio() const

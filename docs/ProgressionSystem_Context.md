@@ -30,11 +30,11 @@ AFSArenaManager::HandleOnEnemyDeath(Enemy)
 
 UProgressionComponent::AddXP(Amount)
     → CurrentXP += Amount
-    → OnXPGained.Broadcast(Amount, CurrentXP)
-    → [while XP >= threshold]
+    → [while XP >= threshold]        ← level up traité EN PREMIER
         → CurrentLevel++
         → OnLevelUp.Broadcast(CurrentLevel)
         → [if milestone] OnMilestoneLevelUp.Broadcast(CurrentLevel)
+    → OnXPGained.Broadcast(Amount, CurrentXP)  ← APRÈS le level up
 ```
 
 ---
@@ -100,19 +100,45 @@ int32 CalculateXPThreshold(int32 Level) const
 
 Configuré dans les BPs ennemis (`EditDefaultsOnly` → `Stats`).
 
-| Ennemi | XP (défaut) |
+| Ennemi | XP |
 |---|---|
 | Grunt | 10 |
-| Runner | 10 (à ajuster dans BP_Runner) |
+| Runner | 30 |
 
 ---
 
-## État actuel (MVP)
+## UI — WBP_PlayerXpBarUi
+
+Widget Blueprint qui affiche la progression XP du joueur.
+
+**Composants :**
+- `XPProgress Bar` — barre de progression XP
+- `Level Text` — texte affichant le level courant ("Level X")
+
+**Logique (EventGraph) :**
+- `Event Construct` : cast du pawn → `Player Ref`, bind `HandleOnXpGained` sur `OnXPGained` et `HandleOnLevelUp` sur `OnLevelUp` via le `ProgressionComponent`. Init de la barre via `GetXPRatio()`.
+- `HandleOnXpGained` : appelle `GetXPRatio()` → `Set Percent` sur la barre
+- `HandleOnLevelUp` : `New Level` → `To String` → `Append` → `Set Text` sur le level text
+
+**Règle importante :** utiliser `GetXPRatio()` (jamais calculer manuellement) — la valeur est toujours dans [0, 1] grâce à l'ordre de broadcast dans `AddXP`.
+
+---
+
+## Bug corrigé — ordre de broadcast dans AddXP
+
+`OnXPGained` était broadcasté AVANT la boucle de level up → `GetXPRatio()` retournait > 1.0 quand un kill déclenchait un level up → barre XP débordait.
+
+**Fix :** `OnXPGained.Broadcast` déplacé APRÈS la boucle `while` → le ratio est toujours dans [0, 1] quand le BP le lit.
+
+---
+
+## État actuel
 
 - [x] Level et XP trackés
 - [x] Multi-levelup en un seul gain géré (loop while)
-- [x] Delegates `OnXPGained`, `OnLevelUp`, `OnMilestoneLevelUp` prêts pour UI
-- [x] Pipeline validée en session (30 kills, level 9 atteint, milestone level 5 déclenché)
-- [ ] UI barre XP / level
+- [x] Delegates `OnXPGained`, `OnLevelUp`, `OnMilestoneLevelUp`
+- [x] Pipeline validée (30 kills, level 9, milestone level 5 ✓)
+- [x] WBP_PlayerXpBarUi — barre XP + level text, bindé sur les delegates
+- [x] Bug ratio > 1.0 corrigé (ordre broadcast)
 - [ ] Écran de choix d'upgrade au level up
 - [ ] Récompenses spéciales aux milestones
