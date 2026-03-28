@@ -37,6 +37,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Input")
 	FVector2D GetMoveInputAxis() const { return MoveInputAxis; }
 
+	/** Return the PlayerController associated with this component */
+	UFUNCTION(BlueprintPure, Category = "Input")
+	APlayerController* GetPlayerController() const { return PlayerController; }
+
 	UFUNCTION(BlueprintCallable)
 	bool HasMovementInput() const { return bHasMovementInput; }
 
