@@ -5,11 +5,30 @@ ARunManager::ARunManager()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
+#if WITH_EDITOR
+void ARunManager::OnConstruction(const FTransform& Transform)
+{
+	Super::OnConstruction(Transform);
+
+	TArray<AActor*> existing;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARunManager::StaticClass(), existing);
+	if (existing.Num() > 1)
+		UE_LOG(LogTemp, Error, TEXT("[RunManager] More than one RunManager in the level — only one is allowed."));
+}
+#endif
+
 void ARunManager::BeginPlay()
 {
 	Super::BeginPlay();
 
-	PlayerCharacter = Cast<AFlowSlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	TArray<AActor*> existing;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARunManager::StaticClass(), existing);
+	if (existing.Num() > 1)
+	{
+		UE_LOG(LogTemp, Error, TEXT("[RunManager] Duplicate detected — destroying self."));
+		Destroy();
+		return;
+	}
 
 	StartRun();
 }

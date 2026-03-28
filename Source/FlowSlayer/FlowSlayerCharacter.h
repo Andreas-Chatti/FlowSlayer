@@ -109,6 +109,7 @@ private:
 	UPROPERTY()
 	UUserWidget* HUDWidgetInstance{ nullptr };
 
+
 	/** Spawns and adds the HUD widget to the viewport */
 	void InitializeHUD();
 

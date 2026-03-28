@@ -113,6 +113,14 @@ void AFlowSlayerCharacter::BeginPlay()
 	Tags.Add("Player");
 
 	InitializeHUD();
+
+	APlayerController* pc{ InputManagerComponent->GetPlayerController() };
+	if (pc)
+	{
+		FInputModeGameOnly inputMode;
+		pc->SetInputMode(inputMode);
+		pc->SetShowMouseCursor(false);
+	}
 }
 
 void AFlowSlayerCharacter::InitializeHUD()
@@ -136,10 +144,8 @@ bool AFlowSlayerCharacter::CanJumpInternal_Implementation() const
 
 void AFlowSlayerCharacter::HandleOnDeath()
 {
-	InputManagerComponent->DisableAllInputs();
-
 	AnimInstance->StopAllMontages(0.3f);
-
+	InputManagerComponent->DisableAllInputs();
 	OnPlayerDeath.Broadcast(this);
 }
 
