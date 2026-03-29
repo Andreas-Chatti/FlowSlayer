@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "FSArenaManager.h"
+#include "Kismet/GameplayStatics.h"
 #include "RunManager.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRunArenaCleared);
@@ -9,10 +10,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRunCompleted);
 
 /**
  * Singleton actor placed in the level.
- * Owns the ordered list of arenas and portals and orchestrates run progression:
- * arena transitions, portal reveal, and run completion.
- *
- * Death handling and run reset are managed by FlowSlayerCharacter / OpenLevel.
+ * Owns the ordered list of arenas and orchestrates run progression:
+ * arena activation, portal reveal, and run completion events.
  */
 UCLASS()
 class FLOWSLAYER_API ARunManager : public AActor
@@ -24,6 +23,10 @@ public:
 	ARunManager();
 
 	virtual void BeginPlay() override;
+
+#if WITH_EDITOR
+	virtual void OnConstruction(const FTransform& Transform) override;
+#endif
 
 	// ==================== EVENTS ====================
 
@@ -69,10 +72,6 @@ private:
 
 	/** Index of the currently active arena */
 	int32 CurrentArenaIndex{0};
-
-	/** Cached player reference */
-	UPROPERTY()
-	AFlowSlayerCharacter* PlayerCharacter{ nullptr };
 
 	// ==================== INTERNAL ====================
 

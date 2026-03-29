@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble
 
-Orchestration de la game loop complète : progression entre arènes, révélation du portail, téléportation, fin de run. La mort et le reset sont gérés par `FlowSlayerCharacter` + `OpenLevel`.
+Orchestration de la game loop complète : progression entre arènes, révélation du portail, téléportation, fin de run. La mort et la fin de run déclenchent des delegates écoutés par `AFlowSlayerGameMode`, qui gère les écrans de fin et le reset via `OpenLevel`.
 
 ---
 
@@ -10,6 +10,7 @@ Orchestration de la game loop complète : progression entre arènes, révélatio
 
 | Classe | Rôle |
 |---|---|
+| `AFlowSlayerGameMode` | Médiateur game state. Bind `OnPlayerDeath` + `OnRunCompleted`, gère DeathScreen/WinScreen et input mode. |
 | `ARunManager` | Singleton placé dans le level. Orchestre les transitions — ne connaît que les ArenaManagers. |
 | `AFSArenaManager` | Gère UNE arène + possède son portail de sortie (`ExitPortal`). Appelle `ShowPortal()` au clear. |
 | `AArenaPortal` | Placé dans le level, caché par défaut. Téléporte le joueur à l'overlap, broadcast `OnPlayerTeleported`. |
@@ -30,7 +31,16 @@ AFSArenaManager::CheckArenaCompletion()
     → OnArenaCleared.Broadcast()
         → ARunManager::HandleOnArenaCleared()
             → [si dernière arène] OnRunCompleted.Broadcast()
+                → AFlowSlayerGameMode::HandleOnRunCompleted()
+                    → StopAllMontages + DisableAllInputs sur PlayerCharacter
+                    → ShowEndScreen(WinScreenClass)
             → [sinon] OnRunArenaCleared.Broadcast()
+
+FlowSlayerCharacter::HandleOnDeath()  (déclenché par HealthComponent)
+    → StopAllMontages + DisableAllInputs
+    → OnPlayerDeath.Broadcast()
+        → AFlowSlayerGameMode::HandleOnPlayerDeath()
+            → ShowEndScreen(DeathScreenClass)
 
 Joueur entre dans le portail (overlap box)
     → AArenaPortal::TeleportPlayer()
@@ -116,6 +126,24 @@ Active mesh, collision (`QueryOnly`), et Niagara si `PortalVFX` est assigné.
 
 ---
 
+## AFlowSlayerGameMode — Gestion des écrans de fin
+
+`BeginPlay` bind les deux delegates :
+- `PlayerCharacter->OnPlayerDeath` → `HandleOnPlayerDeath`
+- `RunManager->OnRunCompleted` → `HandleOnRunCompleted`
+
+`ShowEndScreen(WidgetClass, WidgetInstance)` est factorisé — crée le widget, l'ajoute au viewport, passe en `FInputModeUIOnly` + affiche le curseur.
+
+Pour le win screen, le GameMode freeze aussi le character (`StopAllMontages` + `DisableAllInputs`) car il est toujours vivant.
+
+### Configuration (BP_FlowSlayerGameMode Details panel)
+```
+DeathScreenClass  — assigner WBP_DeathScreen
+WinScreenClass    — assigner WBP_WinScreen
+```
+
+---
+
 ## Reset de run / mort
 
 Pas de `ResetRun()` dans RunManager. La mort → death screen → `UGameplayStatics::OpenLevel()`. Le reload remet tout à zéro proprement.
@@ -127,7 +155,10 @@ Pas de `ResetRun()` dans RunManager. La mort → death screen → `UGameplayStat
 - [x] `ARunManager` — orchestrateur, transitions, bind portail via getter
 - [x] `AFSArenaManager` — SpawnZones manuelles, `ExitPortal`, `ShowPortal()` au clear
 - [x] `AArenaPortal` — C++ complet, placement statique, `DestinationActor`, preview editor
-- [x] **Boucle complète validée en runtime** (session 12)
+- [x] **Boucle complète validée en runtime**
+- [x] Death screen + OpenLevel sur mort joueur
+- [x] Win screen sur completion du run
+- [x] GameMode comme médiateur — RunManager découplé du player
+- [x] Singleton enforcement RunManager (OnConstruction warning + BeginPlay destroy)
 - [ ] BP enfant de `AArenaPortal` — mesh + VFX, à créer en editor
-- [ ] Death screen + OpenLevel sur mort joueur
 - [ ] Coffre placeholder (react à `OnRunArenaCleared`)

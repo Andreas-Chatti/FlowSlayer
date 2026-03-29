@@ -1,62 +1,61 @@
 # Flow Slayer
 
-A **3D action roguelite** built with **Unreal Engine 5.4** and **C++**, featuring a stylish combo-based combat system inspired by Hades, Devil May Cry, Dead Cells, and Furi.
+A **3D action roguelite** built with **Unreal Engine 5.7** and **C++**, featuring a stylish combo-based combat system inspired by Hades, Devil May Cry, Dead Cells, and Furi.
 
-![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.4.4-blue?logo=unrealengine)
+![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.7.4-blue?logo=unrealengine)
 ![C++](https://img.shields.io/badge/C++-17-00599C?logo=cplusplus)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
 [![Dev Videos](https://img.shields.io/badge/Dev%20Videos-Google%20Drive-4285F4?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/13BXUaIHeYjbny9D94_BoQ9VAFmhFtopz?usp=sharing)
 
 ---
 
-## About The Project
+## About
 
-Flow Slayer is a skill-based action game where players fight through hordes of enemies using a deep combo system. The core gameplay revolves around maintaining **Flow/Momentum** — the longer you keep your combo going, the more powerful you become.
+Flow Slayer is a skill-based action game where players fight through a series of arenas in short runs (30–40 min). The core mechanic revolves around **Flow/Momentum** — sustaining combos builds power and eventually grants damage immunity, while taking hits or dashing costs Flow.
 
-**Key Design Goals:**
-- Fast-paced, stylish combat with 17+ chainable combo attacks
+- Fast-paced combat with 20+ chainable attacks — ground combos, dash attacks, launchers, aerial moves
 - Air combat system with launchers, juggles, and aerial slams
 - Lock-on targeting with dynamic camera behavior
-- Pure skill-based progression — no stat grinding, just player mastery
+- Run-based progression with XP, level-ups, and milestone upgrades
+- Pure skill expression — the combat system rewards mastery, not stat grinding
 
 ---
 
 ## Technical Highlights
 
 ### Combat System
-The combat system is built around a modular `FSCombatComponent` that handles:
+Built around a modular `FSCombatComponent` (~95% C++, Blueprints only for asset wiring):
 
 - **Combo Chaining** — Animation-driven combo windows allow seamless attack transitions
+- **Chorded Input** — Each attack has its own `UInputAction` with Chorded Actions configured in the editor via a strict 3-layer input pipeline — no manual key-state checks in code
 - **Motion Warping** — Dynamic target tracking during attacks for satisfying hit connection
 - **Hitstop** — Frame-perfect time dilation on hit for impactful feedback
 - **Knockback Physics** — Directional knockback with horizontal and vertical force vectors
-- **17+ Attack Types** — Ground combos, dash attacks, launchers, and aerial moves
+
+### Input Pipeline — strict 3-layer separation
+```
+[Enhanced Input] → InputManagerComponent (UInputAction*)
+               → FlowSlayerCharacter    (TMap<UInputAction*, EAttackType>)
+               → FSCombatComponent      (TMap<EAttackType, FCombo*>)
+               → Animation Montage
+```
+`InputManagerComponent` has no dependency on combat types — `FlowSlayerCharacter` is the only bridge between input and combat domains.
+
+### Flow / Momentum System
+- Gains on hit landed, loses on dash or damage received
+- Four tiers with escalating effects — max tier grants full damage immunity
+- Drives all resource decisions (heal cost, dash cost, upgrade eligibility)
 
 ### Air Combat
-- **Launcher Attacks** — Send enemies airborne with trajectory peak detection
-- **Air Stall System** — Reduced gravity during aerial combos via animation notifies
-- **Mid-Air Freezing** — Enemies freeze briefly at apex, creating combo windows
-- **Aerial Slams** — Multiple slam variations with ground impact
+- Launcher attacks send enemies airborne with trajectory peak detection
+- Reduced gravity during aerial combos via animation notifies
+- Enemies freeze briefly at apex, creating juggle windows
 
-### Weapon System
-- Sweep-based collision detection prevents fast attacks from phasing through targets
-- Per-attack hit tracking to prevent duplicate damage
-- Niagara-based sword trails and hit VFX
-
-### Lock-On System
-- Sphere-based target detection with nearest-priority targeting
-- Distance-aware camera offset (pitch/yaw adjustments based on target range)
-- Smooth camera interpolation with dead-target auto-disengage
-- Input-based target switching
-
-### Enemy AI
-Two enemy archetypes implemented:
-- **Grunt** — Melee combatant with sweep-based hitbox detection
-- **Runner** — Ranged enemy with projectile attacks
-
-### Spawn System
-- Zone-based enemy spawning with ground detection via line traces
-- Cooldown management and random transform generation
+### Game Loop
+- **RunManager** — singleton orchestrator for arena transitions and run completion
+- **FSArenaManager** — per-arena encounter: spawn budget, max-alive cap, dynamic escalation, owns its exit portal
+- **AArenaPortal** — placed in the level, hidden until arena clear; teleports player via a `DestinationActor` reference
+- **ProgressionComponent** — 30 levels per run, XP curve `60 + (n-1)*5`, milestone events every 5 levels
 
 ---
 
@@ -64,74 +63,38 @@ Two enemy archetypes implemented:
 
 ```
 Source/FlowSlayer/
+├── FlowSlayerCharacter.h/cpp        // Player — orchestrates all components
 ├── Public/
-│   ├── FSCombatComponent.h      // Core combat logic & combo system
-│   ├── FSWeapon.h               // Weapon hitbox & trail management
-│   ├── FSLockOnComponent.h      // Target lock-on system
-│   ├── FSEnemy.h                // Base enemy class
-│   ├── FSEnemy_Grunt.h          // Melee enemy type
-│   ├── FSEnemy_Runner.h         // Ranged enemy type
-│   ├── FSEnemyAIController.h    // Enemy AI behavior
-│   ├── FSProjectile.h           // Projectile system
-│   ├── AFSSpawnZone.h           // Enemy spawn management
-│   ├── FSDamageable.h           // Damage interface
-│   ├── FSFocusable.h            // Lock-on target interface
-│   └── AnimNotifyState_*.h      // Animation notify classes
-├── Private/
-│   └── [Implementation files]
-└── FlowSlayerCharacter.h/cpp    // Player character
+│   ├── CombatData.h                 // EAttackType, FAttackData, FCombo (shared types)
+│   ├── FSCombatComponent.h          // Combo state machine, attack execution
+│   ├── FSFlowComponent.h            // Flow/Momentum resource
+│   ├── FSLockOnComponent.h          // Lock-on acquisition and switching
+│   ├── DashComponent.h              // Dash movement, cooldown, flow cost
+│   ├── HealthComponent.h            // HP, death event
+│   ├── ProgressionComponent.h       // XP, level-up, milestones
+│   ├── InputManagerComponent.h      // Enhanced Input → UInputAction* delegates
+│   ├── FSArenaManager.h             // Arena encounter + exit portal ownership
+│   ├── RunManager.h                 // Run orchestration, arena transitions
+│   ├── ArenaPortal.h                // Teleportation actor, hidden until arena clear
+│   ├── AFSSpawnZone.h               // Enemy spawn zone
+│   ├── FSEnemy.h / FSEnemy_*.h      // Enemy base + archetypes
+│   └── AnimNotifyState_*.h          // Gameplay timing via animation notifies
+└── Private/                         // Implementations
 ```
 
-### Key Interfaces
-- **IFSDamageable** — Health, damage reception, death state
-- **IFSFocusable** — Lock-on indicator and health bar widget control
-
-### Animation Notify System
-Gameplay timing is controlled through custom `UAnimNotifyState` classes:
-- `ComboWindow` — Input buffering for combo chains
-- `Hitbox` — Weapon collision activation
-- `AirStall` — Gravity modification during air attacks
-- `AnimCancelWindow` — Action canceling opportunities
-
 ---
 
-## Tech Stack
-
-- **Engine:** Unreal Engine 5.4.4
-- **Language:** C++ (gameplay systems) + Blueprints (UI/VFX)
-- **Input:** Enhanced Input System
-- **Animation:** Motion Warping, Animation Notifies, Montages
-- **VFX:** Niagara Particle System
-- **AI:** AIController with pathfinding
-
----
-
-## Code Standards
-
-This project follows Unreal Engine coding conventions:
-- Bracket initialization for all variables
-- PascalCase for functions and member variables
-- `b` prefix for boolean members
-- Comprehensive documentation comments
-- Interface-based design for extensibility
-
----
-
-## Current Status
-
-**Implemented:**
-- Full combo system with 17+ attack types
-- Air combat with launchers and aerial combos
-- Lock-on targeting system
-- Two enemy types (melee & ranged)
-- Projectile system
-- Spawn zone system
-- Player HUD
+## Status
 
 **In Progress:**
-- Flow/Momentum meter system
-- Additional enemy types
-- Procedural dungeon generation
+- Death screen + run reset
+- Reward chest on arena clear
+- Upgrade screen at milestone level-up
+
+**Planned:**
+- Modular weapon craft (Blade + Handle + Gem)
+- More types of ennemies
+- Boss / Elite ennemies
 
 ---
 

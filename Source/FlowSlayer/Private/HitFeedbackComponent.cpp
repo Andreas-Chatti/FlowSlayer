@@ -79,15 +79,16 @@ void UHitFeedbackComponent::ApplyHitShake(float shakeAmplitude)
     float offsetDirection{ 1.f };
 
     TWeakObjectPtr<USkeletalMeshComponent> weakMesh{ ownerMesh };
+	TWeakObjectPtr<UHitFeedbackComponent> weakThis{ this };
     GetWorld()->GetTimerManager().SetTimer(
         HitShakeTimer,
-        [this, weakMesh, defaultRelativeLoc, offsetDirection, shakeAmplitude]() mutable
+        [weakThis, weakMesh, defaultRelativeLoc, offsetDirection, shakeAmplitude]() mutable
         {
-            if (!weakMesh.IsValid())
+            if (!weakMesh.IsValid() || !weakThis.IsValid())
                 return;
 
-            FVector cameraRight{ GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetActorRightVector() };
-            FVector cameraRightLocal{ UKismetMathLibrary::InverseTransformDirection(GetOwner()->GetActorTransform(), cameraRight) };
+            FVector cameraRight{ weakThis->GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetActorRightVector() };
+            FVector cameraRightLocal{ UKismetMathLibrary::InverseTransformDirection(weakThis->GetOwner()->GetActorTransform(), cameraRight) };
             cameraRightLocal.Z = 0.f;
             cameraRightLocal *= shakeAmplitude * offsetDirection;
 
@@ -102,9 +103,11 @@ void UHitFeedbackComponent::ApplyHitShake(float shakeAmplitude)
     FTimerHandle hitShakeStopTimer;
     GetWorld()->GetTimerManager().SetTimer(
         hitShakeStopTimer,
-        [this, weakMesh, defaultRelativeLoc]()
+        [weakThis, weakMesh, defaultRelativeLoc]()
         {
-            GetWorld()->GetTimerManager().ClearTimer(HitShakeTimer);
+
+            if (weakThis.IsValid())
+                weakThis->GetWorld()->GetTimerManager().ClearTimer(weakThis->HitShakeTimer);
 
             if (weakMesh.IsValid())
                 weakMesh->SetRelativeLocation(defaultRelativeLoc);
