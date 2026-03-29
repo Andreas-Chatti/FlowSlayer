@@ -1,5 +1,4 @@
 #include "ArenaPortal.h"
-#include "NiagaraFunctionLibrary.h"
 
 AArenaPortal::AArenaPortal()
 {
@@ -14,6 +13,10 @@ AArenaPortal::AArenaPortal()
 	NiagaraComponent->SetupAttachment(RootComponent);
 	NiagaraComponent->bAutoActivate = false;
 
+	PortalAudioComponent = CreateDefaultSubobject<UAudioComponent>(TEXT("PortalAudioComponent"));
+	PortalAudioComponent->SetupAttachment(RootComponent);
+	PortalAudioComponent->bAutoActivate = false;
+
 	OverlapBox = CreateDefaultSubobject<UBoxComponent>(TEXT("OverlapBox"));
 	OverlapBox->SetupAttachment(RootComponent);
 	OverlapBox->SetBoxExtent(FVector(100.f, 100.f, 100.f));
@@ -21,6 +24,7 @@ AArenaPortal::AArenaPortal()
 	OverlapBox->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 }
 
+#if WITH_EDITOR
 void AArenaPortal::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
@@ -32,8 +36,17 @@ void AArenaPortal::OnConstruction(const FTransform& Transform)
 			NiagaraComponent->SetAsset(PortalVFX);
 			NiagaraComponent->Activate(true);
 		}
+
+		if (PortalSFX && (!EditorPreviewAudioComponent || !EditorPreviewAudioComponent->IsPlaying()))
+		{
+			if (EditorPreviewAudioComponent)
+				EditorPreviewAudioComponent->Stop();
+
+			EditorPreviewAudioComponent = UGameplayStatics::SpawnSoundAtLocation(this, PortalSFX, GetActorLocation());
+		}
 	}
 }
+#endif
 
 void AArenaPortal::BeginPlay()
 {
@@ -51,6 +64,12 @@ void AArenaPortal::ShowPortal()
 	{
 		NiagaraComponent->SetAsset(PortalVFX);
 		NiagaraComponent->Activate();
+	}
+
+	if (PortalSFX)
+	{
+		PortalAudioComponent->SetSound(PortalSFX);
+		PortalAudioComponent->Play();
 	}
 }
 

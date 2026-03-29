@@ -31,7 +31,7 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	GetCharacterMovement()->BrakingDecelerationFalling = 5000.f;
 	GetCharacterMovement()->GravityScale = 2.5f;
 
-	GetCharacterMovement()->MaxWalkSpeed = 600.f;
+	GetCharacterMovement()->MaxWalkSpeed = 900.f;
 	GetCharacterMovement()->MinAnalogWalkSpeed = 20.0f;
 	GetCharacterMovement()->BrakingDecelerationWalking = 2000.0f;
 
@@ -39,19 +39,18 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->SetRelativeLocation(FVector{ 0, 0, 80 });
 	CameraBoom->bEnableCameraLag = true;
 	CameraBoom->CameraLagSpeed = 8.f;
 	CameraBoom->bEnableCameraRotationLag = true;
 	CameraBoom->CameraRotationLagSpeed = 10.f;
-	CameraBoom->TargetArmLength = 550.0f;
-	CameraBoom->SocketOffset = FVector{ 0, 40, 70 };
-	CameraBoom->bUsePawnControlRotation = true; // Rotate the arm based on the controller
+	CameraBoom->TargetArmLength = 700.0f;
+	CameraBoom->SocketOffset = FVector{ 0.0, 0.0, 80.0 };
+	CameraBoom->bUsePawnControlRotation = true;
 
-	// Create a follow camera
 	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName); // Attach the camera to the end of the boom and let the boom adjust to match the controller orientation
-	FollowCamera->bUsePawnControlRotation = false; // Camera does not rotate relative to arm
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->bUsePawnControlRotation = false;
+	FollowCamera->FieldOfView = 75.f;
 
 	LockOnComponent = CreateDefaultSubobject<UFSLockOnComponent>(TEXT("LockOnComponent"));
 	checkf(LockOnComponent, TEXT("FATAL: LockOnComponent is NULL or INVALID !"));

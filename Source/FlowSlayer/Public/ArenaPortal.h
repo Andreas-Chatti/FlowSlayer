@@ -4,6 +4,10 @@
 #include "Components/BoxComponent.h"
 #include "NiagaraComponent.h"
 #include "GameFramework/Pawn.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
+#include "Components/AudioComponent.h"
 #include "ArenaPortal.generated.h"
 
 /** Broadcasted when the player has been teleported — RunManager listens to this to activate the next arena */
@@ -24,7 +28,9 @@ public:
 
 	AArenaPortal();
 
+#if WITH_EDITOR
 	virtual void OnConstruction(const FTransform& Transform) override;
+#endif
 
 	virtual void BeginPlay() override;
 
@@ -38,17 +44,31 @@ public:
 
 private:
 
-	/** Visual mesh of the portal — assign in the child Blueprint */
+	/** Visual mesh of the portal */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
 	UStaticMeshComponent* MeshComponent;
 
-	/** Niagara VFX component — system assigned via PortalVFX in the Details panel */
+	/** Niagara VFX component */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
 	UNiagaraComponent* NiagaraComponent;
 
-	/** Niagara system to play on the portal — assign in the Details panel */
+	/** Niagara system to play on the portal */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
 	UNiagaraSystem* PortalVFX;
+
+	/** Looped Sound Cue to play on the portal */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
+	USoundCue* PortalSFX;
+
+	/** Audio component for the looped portal SFX — used at runtime via ShowPortal() */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
+	UAudioComponent* PortalAudioComponent{ nullptr };
+
+#if WITH_EDITORONLY_DATA
+	/** Editor-only cached reference to the spawned preview sound — prevents duplicates on recompile */
+	UPROPERTY()
+	UAudioComponent* EditorPreviewAudioComponent{ nullptr };
+#endif
 
 	/** Overlap trigger — player enters this to activate the portal */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Portal", meta = (AllowPrivateAccess = "true"))
