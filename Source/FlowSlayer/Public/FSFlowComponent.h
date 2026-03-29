@@ -1,6 +1,7 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "UpgradeData.h"
 #include "FSFlowComponent.generated.h"
 
 /**
@@ -79,6 +80,10 @@ public:
 	/** Check if the player has enough flow based on the flow cost of an ability */
 	UFUNCTION(BlueprintPure)
 	bool HasEnoughFlow(float flowCost) const;
+
+	/** Applies upgrade effects that concern the flow system (FlowDecayRate stat) */
+	UFUNCTION()
+	void HandleOnUpgradeSelected(const FUpgradeData& Upgrade);
 
 protected:
 

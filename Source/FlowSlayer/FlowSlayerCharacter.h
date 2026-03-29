@@ -231,6 +231,10 @@ private:
 	UFUNCTION()
 	void HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation, const FAttackData& usedAttack);
 
+	/** Applies upgrade effects that concern movement speed (MoveSpeed stat) */
+	UFUNCTION()
+	void HandleOnUpgradeSelected(const FUpgradeData& Upgrade);
+
 	/** IFSDamageable interface - broadcasts OnHitReceived when this character is hit */
 	UFUNCTION()
 	virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) override;

@@ -155,6 +155,7 @@ Pas de `ResetRun()` dans RunManager. La mort → death screen → `UGameplayStat
 - [x] `ARunManager` — orchestrateur, transitions, bind portail via getter
 - [x] `AFSArenaManager` — SpawnZones manuelles, `ExitPortal`, `ShowPortal()` au clear
 - [x] `AArenaPortal` — C++ complet, placement statique, `DestinationActor`, preview editor
+- [x] `BP_Arena1Portal` + `BP_Arena2Portal` — enfants Blueprint de `BP_ArenaPortal`, un par arène, placés dans le level
 - [x] **Boucle complète validée en runtime**
 - [x] Death screen + OpenLevel sur mort joueur
 - [x] Win screen sur completion du run

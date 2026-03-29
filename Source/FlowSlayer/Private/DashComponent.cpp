@@ -85,3 +85,16 @@ void UDashComponent::EndDash()
 
     OnDashEnded.Broadcast();
 }
+
+void UDashComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
+{
+    if (Upgrade.Stat != EUpgradeStat::DashFlowCost)
+        return;
+
+    if (Upgrade.ValueType == EUpgradeValueType::Additive)
+        FlowCost += Upgrade.Value;
+    else
+        FlowCost *= Upgrade.Value;
+
+    FlowCost = FMath::Max(0.f, FlowCost);
+}

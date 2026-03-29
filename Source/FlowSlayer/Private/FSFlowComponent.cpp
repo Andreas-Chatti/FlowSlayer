@@ -132,3 +132,16 @@ float UFSFlowComponent::GetFlowRatio() const
 	return CurrentFlow / MaxFlow;
 }
 
+void UFSFlowComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
+{
+	if (Upgrade.Stat != EUpgradeStat::FlowDecayRate)
+		return;
+
+	if (Upgrade.ValueType == EUpgradeValueType::Additive)
+		DecayRate += Upgrade.Value;
+	else
+		DecayRate *= Upgrade.Value;
+
+	DecayRate = FMath::Max(0.f, DecayRate);
+}
+

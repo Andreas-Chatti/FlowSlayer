@@ -478,11 +478,26 @@ void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitL
     OngoingAttackComboWindowDuration = currentAttack->ComboWindowDuration;
     ComboTimeRemaining = OngoingAttackComboWindowDuration;
 
-    OnHitLanded.Broadcast(hitActor, hitLocation, *currentAttack);
+    // Apply damage multiplier from upgrades — copy so DataTable row stays unmodified
+    FAttackData scaledAttack{ *currentAttack };
+    scaledAttack.Damage *= DamageMultiplier;
+
+    OnHitLanded.Broadcast(hitActor, hitLocation, scaledAttack);
 
     HitFeedBackComponent->OnLandHit(hitLocation);
 
-    hitActorDamageable->NotifyHitReceived(PlayerOwner, *currentAttack);
+    hitActorDamageable->NotifyHitReceived(PlayerOwner, scaledAttack);
+}
+
+void UFSCombatComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
+{
+    if (Upgrade.Stat != EUpgradeStat::Damage)
+        return;
+
+    if (Upgrade.ValueType == EUpgradeValueType::Additive)
+        DamageMultiplier += Upgrade.Value;
+    else
+        DamageMultiplier *= Upgrade.Value;
 }
 
 void UFSCombatComponent::ResetComboCounter()
