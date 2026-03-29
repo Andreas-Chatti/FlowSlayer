@@ -220,5 +220,6 @@ SelectUpgrade(T2)
 - [x] `SelectUpgrade` — système de remplacement (UndoPreviousTier + BuildReverseUpgrade)
 - [x] 5 handlers `OnUpgradeSelected` — Damage, MaxHealth, FlowDecay, DashCost, MoveSpeed, HealCooldown, HealFlowCost
 - [x] `DT_Upgrades.json` — 19 upgrades, 7 chaînes, T3 sur Damage/MaxHealth/FlowDecay/Dash/MoveSpeed
-- [ ] Écran de choix d'upgrade (WBP_UpgradeScreen — 3 cartes, pause, choix)
+- [x] `WBP_UpgradeScreen` — 3 cartes (icône + nom + description), dark fantasy style, validé en runtime
+- [ ] Déclenchement au milestone : pause + affichage WBP_UpgradeScreen
 - [ ] Récompenses spéciales aux milestones
