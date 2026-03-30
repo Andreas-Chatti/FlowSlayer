@@ -91,13 +91,29 @@ protected:
 
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
-	UPROPERTY(EditAnywhere, Category = "Debug")
+	/** Maximum flow value. Defines the 100% cap. */
+	UPROPERTY(EditAnywhere, Category = "Flow")
+	float MaxFlow{ 100.f };
+
+	UPROPERTY(EditAnywhere, Category = "Flow | Decay")
+	/** Flow lost per second during passive decay. */
+	float DecayRate{ 8.f };
+
+	/** Delay in seconds before passive decay starts after the last successful hit. */
+	UPROPERTY(EditAnywhere, Category = "Flow | Decay")
+	float DecayGracePeriod{ 5.f };
+
+	/** Duration of the immunity window at Max tier when the player is hit.
+	* During this window, flow loss is deferred. Resets if the player lands a hit.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Flow | Decay")
+	float ImmunityDuration{ 5.f };
+
+	/** Force flow to be infinite for debugging purposes */
+	UPROPERTY(EditAnywhere, Category = "Flow | Debug")
 	bool bInfiniteFlow{ false };
 
 private:
-
-	/** Maximum flow value. Defines the 100% cap. */
-	float MaxFlow{ 100.f };
 
 	/** Current flow value. Clamped between 0 and MaxFlow at all times. */
 	float CurrentFlow{ 0.f };
@@ -105,19 +121,8 @@ private:
 	/** Cached tier for change detection. Updated by OnFlowTierChanged. */
 	EFlowTier CurrentTier{ EFlowTier::None };
 
-	/** Flow lost per second during passive decay. */
-	float DecayRate{ 8.f };
-
 	/** Multiplicative scalar applied to all flow rewards gained on hit — starts at 1.0, upgraded via FlowGainPerHit upgrades */
 	float FlowGainMultiplier{ 1.f };
-
-	/** Delay in seconds before passive decay starts after the last successful hit. */
-	float DecayGracePeriod{ 5.f };
-
-	/** Duration of the immunity window at Max tier when the player is hit.
-	 * During this window, flow loss is deferred. Resets if the player lands a hit.
-	 */
-	float ImmunityDuration{ 5.f };
 
 	/** Whether passive decay is currently active. Set to true when DecayGraceTimer expires. */
 	bool bIsDecaying{ false };
@@ -132,7 +137,7 @@ private:
 
 	/** Internal callback bound to FlowChanged. Detects tier transitions and broadcasts FlowTierChanged. */
 	UFUNCTION()
-	void OnFlowChanged(float currentFlow, float maxFlow);
+	void OnFlowChanged(float currentFlow, float flowMax);
 
 	/** Internal callback bound to FlowTierChanged. Updates the cached CurrentTier. */
 	UFUNCTION()

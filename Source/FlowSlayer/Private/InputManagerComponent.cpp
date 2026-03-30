@@ -45,6 +45,9 @@ void UInputManagerComponent::SetupInputBindings(UInputComponent* PlayerInputComp
 	// Lock-on - Middle mouse button
 	EnhancedInputComponent->BindAction(MiddleMouseAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnMiddleMouseButtonStarted);
 
+	// Pause game - 'P' key
+	EnhancedInputComponent->BindAction(PauseAction, ETriggerEvent::Started, this, &UInputManagerComponent::HandleOnPauseActionStarted);
+
 	// All standard attack actions — no special conditions, forward source action directly to OnAttackInputReceived
 	const TArray<UInputAction*> AttackActions
 	{
@@ -115,6 +118,11 @@ void UInputManagerComponent::HandleOnHealTriggered(const FInputActionValue& Valu
 void UInputManagerComponent::HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value)
 {
 	OnMiddleMouseButtonClicked.ExecuteIfBound();
+}
+
+void UInputManagerComponent::HandleOnPauseActionStarted(const FInputActionInstance& Value)
+{
+	OnPauseActionStarted.ExecuteIfBound();
 }
 
 bool UInputManagerComponent::GetInputKeyState(FKey inputKey) const

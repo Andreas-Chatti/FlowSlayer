@@ -13,6 +13,7 @@ void AFlowSlayerGameMode::BeginPlay()
 	verifyf(PlayerCharacter, TEXT("[GameMode] PlayerCharacter not found in BeginPlay."));
 	PlayerCharacter->OnPlayerDeath.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnPlayerDeath);
 	PlayerCharacter->GetProgressionComponent()->OnMilestoneLevelUp.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnMilestoneLevelUp);
+	PlayerCharacter->GetInputManagerComponent()->OnPauseActionStarted.BindUObject(this, &AFlowSlayerGameMode::HandleOnPlayerPausePressed);
 
 	TArray<AActor*> foundManagers;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARunManager::StaticClass(), foundManagers);
@@ -20,6 +21,14 @@ void AFlowSlayerGameMode::BeginPlay()
 
 	ARunManager* runManager{ Cast<ARunManager>(foundManagers[0]) };
 	runManager->OnRunCompleted.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnRunCompleted);
+}
+
+bool AFlowSlayerGameMode::IsScreenActive(UUserWidget* WidgetInstance) const
+{
+	if(WidgetInstance && WidgetInstance->IsVisible())
+		return true;
+
+	return false;
 }
 
 void AFlowSlayerGameMode::HandleOnMilestoneLevelUp_Implementation(int32 NewLevel)
@@ -45,6 +54,15 @@ void AFlowSlayerGameMode::HandleOnRunCompleted()
 	}
 
 	ShowScreen(WinScreenClass, WinScreenInstance);
+}
+
+void AFlowSlayerGameMode::HandleOnPlayerPausePressed()
+{
+	if (IsScreenActive(PauseScreenInstance))
+		HideScreen(PauseScreenInstance);
+
+	else if (!IsScreenActive(UpgradeScreenInstance) && !IsScreenActive(DeathScreenInstance) && !IsScreenActive(WinScreenInstance))
+		ShowScreen(PauseScreenClass, PauseScreenInstance, true);
 }
 
 void AFlowSlayerGameMode::ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance, bool bPauseWorld)

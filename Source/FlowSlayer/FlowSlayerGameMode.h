@@ -17,6 +17,9 @@ public:
 
 	virtual void BeginPlay() override;
 
+	UFUNCTION(BlueprintPure, Category = "UI")
+	bool IsScreenActive(UUserWidget* WidgetInstance) const;
+
 protected:
 
 	// ==================== CONFIGURATION ====================
@@ -32,6 +35,10 @@ protected:
 	/** Win screen widget class */
 	UPROPERTY(EditDefaultsOnly, Category = "UI")
 	TSubclassOf<UUserWidget> WinScreenClass;
+
+	/** Pause screen widget class */
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	TSubclassOf<UUserWidget> PauseScreenClass;
 
 	// ==================== RUNTIME STATE ====================
 
@@ -51,6 +58,10 @@ protected:
 	UPROPERTY(BlueprintReadOnly)
 	UUserWidget* WinScreenInstance{ nullptr };
 
+	/** Current pause screen widget instance */
+	UPROPERTY(BlueprintReadOnly)
+	UUserWidget* PauseScreenInstance{ nullptr };
+
 	// ==================== HANDLERS ====================
 
 	/** Called when the player levels up and reaches milestone - shows upgrade screen */
@@ -67,6 +78,10 @@ protected:
 	/** Called when the last arena is cleared — shows the win screen */
 	UFUNCTION()
 	void HandleOnRunCompleted();
+
+	/** Called when player presses pause button */
+	UFUNCTION()
+	void HandleOnPlayerPausePressed();
 
 	/** Shows the given widget and switches the player controller to UI-only input */
 	void ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance, bool bPauseWorld = false);

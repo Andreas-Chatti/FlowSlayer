@@ -27,7 +27,7 @@ bool UFSFlowComponent::HasEnoughFlow(float flowCost) const
 	return CurrentFlow >= flowCost;
 }
 
-void UFSFlowComponent::OnFlowChanged(float currentFlow, float maxFlow)
+void UFSFlowComponent::OnFlowChanged(float currentFlow, float flowMax)
 {
 	EFlowTier newTier{ GetFlowTier() };
 	if (newTier == CurrentTier)

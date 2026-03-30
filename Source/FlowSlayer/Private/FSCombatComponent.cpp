@@ -514,8 +514,6 @@ void UFSCombatComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
         ApplyMultiplicative(AttackPlayRateMultiplier);
         AttackPlayRateMultiplier = FMath::Max(0.1f, AttackPlayRateMultiplier);
         break;
-    default:
-        break;
     }
 }
 
