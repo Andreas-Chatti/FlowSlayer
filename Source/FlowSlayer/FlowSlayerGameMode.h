@@ -65,11 +65,8 @@ protected:
 	// ==================== HANDLERS ====================
 
 	/** Called when the player levels up and reaches milestone - shows upgrade screen */
-	UFUNCTION(BlueprintNativeEvent)
+	UFUNCTION()
 	void HandleOnMilestoneLevelUp(int32 newLevel);
-
-	/** BlueprintNativeEvent implementation for milestone level up */
-	virtual void HandleOnMilestoneLevelUp_Implementation(int32 NewLevel);
 
 	/** Called when the player dies — shows the death screen */
 	UFUNCTION()

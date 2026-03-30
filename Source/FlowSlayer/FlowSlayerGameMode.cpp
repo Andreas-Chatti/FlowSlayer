@@ -31,7 +31,7 @@ bool AFlowSlayerGameMode::IsScreenActive(UUserWidget* WidgetInstance) const
 	return false;
 }
 
-void AFlowSlayerGameMode::HandleOnMilestoneLevelUp_Implementation(int32 NewLevel)
+void AFlowSlayerGameMode::HandleOnMilestoneLevelUp(int32 newLevel)
 {
 	ShowScreen(UpgradeScreenClass, UpgradeScreenInstance, true);
 
