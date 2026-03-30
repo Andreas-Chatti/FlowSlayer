@@ -188,23 +188,27 @@ SelectUpgrade(T2)
 
 | Handler | Stats gérées |
 |---|---|
-| `FSCombatComponent::HandleOnUpgradeSelected` | `DamageMultiplier` |
-| `DashComponent::HandleOnUpgradeSelected` | `FlowCost` |
+| `FSCombatComponent::HandleOnUpgradeSelected` | `DamageMultiplier`, `AttackCooldownMultiplier`, `AttackPlayRateMultiplier` |
+| `DashComponent::HandleOnUpgradeSelected` | `FlowCost`, `CooldownDuration` |
 | `HealthComponent::HandleOnUpgradeSelected` | `MaxHealth`, `HealCooldown`, `HealFlowCost` |
-| `FSFlowComponent::HandleOnUpgradeSelected` | `DecayRate` |
+| `FSFlowComponent::HandleOnUpgradeSelected` | `DecayRate`, `FlowGainMultiplier` |
 | `FlowSlayerCharacter::HandleOnUpgradeSelected` | `SprintSpeedThreshold`, `RunSpeedThreshold` |
 
 ### DT_Upgrades — Chaînes disponibles
 
-| Chaîne | T1 | T2 | T3 |
-|---|---|---|---|
-| Damage (×) | ×1.2 | ×1.4 | ×1.6 |
-| MaxHealth (+) | +25 | +50 | +100 |
-| FlowDecayRate (+) | -2/s | -4/s | -7/s |
-| DashFlowCost (+) | -3 | -6 | -10 |
-| MoveSpeed (+) | +75 | +150 | +250 |
-| HealCooldown (+) | -1.5s | -3s | — |
-| HealFlowCost (+) | -15 | -30 | — |
+| Chaîne | T1 | T2 | T3 | Variable appliquée |
+|---|---|---|---|---|
+| Damage (×) | ×1.2 | ×1.4 | ×1.6 | `DamageMultiplier` |
+| MaxHealth (+) | +25 | +50 | +100 | `MaxHealth` |
+| FlowDecayRate (+) | -2/s | -4/s | -7/s | `DecayRate` |
+| DashFlowCost (+) | -3 | -6 | -10 | `FlowCost` |
+| MoveSpeed (+) | +75 | +150 | +250 | `SprintSpeedThreshold` + `RunSpeedThreshold` |
+| HealCooldown (+) | -1.5s | -3s | — | `HealCooldown` |
+| HealFlowCost (+) | -15 | -30 | — | `HealFlowCost` |
+| DashCooldown (×) | ×0.80 | ×0.65 | ×0.50 | `CooldownDuration` |
+| AttackCooldown (×) | ×0.85 | ×0.70 | ×0.55 | `AttackCooldownMultiplier` → `StartCooldown(world, multiplier)` |
+| AttackPlayRate (×) | ×1.15 | ×1.30 | ×1.50 | `AttackPlayRateMultiplier` → `PlayAnimMontage(montage, playRate)` |
+| FlowGainPerHit (×) | ×1.25 | ×1.50 | ×2.00 | `FlowGainMultiplier` → `AddFlow(reward * multiplier)` |
 
 ---
 
@@ -219,7 +223,8 @@ SelectUpgrade(T2)
 - [x] `DrawUpgrades` — Fisher-Yates, filtre actifs + tier gate
 - [x] `SelectUpgrade` — système de remplacement (UndoPreviousTier + BuildReverseUpgrade)
 - [x] 5 handlers `OnUpgradeSelected` — Damage, MaxHealth, FlowDecay, DashCost, MoveSpeed, HealCooldown, HealFlowCost
-- [x] `DT_Upgrades.json` — 19 upgrades, 7 chaînes, T3 sur Damage/MaxHealth/FlowDecay/Dash/MoveSpeed
+- [x] `DT_Upgrades.json` — 31 upgrades, 11 chaînes T1→T3
+- [x] `DashCooldown`, `AttackCooldown`, `AttackPlayRate`, `FlowGainPerHit` — stats + handlers + JSON (icônes à générer)
 - [x] `WBP_UpgradeScreen` — 3 cartes (icône + nom + description), dark fantasy style, validé en runtime
 - [ ] Déclenchement au milestone : pause + affichage WBP_UpgradeScreen
 - [ ] Récompenses spéciales aux milestones

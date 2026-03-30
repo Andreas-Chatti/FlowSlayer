@@ -34,6 +34,18 @@ enum class EUpgradeStat : uint8
 
 	/** Maximum movement speed of the player */
 	MoveSpeed,
+
+	/** Cooldown duration between two dashes */
+	DashCooldown,
+
+	/** Cooldown duration multiplier applied to all individual attack cooldowns */
+	AttackCooldown,
+
+	/** Play rate multiplier applied to all attack montages — higher value = faster animations */
+	AttackPlayRate,
+
+	/** Multiplier applied to the flow reward gained on each hit */
+	FlowGainPerHit,
 };
 
 /**

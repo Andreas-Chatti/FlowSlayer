@@ -19,7 +19,7 @@ void UFSFlowComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 
 void UFSFlowComponent::HandleOnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward)
 {
-	AddFlow(flowReward);
+	AddFlow(flowReward * FlowGainMultiplier);
 }
 
 bool UFSFlowComponent::HasEnoughFlow(float flowCost) const
@@ -134,14 +134,26 @@ float UFSFlowComponent::GetFlowRatio() const
 
 void UFSFlowComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
 {
-	if (Upgrade.Stat != EUpgradeStat::FlowDecayRate)
-		return;
+	auto ApplyValue = [&Upgrade](float& Stat)
+	{
+		if (Upgrade.ValueType == EUpgradeValueType::Additive)
+			Stat += Upgrade.Value;
+		else
+			Stat *= Upgrade.Value;
+	};
 
-	if (Upgrade.ValueType == EUpgradeValueType::Additive)
-		DecayRate += Upgrade.Value;
-	else
-		DecayRate *= Upgrade.Value;
-
-	DecayRate = FMath::Max(0.f, DecayRate);
+	switch (Upgrade.Stat)
+	{
+	case EUpgradeStat::FlowDecayRate:
+		ApplyValue(DecayRate);
+		DecayRate = FMath::Max(0.f, DecayRate);
+		break;
+	case EUpgradeStat::FlowGainPerHit:
+		ApplyValue(FlowGainMultiplier);
+		FlowGainMultiplier = FMath::Max(0.f, FlowGainMultiplier);
+		break;
+	default:
+		break;
+	}
 }
 

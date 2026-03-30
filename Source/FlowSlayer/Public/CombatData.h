@@ -142,7 +142,8 @@ struct FAttackData : public FTableRowBase
     /** TimerHandle of the cooldown */
     FTimerHandle CooldownTimer;
 
-    void StartCooldown(UWorld* world)
+    /** Starts the attack cooldown, optionally scaled by an external multiplier (e.g. from AttackCooldown upgrade) */
+    void StartCooldown(UWorld* world, float cooldownMultiplier = 1.f)
     {
         if (!world)
             return;
@@ -152,7 +153,7 @@ struct FAttackData : public FTableRowBase
         world->GetTimerManager().SetTimer(
             CooldownTimer,
             [this]() { bOnCooldown = false; },
-            CooldownDelay,
+            FMath::Max(0.1f, CooldownDelay * cooldownMultiplier),
             false
         );
     }

@@ -108,6 +108,9 @@ private:
 	/** Flow lost per second during passive decay. */
 	float DecayRate{ 8.f };
 
+	/** Multiplicative scalar applied to all flow rewards gained on hit — starts at 1.0, upgraded via FlowGainPerHit upgrades */
+	float FlowGainMultiplier{ 1.f };
+
 	/** Delay in seconds before passive decay starts after the last successful hit. */
 	float DecayGracePeriod{ 5.f };
 

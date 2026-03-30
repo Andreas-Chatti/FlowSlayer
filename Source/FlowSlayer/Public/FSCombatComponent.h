@@ -305,6 +305,12 @@ private:
     /** Multiplicative damage scalar applied to all outgoing hits — starts at 1.0, upgraded via Damage upgrades */
     float DamageMultiplier{ 1.f };
 
+    /** Multiplicative scalar applied to all attack cooldown durations — starts at 1.0, upgraded via AttackCooldown upgrades */
+    float AttackCooldownMultiplier{ 1.f };
+
+    /** Play rate multiplier applied to all attack montages — starts at 1.0, upgraded via AttackPlayRate upgrades */
+    float AttackPlayRateMultiplier{ 1.f };
+
     /** Currently active combo (pointer to one of the above combos) */
     FCombo* OngoingCombo{ nullptr };
 

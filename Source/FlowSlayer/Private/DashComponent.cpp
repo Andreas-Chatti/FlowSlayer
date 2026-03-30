@@ -88,13 +88,25 @@ void UDashComponent::EndDash()
 
 void UDashComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
 {
-    if (Upgrade.Stat != EUpgradeStat::DashFlowCost)
-        return;
+    auto ApplyValue = [&Upgrade](float& Stat)
+    {
+        if (Upgrade.ValueType == EUpgradeValueType::Additive)
+            Stat += Upgrade.Value;
+        else
+            Stat *= Upgrade.Value;
+    };
 
-    if (Upgrade.ValueType == EUpgradeValueType::Additive)
-        FlowCost += Upgrade.Value;
-    else
-        FlowCost *= Upgrade.Value;
-
-    FlowCost = FMath::Max(0.f, FlowCost);
+    switch (Upgrade.Stat)
+    {
+    case EUpgradeStat::DashFlowCost:
+        ApplyValue(FlowCost);
+        FlowCost = FMath::Max(0.f, FlowCost);
+        break;
+    case EUpgradeStat::DashCooldown:
+        ApplyValue(CooldownDuration);
+        CooldownDuration = FMath::Max(0.f, CooldownDuration);
+        break;
+    default:
+        break;
+    }
 }
