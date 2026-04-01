@@ -85,7 +85,7 @@ void AFlowSlayerGameMode::ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUser
 	APlayerController* pc{ UGameplayStatics::GetPlayerController(GetWorld(), 0) };
 	if (pc)
 	{
-		FInputModeUIOnly inputMode;
+		FInputModeGameAndUI inputMode;
 		pc->SetInputMode(inputMode);
 		pc->SetShowMouseCursor(true);
 	}
