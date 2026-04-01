@@ -4,14 +4,19 @@
 #include "FSEnemy_Grunt.h"
 #include "FSEnemy_Runner.h"
 #include "FSEnemyAIController.h"
-#include <Components/BoxComponent.h>
+#include "Components/SphereComponent.h"
+#include "NavigationSystem.h"
 #include "AFSSpawnZone.generated.h"
 
 /**
- * Actor defining a zone where enemies can spawn at random positions.
- * Uses a BoxComponent to define spawn boundaries and performs ground detection
- * via line traces to ensure enemies spawn on valid surfaces.
+ * Actor defining a circular zone where enemies spawn at random NavMesh positions.
  * Spawning is triggered externally by an AFSArenaManager.
+ *
+ * Setup requirements:
+ * - Place a NavMeshBoundsVolume in the level that covers the arena floor.
+ * - Enemies will spawn on any green (navigable) NavMesh surface that falls within
+ *   the sphere radius of this actor. The sphere visualizes the exact search area.
+ * - Size the sphere so it stays within the arena walls to avoid spawning outside.
  */
 UCLASS()
 class FLOWSLAYER_API AAFSSpawnZone : public AActor
@@ -32,22 +37,19 @@ protected:
 
 	virtual void BeginPlay() override;
 
-private:
-
-	/* Main spawn zone BoxComponent
-	* Has to be adjusted in the editor and to be within a NavMeshBoundVolume in order for enemies to properly move and find the player
-	*/
-	UPROPERTY(EditAnywhere, Category = "SpawnZone")
-	UBoxComponent* SpawnZoneComponent;
+	/** Defines the spawn zone center and search radius.
+	 *  Enemies spawn on any navigable NavMesh surface (green area) within this sphere.
+	 *  The sphere must overlap a NavMeshBoundsVolume — without it no spawn points will be found.
+	 *  Keep the sphere inside the arena walls to prevent spawning outside. */
+	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
+	USphereComponent* SpawnZoneComponent;
 
 	/** Pool table of enemy type to spawn from that zone */
 	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
 	TArray<TSubclassOf<AFSEnemy>> EnemyPoolSpawn;
 
-	/** Whether to show debug lines :
-	* Line trace from the assigned ramdom spawn location to the bottom of the box (+ 100.f)
-	* Impact point if a proper ground is found
-	*/
+	/** When true, shows the spawn zone sphere in game and draws debug spheres at each NavMesh point found:
+	 *  green = accepted spawn position, red = rejected (player too close) */
 	UPROPERTY(EditAnywhere, Category = "SpawnSettings")
 	bool bDebugLines{ false };
 
@@ -61,5 +63,14 @@ private:
 	double MinSpawnDistance{ 1000.0 };
 
 	/** Player reference */
+	UPROPERTY(BlueprintReadOnly)
 	ACharacter* playerRef{ nullptr };
+
+	/** Navigation system reference */
+	UPROPERTY(BlueprintReadOnly)
+	const UNavigationSystemV1* navSystem{ nullptr };
+
+	/** Number of tries of spawn before aborting and return nullptr */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SpawnSettings")
+	int32 maxSpawnTries{ 50 };
 };

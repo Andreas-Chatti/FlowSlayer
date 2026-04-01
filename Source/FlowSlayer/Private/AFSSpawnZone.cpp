@@ -4,8 +4,8 @@ AAFSSpawnZone::AAFSSpawnZone()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	SpawnZoneComponent = CreateDefaultSubobject<UBoxComponent>(TEXT("SpawnZoneComp"));
-	SpawnZoneComponent->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	SpawnZoneComponent = CreateDefaultSubobject<USphereComponent>(TEXT("SpawnZoneComp"));
+	SpawnZoneComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	RootComponent = SpawnZoneComponent;
 }
 
@@ -13,28 +13,32 @@ void AAFSSpawnZone::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (bDebugLines)
-		SpawnZoneComponent->bHiddenInGame = false;
+	SpawnZoneComponent->SetHiddenInGame(!bDebugLines);
 
 	playerRef = GetWorld()->GetFirstPlayerController()->GetCharacter();
+	verifyf(playerRef, TEXT("[SpawnZone] WARNING: PlayerRef is NULL or INVALID !"));
+
+	navSystem = FNavigationSystem::GetCurrent<const UNavigationSystemV1>(GetWorld());
+	checkf(navSystem, TEXT("[SpawnZone] FATAL: Navigation system is NULL or INVALID !"));
 }
 
 AFSEnemy* AAFSSpawnZone::SpawnEnemy()
 {
+	if (EnemyPoolSpawn.IsEmpty())
+	{
+		UE_LOG(LogTemp, Error, TEXT("[SpawnZone] EnemyPoolSpawn is empty — assign enemy classes in the editor."));
+		return nullptr;
+	}
+
 	TOptional<FTransform> enemyPosition{ GetRandomTransform() };
 	if (!enemyPosition.IsSet())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] Enemy spawn failed."));
+		UE_LOG(LogTemp, Warning, TEXT("[SpawnZone] Enemy spawn failed — no valid NavMesh position found."));
 		return nullptr;
 	}
 
 	int32 randIndex{ FMath::RandRange(0, EnemyPoolSpawn.Num() - 1) };
-
-	if (!EnemyPoolSpawn.IsValidIndex(randIndex))
-		return nullptr;
-
-	FActorSpawnParameters spawnParams;
-	AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), spawnParams) };
+	AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), {}) };
 
 	if (spawnedEnemy)
 		spawnedEnemy->SpawnDefaultController();
@@ -44,62 +48,33 @@ AFSEnemy* AAFSSpawnZone::SpawnEnemy()
 
 TOptional<FTransform> AAFSSpawnZone::GetRandomTransform()
 {
-	if (!SpawnZoneComponent)
+	FVector origin{ SpawnZoneComponent->GetComponentLocation() };
+	float searchRadius{ SpawnZoneComponent->GetScaledSphereRadius() };
+
+	constexpr int32 maxTries{ 50 };
+	for (int32 tryCount{ 0 }; tryCount < maxTries; ++tryCount)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[AFSSpawnZone] SpawnZoneComponent is NULL"));
-		return NullOpt;
-	}
-
-	FVector boxExtent{ SpawnZoneComponent->GetScaledBoxExtent() };
-	FVector boxOrigin{ SpawnZoneComponent->GetComponentLocation() };
-
-	constexpr int32 maxTries{ 5 };
-	int32 tryCount{ 0 };
-	while (tryCount < maxTries)
-	{
-		tryCount++;
-
-		double randomX{ FMath::FRandRange(-boxExtent.X, boxExtent.X) };
-		double randomY{ FMath::FRandRange(-boxExtent.Y, boxExtent.Y) };
-
-		FVector randomWorldPosition{ boxOrigin.X + randomX, boxOrigin.Y + randomY, boxOrigin.Z + boxExtent.Z };
-
-		FHitResult hitResult;
-		FVector traceStart{ randomWorldPosition };
-
-		constexpr double groundTraceMargin{ 100.0 };
-		double targetZ{ boxOrigin.Z - boxExtent.Z - groundTraceMargin };
-		FVector traceEnd{ randomWorldPosition.X, randomWorldPosition.Y, targetZ };
-
-		FCollisionQueryParams queryParams;
-		queryParams.bTraceComplex = false;
-
-		if (!GetWorld()->LineTraceSingleByChannel(hitResult, traceStart, traceEnd, ECC_WorldStatic, queryParams))
+		// Returns any navigable NavMesh point within searchRadius, regardless of pathfinding connectivity from origin
+		FNavLocation navLocation;
+		if (!navSystem->GetRandomPointInNavigableRadius(origin, searchRadius, navLocation))
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[AFSSpawnZone] No ground detected"));
+			UE_LOG(LogTemp, Warning, TEXT("[SpawnZone] No navigable NavMesh point found"));
 			continue;
 		}
 
-		randomWorldPosition.Z = hitResult.ImpactPoint.Z;
+		double distSquared{ FVector::DistSquared(playerRef->GetActorLocation(), navLocation.Location) };
+		if (distSquared < FMath::Square(MinSpawnDistance))
+		{
+			if (bDebugLines)
+				DrawDebugSphere(GetWorld(), navLocation.Location, 10.0f, 12, FColor::Red, false, 2.0f);
+
+			continue;
+		}
 
 		if (bDebugLines)
-		{
-			DrawDebugSphere(GetWorld(), hitResult.ImpactPoint, 10.0f, 12, FColor::Red, false, 2.0f);
-			DrawDebugLine(GetWorld(), traceStart, traceEnd, FColor::Green, false, 2.0f);
-		}
+			DrawDebugSphere(GetWorld(), navLocation.Location, 10.0f, 12, FColor::Green, false, 2.0f);
 
-		if (!playerRef)
-			playerRef = GetWorld()->GetFirstPlayerController()->GetCharacter();
-
-		if (playerRef)
-		{
-			FVector playerLoc{ playerRef->GetActorLocation() };
-			double distSquared{ FVector::DistSquared(playerLoc, randomWorldPosition) };
-			if (distSquared < FMath::Square(MinSpawnDistance))
-				continue;
-		}
-
-		return FTransform{ randomWorldPosition };
+		return FTransform{ navLocation.Location };
 	}
 
 	return NullOpt;
