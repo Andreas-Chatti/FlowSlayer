@@ -77,9 +77,6 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 
 	InputManagerComponent = CreateDefaultSubobject<UInputManagerComponent>(TEXT("InputManagerComponent"));
 	checkf(InputManagerComponent, TEXT("FATAL: InputManagerComponent is NULL or INVALID !"));
-
-	ProgressionComponent = CreateDefaultSubobject<UProgressionComponent>(TEXT("ProgressionComponent"));
-	checkf(ProgressionComponent, TEXT("FATAL: ProgressionComponent is NULL or INVALID !"));
 	InputManagerComponent->OnMiddleMouseButtonClicked.BindUObject(this, &AFlowSlayerCharacter::ToggleLockOn);
 	InputManagerComponent->OnLShiftKeyTriggered.BindUObject(this, &AFlowSlayerCharacter::OnDashAction);
 	InputManagerComponent->OnSpaceKeyStarted.BindUObject(this, &AFlowSlayerCharacter::HandleOnSpaceKeyStarted);
@@ -89,6 +86,14 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	InputManagerComponent->OnAttackInputReceived.BindUObject(this, &AFlowSlayerCharacter::OnAttackInputActionReceived);
 	InputManagerComponent->OnGuardActionTriggered.BindUObject(this, &AFlowSlayerCharacter::HandleGuardInput);
 	InputManagerComponent->OnHealActionTriggered.BindUObject(this, &AFlowSlayerCharacter::HandleHealInput);
+
+	ProgressionComponent = CreateDefaultSubobject<UProgressionComponent>(TEXT("ProgressionComponent"));
+	checkf(ProgressionComponent, TEXT("FATAL: ProgressionComponent is NULL or INVALID !"));
+	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(CombatComponent, &UFSCombatComponent::HandleOnUpgradeSelected);
+	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(DashComponent, &UDashComponent::HandleOnUpgradeSelected);
+	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(HealthComponent, &UHealthComponent::HandleOnUpgradeSelected);
+	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::HandleOnUpgradeSelected);
+	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(this, &AFlowSlayerCharacter::HandleOnUpgradeSelected);
 	
 	JumpMaxCount = 2;
 }
@@ -168,6 +173,28 @@ void AFlowSlayerCharacter::HandleOnLockOnStopped()
 void AFlowSlayerCharacter::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation, const FAttackData& usedAttack)
 {
 	FlowComponent->HandleOnHitLanded(hitActor, hitLocation, usedAttack.Damage, usedAttack.FlowReward);
+}
+
+void AFlowSlayerCharacter::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
+{
+	if (Upgrade.Stat != EUpgradeStat::MoveSpeed)
+		return;
+
+	if (Upgrade.ValueType == EUpgradeValueType::Additive)
+	{
+		SprintSpeedThreshold += Upgrade.Value;
+		RunSpeedThreshold += Upgrade.Value;
+	}
+	else
+	{
+		SprintSpeedThreshold *= Upgrade.Value;
+		RunSpeedThreshold *= Upgrade.Value;
+	}
+
+	// Apply immediately to the current movement state
+	GetCharacterMovement()->MaxWalkSpeed = LockOnComponent->IsLockedOnTarget()
+		? RunSpeedThreshold
+		: SprintSpeedThreshold;
 }
 
 void AFlowSlayerCharacter::ToggleLockOn() const

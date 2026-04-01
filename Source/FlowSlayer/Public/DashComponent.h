@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "UpgradeData.h"
 #include "DashComponent.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnDashStarted, float flowCost);
@@ -70,6 +71,10 @@ public:
 
     UFUNCTION(BlueprintPure)
     bool IsOnCooldown() const { return bIsOnCooldown; }
+
+    /** Applies upgrade effects that concern the dash system (DashFlowCost stat) */
+    UFUNCTION()
+    void HandleOnUpgradeSelected(const FUpgradeData& Upgrade);
 
     /** Internal method called by delegate OnAttackingStarted in UFSCombatComponent */
     UFUNCTION()

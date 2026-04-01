@@ -34,6 +34,18 @@ enum class EUpgradeStat : uint8
 
 	/** Maximum movement speed of the player */
 	MoveSpeed,
+
+	/** Cooldown duration between two dashes */
+	DashCooldown,
+
+	/** Cooldown duration multiplier applied to all individual attack cooldowns */
+	AttackCooldown,
+
+	/** Play rate multiplier applied to all attack montages — higher value = faster animations */
+	AttackPlayRate,
+
+	/** Multiplier applied to the flow reward gained on each hit */
+	FlowGainPerHit,
 };
 
 /**
@@ -89,4 +101,12 @@ struct FUpgradeData : public FTableRowBase
 	/** Magnitude of the upgrade effect — interpreted according to ValueType */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float Value{ 0.f };
+
+	/**
+	 * UpgradeID of the upgrade that must be active before this one can appear in the draw pool.
+	 * Leave as None for tier-1 upgrades (no prerequisite).
+	 * Example: Dmg_T2 sets this to Dmg_T1 → T2 only appears after T1 is selected.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	FName PrerequisiteUpgradeID{ NAME_None };
 };

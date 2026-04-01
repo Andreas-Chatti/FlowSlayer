@@ -19,7 +19,7 @@ void UFSFlowComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 
 void UFSFlowComponent::HandleOnHitLanded(AActor* actorHit, const FVector& hitLocation, float damageAmount, float flowReward)
 {
-	AddFlow(flowReward);
+	AddFlow(flowReward * FlowGainMultiplier);
 }
 
 bool UFSFlowComponent::HasEnoughFlow(float flowCost) const
@@ -27,7 +27,7 @@ bool UFSFlowComponent::HasEnoughFlow(float flowCost) const
 	return CurrentFlow >= flowCost;
 }
 
-void UFSFlowComponent::OnFlowChanged(float currentFlow, float maxFlow)
+void UFSFlowComponent::OnFlowChanged(float currentFlow, float flowMax)
 {
 	EFlowTier newTier{ GetFlowTier() };
 	if (newTier == CurrentTier)
@@ -45,16 +45,21 @@ void UFSFlowComponent::OnFlowTierChanged(EFlowTier newTier, EFlowTier oldTier)
 		GetWorld()->GetTimerManager().ClearTimer(DecayGraceTimer);
 		bIsDecaying = false;
 
-		GetWorld()->GetTimerManager().SetTimer(
+		TWeakObjectPtr<UFSFlowComponent> weakThis{ MakeWeakObjectPtr(this) };
+		weakThis->GetWorld()->GetTimerManager().SetTimer(
 			ImmunityTimer,
-			[this]() { 	
-				GetWorld()->GetTimerManager().SetTimer(
-				DecayGraceTimer,
-				[this]() { bIsDecaying = true; },
-				DecayGracePeriod,
+			[weakThis]() { 	
+				weakThis->GetWorld()->GetTimerManager().SetTimer(
+				weakThis->DecayGraceTimer,
+				[weakThis]() 
+					{ 
+						if (weakThis.IsValid())
+							weakThis->bIsDecaying = true;
+					},
+				weakThis->DecayGracePeriod,
 				false
 			); },
-			ImmunityDuration,
+			weakThis->ImmunityDuration,
 			false
 		);
 	}
@@ -130,5 +135,30 @@ EFlowTier UFSFlowComponent::GetFlowTier() const
 float UFSFlowComponent::GetFlowRatio() const
 {
 	return CurrentFlow / MaxFlow;
+}
+
+void UFSFlowComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
+{
+	auto ApplyValue = [&Upgrade](float& Stat)
+	{
+		if (Upgrade.ValueType == EUpgradeValueType::Additive)
+			Stat += Upgrade.Value;
+		else
+			Stat *= Upgrade.Value;
+	};
+
+	switch (Upgrade.Stat)
+	{
+	case EUpgradeStat::FlowDecayRate:
+		ApplyValue(DecayRate);
+		DecayRate = FMath::Max(0.f, DecayRate);
+		break;
+	case EUpgradeStat::FlowGainPerHit:
+		ApplyValue(FlowGainMultiplier);
+		FlowGainMultiplier = FMath::Max(0.f, FlowGainMultiplier);
+		break;
+	default:
+		break;
+	}
 }
 

@@ -69,6 +69,40 @@ void UHealthComponent::Heal()
     OnHeal.Broadcast();
 }
 
+void UHealthComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
+{
+    auto ApplyValue = [&Upgrade](float& Stat)
+    {
+        if (Upgrade.ValueType == EUpgradeValueType::Additive)
+            Stat += Upgrade.Value;
+        else
+            Stat *= Upgrade.Value;
+    };
+
+    switch (Upgrade.Stat)
+    {
+    case EUpgradeStat::MaxHealth:
+    {
+        float oldMax{ MaxHealth };
+        ApplyValue(MaxHealth);
+        MaxHealth = FMath::Max(1.f, MaxHealth);
+        // Heal the gained HP so the upgrade feels rewarding
+        CurrentHealth = FMath::Clamp(CurrentHealth + (MaxHealth - oldMax), 0.f, MaxHealth);
+        break;
+    }
+    case EUpgradeStat::HealCooldown:
+        ApplyValue(HealCooldown);
+        HealCooldown = FMath::Max(0.f, HealCooldown);
+        break;
+    case EUpgradeStat::HealFlowCost:
+        ApplyValue(HealFlowCost);
+        HealFlowCost = FMath::Max(0.f, HealFlowCost);
+        break;
+    default:
+        break;
+    }
+}
+
 void UHealthComponent::InitializeLifeBarWidgetRef()
 {
     if (!LifeBarWidget)

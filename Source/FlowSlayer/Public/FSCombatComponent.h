@@ -8,6 +8,7 @@
 #include "FSWeapon.h"
 #include "CombatData.h"
 #include "FSDamageable.h"
+#include "UpgradeData.h"
 #include "HitboxComponent.h"
 #include "HitFeedbackComponent.h"
 #include "Kismet/KismetMathLibrary.h"
@@ -184,6 +185,10 @@ public:
 
     void SetLockedOnTargetRef(AActor* lockedOnTarget) { LockedOnTarget = lockedOnTarget; }
 
+    /** Applies upgrade effects that concern the combat system (Damage stat) */
+    UFUNCTION()
+    void HandleOnUpgradeSelected(const FUpgradeData& Upgrade);
+
 private:
 
     /** Player's Weapon reference */
@@ -296,6 +301,15 @@ private:
     /** RMB (airborne) aerial slam follow-up */
     UPROPERTY(BlueprintReadOnly, Category = "Combat|Combos", meta = (AllowPrivateAccess = "true"))
     FCombo AerialSlamAttack;
+
+    /** Multiplicative damage scalar applied to all outgoing hits — starts at 1.0, upgraded via Damage upgrades */
+    float DamageMultiplier{ 1.f };
+
+    /** Multiplicative scalar applied to all attack cooldown durations — starts at 1.0, upgraded via AttackCooldown upgrades */
+    float AttackCooldownMultiplier{ 1.f };
+
+    /** Play rate multiplier applied to all attack montages — starts at 1.0, upgraded via AttackPlayRate upgrades */
+    float AttackPlayRateMultiplier{ 1.f };
 
     /** Currently active combo (pointer to one of the above combos) */
     FCombo* OngoingCombo{ nullptr };

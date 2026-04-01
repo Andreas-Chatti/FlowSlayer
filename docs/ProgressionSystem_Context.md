@@ -59,9 +59,14 @@ int32 GetXPToNextLevel() const;
 float GetXPRatio() const;        // [0, 1] — pour la barre XP UI
 bool  IsMilestoneLevel(int32 Level) const;
 
-FOnXPGained        OnXPGained;        // (Amount, NewTotal)
-FOnLevelUp         OnLevelUp;         // (NewLevel) — futur entry point upgrade screen
-FOnMilestoneLevelUp OnMilestoneLevelUp; // (NewLevel) — levels 5, 10, 15, 20, 25, 30
+TArray<FUpgradeData> DrawUpgrades(int32 Count = 3); // Fisher-Yates shuffle, tier-gated
+void  SelectUpgrade(const FUpgradeData& Upgrade);   // Replacement system — annule le tier précédent avant d'appliquer
+bool  HasUpgrade(FName UpgradeID) const;
+
+FOnXPGained         OnXPGained;          // (Amount, NewTotal)
+FOnLevelUp          OnLevelUp;           // (NewLevel)
+FOnMilestoneLevelUp OnMilestoneLevelUp;  // (NewLevel) — levels 5, 10, 15, 20, 25, 30
+FOnUpgradeSelected  OnUpgradeSelected;   // (Upgrade) — 5 handlers bindés dans BeginPlay
 ```
 
 ---
@@ -132,6 +137,81 @@ Widget Blueprint qui affiche la progression XP du joueur.
 
 ---
 
+## Système d'upgrades
+
+### FUpgradeData (`UpgradeData.h`)
+
+Struct/DataTable row. Champs clés :
+
+| Champ | Type | Rôle |
+|---|---|---|
+| `UpgradeID` | `FName` | Clé unique — utilisée dans `ActiveUpgradeIDs` |
+| `Stat` | `EUpgradeStat` | Stat ciblée (Damage, MaxHealth, FlowDecayRate, DashFlowCost, HealCooldown, HealFlowCost, MoveSpeed) |
+| `ValueType` | `EUpgradeValueType` | Additive ou Multiplicative |
+| `Value` | `float` | Valeur totale souhaitée au tier (pas un delta) |
+| `PrerequisiteUpgradeID` | `FName` | UpgradeID requis pour apparaître dans le pool — `NAME_None` pour T1 |
+
+### Système de tiers (remplacement)
+
+Les upgrades sont organisées en chaînes linéaires via `PrerequisiteUpgradeID` :
+```
+T1 (prereq: None) → T2 (prereq: T1) → T3 (prereq: T2)
+```
+
+**Règle clé : les valeurs sont des totaux, pas des deltas.**
+Quand T2 est sélectionné, T1 est annulé puis T2 est appliqué → effet final = valeur de T2 uniquement.
+
+`DrawUpgrades` filtre via `IsUpgradeEligible` : un upgrade n'apparaît que si son prérequis est dans `ActiveUpgradeIDs`.
+T1 reste dans `ActiveUpgradeIDs` après remplacement — empêche le re-draw et trace l'historique.
+
+### Pipeline SelectUpgrade (remplacement)
+
+```
+SelectUpgrade(T2)
+    → UndoPreviousTier(T2)
+        → FindRow(T2.PrerequisiteUpgradeID)  ← récupère les données de T1
+        → BuildReverseUpgrade(T1)             ← negate additive / invert multiplicative
+        → OnUpgradeSelected.Broadcast(reverseT1)  ← tous les handlers défont T1
+    → ActiveUpgradeIDs.Add(T2.UpgradeID)
+    → OnUpgradeSelected.Broadcast(T2)         ← tous les handlers appliquent T2
+```
+
+### Helpers privés
+
+| Fonction | Rôle |
+|---|---|
+| `IsUpgradeEligible(Upgrade*)` | Filtre actif + tier gate |
+| `BuildReverseUpgrade(Upgrade&)` | Pure function — retourne l'upgrade avec valeur inversée |
+| `UndoPreviousTier(Upgrade&)` | Orchestre FindRow + BuildReverse + Broadcast |
+
+### Handlers OnUpgradeSelected (bindés dans FlowSlayerCharacter::BeginPlay)
+
+| Handler | Stats gérées |
+|---|---|
+| `FSCombatComponent::HandleOnUpgradeSelected` | `DamageMultiplier`, `AttackCooldownMultiplier`, `AttackPlayRateMultiplier` |
+| `DashComponent::HandleOnUpgradeSelected` | `FlowCost`, `CooldownDuration` |
+| `HealthComponent::HandleOnUpgradeSelected` | `MaxHealth`, `HealCooldown`, `HealFlowCost` |
+| `FSFlowComponent::HandleOnUpgradeSelected` | `DecayRate`, `FlowGainMultiplier` |
+| `FlowSlayerCharacter::HandleOnUpgradeSelected` | `SprintSpeedThreshold`, `RunSpeedThreshold` |
+
+### DT_Upgrades — Chaînes disponibles
+
+| Chaîne | T1 | T2 | T3 | Variable appliquée |
+|---|---|---|---|---|
+| Damage (×) | ×1.2 | ×1.4 | ×1.6 | `DamageMultiplier` |
+| MaxHealth (+) | +25 | +50 | +100 | `MaxHealth` |
+| FlowDecayRate (+) | -2/s | -4/s | -7/s | `DecayRate` |
+| DashFlowCost (+) | -3 | -6 | -10 | `FlowCost` |
+| MoveSpeed (+) | +75 | +150 | +250 | `SprintSpeedThreshold` + `RunSpeedThreshold` |
+| HealCooldown (+) | -1.5s | -3s | — | `HealCooldown` |
+| HealFlowCost (+) | -15 | -30 | — | `HealFlowCost` |
+| DashCooldown (×) | ×0.80 | ×0.65 | ×0.50 | `CooldownDuration` |
+| AttackCooldown (×) | ×0.85 | ×0.70 | ×0.55 | `AttackCooldownMultiplier` → `StartCooldown(world, multiplier)` |
+| AttackPlayRate (×) | ×1.15 | ×1.30 | ×1.50 | `AttackPlayRateMultiplier` → `PlayAnimMontage(montage, playRate)` |
+| FlowGainPerHit (×) | ×1.25 | ×1.50 | ×2.00 | `FlowGainMultiplier` → `AddFlow(reward * multiplier)` |
+
+---
+
 ## État actuel
 
 - [x] Level et XP trackés
@@ -140,5 +220,11 @@ Widget Blueprint qui affiche la progression XP du joueur.
 - [x] Pipeline validée (30 kills, level 9, milestone level 5 ✓)
 - [x] WBP_PlayerXpBarUi — barre XP + level text, bindé sur les delegates
 - [x] Bug ratio > 1.0 corrigé (ordre broadcast)
-- [ ] Écran de choix d'upgrade au level up
+- [x] `DrawUpgrades` — Fisher-Yates, filtre actifs + tier gate
+- [x] `SelectUpgrade` — système de remplacement (UndoPreviousTier + BuildReverseUpgrade)
+- [x] 5 handlers `OnUpgradeSelected` — Damage, MaxHealth, FlowDecay, DashCost, MoveSpeed, HealCooldown, HealFlowCost
+- [x] `DT_Upgrades.json` — 31 upgrades, 11 chaînes T1→T3
+- [x] `DashCooldown`, `AttackCooldown`, `AttackPlayRate`, `FlowGainPerHit` — stats + handlers + JSON (icônes à générer)
+- [x] `WBP_UpgradeScreen` — 3 cartes (icône + nom + description), dark fantasy style, validé en runtime
+- [ ] Déclenchement au milestone : pause + affichage WBP_UpgradeScreen
 - [ ] Récompenses spéciales aux milestones

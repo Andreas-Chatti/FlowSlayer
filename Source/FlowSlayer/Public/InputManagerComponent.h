@@ -12,6 +12,7 @@ DECLARE_DELEGATE(FOnSpaceKeyStarted);
 DECLARE_DELEGATE(FOnSpaceKeyCompleted);
 DECLARE_DELEGATE(FOnGuardActionTriggered);
 DECLARE_DELEGATE(FOnHealActionTriggered);
+DECLARE_DELEGATE(FOnPauseActionStarted);
 DECLARE_DELEGATE_OneParam(FOnAttackInputReceived, const UInputAction*);
 DECLARE_DELEGATE_OneParam(FOnMoveInput, FVector2D);
 DECLARE_DELEGATE_OneParam(FOnLookInput, FVector2D);
@@ -96,6 +97,9 @@ public:
 	/** LSHIFT + SPACE - Heal skill */
 	FOnHealActionTriggered OnHealActionTriggered;
 
+	/** 'P' - Pause game */
+	FOnPauseActionStarted OnPauseActionStarted;
+
 protected:
 
 	/** Default MappingContext */
@@ -149,6 +153,10 @@ private:
 	/** Heal (LSHIFT + SPACE) InputAction */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
 	UInputAction* HealAction;
+
+	/** Pause ('P') InputAction */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Input|Base", meta = (AllowPrivateAccess = "true"))
+	UInputAction* PauseAction;
 
 	// ========== ATTACK INPUT ACTIONS ==========
 	// Each attack has its own InputAction — chord combinations are configured in the editor
@@ -253,4 +261,7 @@ private:
 
 	/** Middle mouse button */
 	void HandleOnMiddleMouseButtonStarted(const FInputActionInstance& Value);
+
+	/** 'P' key - Pause game */
+	void HandleOnPauseActionStarted(const FInputActionInstance& Value);
 };

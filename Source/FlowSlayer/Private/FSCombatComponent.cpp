@@ -297,11 +297,11 @@ FCombo* UFSCombatComponent::GetComboFromContext(EAttackType attackType)
 
 void UFSCombatComponent::ExecuteAttack(UAnimMontage* attackMontage)
 {
-    PlayerOwner->PlayAnimMontage(attackMontage);
+    PlayerOwner->PlayAnimMontage(attackMontage, AttackPlayRateMultiplier);
 
     FAttackData* ongoingAttack{ &OngoingCombo->Attacks[ComboIndex] };
     ongoingAttack->OnAttackExecuted.ExecuteIfBound();
-    ongoingAttack->StartCooldown(GetWorld());
+    ongoingAttack->StartCooldown(GetWorld(), AttackCooldownMultiplier);
 }
 
 void UFSCombatComponent::CancelAttack(float blendOutTime)
@@ -478,11 +478,43 @@ void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitL
     OngoingAttackComboWindowDuration = currentAttack->ComboWindowDuration;
     ComboTimeRemaining = OngoingAttackComboWindowDuration;
 
-    OnHitLanded.Broadcast(hitActor, hitLocation, *currentAttack);
+    // Apply damage multiplier from upgrades — copy so DataTable row stays unmodified
+    FAttackData scaledAttack{ *currentAttack };
+    scaledAttack.Damage *= DamageMultiplier;
+
+    OnHitLanded.Broadcast(hitActor, hitLocation, scaledAttack);
 
     HitFeedBackComponent->OnLandHit(hitLocation);
 
-    hitActorDamageable->NotifyHitReceived(PlayerOwner, *currentAttack);
+    hitActorDamageable->NotifyHitReceived(PlayerOwner, scaledAttack);
+}
+
+void UFSCombatComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
+{
+    auto ApplyMultiplicative = [&Upgrade](float& Multiplier)
+    {
+        // Combat upgrades only support multiplicative — guard against misconfig
+        if (Upgrade.ValueType == EUpgradeValueType::Additive)
+            Multiplier += Upgrade.Value;
+        else
+            Multiplier *= Upgrade.Value;
+    };
+
+    switch (Upgrade.Stat)
+    {
+    case EUpgradeStat::Damage:
+        ApplyMultiplicative(DamageMultiplier);
+        DamageMultiplier = FMath::Max(0.f, DamageMultiplier);
+        break;
+    case EUpgradeStat::AttackCooldown:
+        ApplyMultiplicative(AttackCooldownMultiplier);
+        AttackCooldownMultiplier = FMath::Max(0.1f, AttackCooldownMultiplier);
+        break;
+    case EUpgradeStat::AttackPlayRate:
+        ApplyMultiplicative(AttackPlayRateMultiplier);
+        AttackPlayRateMultiplier = FMath::Max(0.1f, AttackPlayRateMultiplier);
+        break;
+    }
 }
 
 void UFSCombatComponent::ResetComboCounter()

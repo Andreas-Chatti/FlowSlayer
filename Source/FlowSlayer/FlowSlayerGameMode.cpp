@@ -12,6 +12,8 @@ void AFlowSlayerGameMode::BeginPlay()
 	PlayerCharacter = Cast<AFlowSlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
 	verifyf(PlayerCharacter, TEXT("[GameMode] PlayerCharacter not found in BeginPlay."));
 	PlayerCharacter->OnPlayerDeath.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnPlayerDeath);
+	PlayerCharacter->GetProgressionComponent()->OnMilestoneLevelUp.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnMilestoneLevelUp);
+	PlayerCharacter->GetInputManagerComponent()->OnPauseActionStarted.BindUObject(this, &AFlowSlayerGameMode::HandleOnPlayerPausePressed);
 
 	TArray<AActor*> foundManagers;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARunManager::StaticClass(), foundManagers);
@@ -21,9 +23,26 @@ void AFlowSlayerGameMode::BeginPlay()
 	runManager->OnRunCompleted.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnRunCompleted);
 }
 
+bool AFlowSlayerGameMode::IsScreenActive(UUserWidget* WidgetInstance) const
+{
+	if(WidgetInstance && WidgetInstance->IsVisible())
+		return true;
+
+	return false;
+}
+
+void AFlowSlayerGameMode::HandleOnMilestoneLevelUp(int32 newLevel)
+{
+	ShowScreen(UpgradeScreenClass, UpgradeScreenInstance, true);
+
+	// See BP_ThirdPersonGameMode (child BP) for the rest of the logic
+	// This is requiered in order to listen to OnUpgradeConfirmed from WBP_UpgradeScreen and initialize UProgressionComp ref
+	// When OnUpgradeConfirmed is broadcasted, HideScreen() is called
+}
+
 void AFlowSlayerGameMode::HandleOnPlayerDeath(AFlowSlayerCharacter* player)
 {
-	ShowEndScreen(DeathScreenClass, DeathScreenInstance);
+	ShowScreen(DeathScreenClass, DeathScreenInstance);
 }
 
 void AFlowSlayerGameMode::HandleOnRunCompleted()
@@ -34,23 +53,62 @@ void AFlowSlayerGameMode::HandleOnRunCompleted()
 		PlayerCharacter->GetInputManagerComponent()->DisableAllInputs();
 	}
 
-	ShowEndScreen(WinScreenClass, WinScreenInstance);
+	ShowScreen(WinScreenClass, WinScreenInstance);
 }
 
-void AFlowSlayerGameMode::ShowEndScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance)
+void AFlowSlayerGameMode::HandleOnPlayerPausePressed()
+{
+	if (IsScreenActive(PauseScreenInstance))
+		HideScreen(PauseScreenInstance);
+
+	else if (!IsScreenActive(UpgradeScreenInstance) && !IsScreenActive(DeathScreenInstance) && !IsScreenActive(WinScreenInstance))
+		ShowScreen(PauseScreenClass, PauseScreenInstance, true);
+}
+
+void AFlowSlayerGameMode::ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance, bool bPauseWorld)
 {
 	if (!WidgetClass)
 		return;
 
-	WidgetInstance = CreateWidget<UUserWidget>(GetWorld(), WidgetClass);
-	if (WidgetInstance)
-		WidgetInstance->AddToViewport();
+	if (!WidgetInstance)
+	{
+		WidgetInstance = CreateWidget<UUserWidget>(GetWorld(), WidgetClass);
+		if (WidgetInstance)
+			WidgetInstance->AddToViewport();
+	}
+
+	else if (WidgetInstance->Visibility == ESlateVisibility::Collapsed)
+		WidgetInstance->SetVisibility(ESlateVisibility::Visible);
+
+	UGameplayStatics::SetGamePaused(GetWorld(), bPauseWorld);
 
 	APlayerController* pc{ UGameplayStatics::GetPlayerController(GetWorld(), 0) };
 	if (pc)
 	{
-		FInputModeUIOnly inputMode;
+		FInputModeGameAndUI inputMode;
 		pc->SetInputMode(inputMode);
 		pc->SetShowMouseCursor(true);
+	}
+}
+
+void AFlowSlayerGameMode::HideScreen(UUserWidget* WidgetInstance)
+{
+	if (!WidgetInstance)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[GameMode] Widget instance given was invalid"));
+		return;
+	}
+
+	WidgetInstance->SetVisibility(ESlateVisibility::Collapsed);
+
+	if (UGameplayStatics::IsGamePaused(GetWorld()))
+		UGameplayStatics::SetGamePaused(GetWorld(), false);
+
+	APlayerController* pc{ UGameplayStatics::GetPlayerController(GetWorld(), 0) };
+	if (pc)
+	{
+		FInputModeGameOnly inputMode;
+		pc->SetInputMode(inputMode);
+		pc->SetShowMouseCursor(false);
 	}
 }

@@ -3,6 +3,7 @@
 #include "Components/ActorComponent.h"
 #include "Components/WidgetComponent.h"
 #include "GameFramework/Character.h"
+#include "UpgradeData.h"
 #include "HealthComponent.generated.h"
 
 DECLARE_DELEGATE(FOnDeath);
@@ -43,6 +44,10 @@ public:
 	/** Heal the owner to {MaxHealth} and plays heal animation */
 	UFUNCTION(BlueprintCallable)
 	void Heal();
+
+	/** Applies upgrade effects that concern the health system (MaxHealth, HealCooldown, HealFlowCost stats) */
+	UFUNCTION()
+	void HandleOnUpgradeSelected(const FUpgradeData& Upgrade);
 
 	/** Executed when owning actor dies */
 	FOnDeath OnDeath;
