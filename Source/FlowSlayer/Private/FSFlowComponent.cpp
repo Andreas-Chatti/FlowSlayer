@@ -45,16 +45,21 @@ void UFSFlowComponent::OnFlowTierChanged(EFlowTier newTier, EFlowTier oldTier)
 		GetWorld()->GetTimerManager().ClearTimer(DecayGraceTimer);
 		bIsDecaying = false;
 
-		GetWorld()->GetTimerManager().SetTimer(
+		TWeakObjectPtr<UFSFlowComponent> weakThis{ MakeWeakObjectPtr(this) };
+		weakThis->GetWorld()->GetTimerManager().SetTimer(
 			ImmunityTimer,
-			[this]() { 	
-				GetWorld()->GetTimerManager().SetTimer(
-				DecayGraceTimer,
-				[this]() { bIsDecaying = true; },
-				DecayGracePeriod,
+			[weakThis]() { 	
+				weakThis->GetWorld()->GetTimerManager().SetTimer(
+				weakThis->DecayGraceTimer,
+				[weakThis]() 
+					{ 
+						if (weakThis.IsValid())
+							weakThis->bIsDecaying = true;
+					},
+				weakThis->DecayGracePeriod,
 				false
 			); },
-			ImmunityDuration,
+			weakThis->ImmunityDuration,
 			false
 		);
 	}
