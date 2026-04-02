@@ -13,6 +13,8 @@ void UAnimNotifyState_FSMotionWarping::NotifyBegin(USkeletalMeshComponent* MeshC
         return;
 
     const AActor* targetActor{ GetTargetForMotionWarp(SearchRadius, bDebugLines) };
+    if (!targetActor)
+        return;
 
     if (attackType == EFSMotionWarpingAttackType::Ground)
         SetupGroundAttackMotionWarp(warpModifier->WarpTargetName, targetActor, ForwardOffset, bDebugLines);
@@ -42,10 +44,14 @@ const AActor* UAnimNotifyState_FSMotionWarping::GetTargetForMotionWarp(float sea
 {
     const AActor* lockedOnTarget{ LockOnCompRef->GetCurrentLockedOnTarget() };
 
-    if (lockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), lockedOnTarget->GetActorLocation()) <= (searchRadius * searchRadius)))
+    if (lockedOnTarget && (FVector::DistSquared(PlayerOwner->GetActorLocation(), lockedOnTarget->GetActorLocation()) <= FMath::Square(searchRadius)))
         return lockedOnTarget;
 
-    return GetNearestEnemyFromPlayer(searchRadius, debugLines);
+    else if (!lockedOnTarget)
+        return GetNearestEnemyFromPlayer(searchRadius, debugLines);
+
+    else
+        return nullptr;
 }
 
 void UAnimNotifyState_FSMotionWarping::SetupAirAttackMotionWarp(FName motionWarpingTargetName, const AActor* targetActor, float zOffset, float forwardOffset, bool debugLines)
