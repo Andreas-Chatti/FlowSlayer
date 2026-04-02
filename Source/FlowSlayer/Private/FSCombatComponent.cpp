@@ -484,7 +484,7 @@ void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitL
 
     OnHitLanded.Broadcast(hitActor, hitLocation, scaledAttack);
 
-    HitFeedBackComponent->OnLandHit(hitLocation);
+    HitFeedBackComponent->OnLandHit(hitActor->GetActorLocation());
 
     hitActorDamageable->NotifyHitReceived(PlayerOwner, scaledAttack);
 }
