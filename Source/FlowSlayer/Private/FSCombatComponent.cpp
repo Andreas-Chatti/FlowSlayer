@@ -236,7 +236,7 @@ void UFSCombatComponent::OnAttackInputReceived(EAttackType attackType)
     if (bIsAttacking && !bComboInputWindowOpen)
         return;
 
-    else if (bIsAttacking && bComboInputWindowOpen)
+    else if (bIsAttacking && bComboInputWindowOpen && !bContinueCombo)
     {
         OnComboWindowInputReceived(attackType);
         return;
@@ -397,11 +397,19 @@ void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
     if (!OngoingCombo)
         return;
 
+    // Continuing in the same combo
+    const FAttackData* nextAttack{ OngoingCombo->GetAttackAt(ComboIndex + 1) };
+    bool bIsNextAttackSameType{ nextAttack && nextAttack->AttackType == attackType };
+    if (nextAttack && !nextAttack->bOnCooldown && bIsNextAttackSameType)
+    {
+            bContinueCombo = true;
+            return;
+    }
+
     // Chaining to a new combo
-    const FAttackData* lastAttack{ OngoingCombo->GetAttackAt(OngoingCombo->GetMaxComboIndex()) };
-    bool bIsLastAttack{ ComboIndex >= OngoingCombo->GetMaxComboIndex() };
-    bool bIsLastAttackChainableWithCurrentType{ static_cast<bool>(lastAttack) && lastAttack->ChainableAttacks.Contains(attackType) };
-    if (bIsLastAttack && lastAttack && bIsLastAttackChainableWithCurrentType)
+    const FAttackData* ongoingAttack{ OngoingCombo->GetAttackAt(ComboIndex) };
+    bool bIsCurrentAttackChainableWithNewType{ ongoingAttack->ChainableAttacks.Contains(attackType) };
+    if (ongoingAttack && bIsCurrentAttackChainableWithNewType)
     {
         FCombo* nextCombo{ GetComboFromContext(attackType) };
         if (nextCombo && nextCombo->IsValid() && !nextCombo->GetFirstAttack()->bOnCooldown)
@@ -411,18 +419,6 @@ void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
             PendingCombo = nextCombo;
             return;
         }
-    }
-
-    // Continuing in the same combo
-    const FAttackData* nextAttack{ OngoingCombo->GetAttackAt(ComboIndex + 1) };
-    if (!nextAttack || (nextAttack && nextAttack->bOnCooldown))
-        return;
-
-    bool bIsNextAttackSameType{ nextAttack->AttackType == attackType };
-    if (!bIsLastAttack && bIsNextAttackSameType)
-    {
-        bContinueCombo = true;
-        return;
     }
 }
 
