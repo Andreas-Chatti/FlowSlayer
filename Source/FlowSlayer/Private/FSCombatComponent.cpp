@@ -406,7 +406,6 @@ void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
         FCombo* nextCombo{ GetComboFromContext(attackType) };
         if (nextCombo && nextCombo->IsValid() && !nextCombo->GetFirstAttack()->bOnCooldown)
         {
-            bComboInputWindowOpen = false;
             bContinueCombo = true;
             bChainingToNewCombo = true;
             PendingCombo = nextCombo;
@@ -422,7 +421,6 @@ void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
     bool bIsNextAttackSameType{ nextAttack->AttackType == attackType };
     if (!bIsLastAttack && bIsNextAttackSameType)
     {
-        bComboInputWindowOpen = false;
         bContinueCombo = true;
         return;
     }
