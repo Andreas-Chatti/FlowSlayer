@@ -30,18 +30,30 @@ AFSEnemy* AAFSSpawnZone::SpawnEnemy()
 		return nullptr;
 	}
 
-	TOptional<FTransform> enemyPosition{ GetRandomTransform() };
-	if (!enemyPosition.IsSet())
+	AFSEnemy* spawnedEnemy{ nullptr };
+	for (CurrentSpawnTries = 0; CurrentSpawnTries < MaxSpawnTries; ++CurrentSpawnTries)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[SpawnZone] Enemy spawn failed — no valid NavMesh position found."));
+		TOptional<FTransform> enemyPosition{ GetRandomTransform() };
+		if (!enemyPosition.IsSet())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[SpawnZone] Enemy spawn failed — no valid NavMesh position found."));
+			return nullptr;
+		}
+
+		int32 randIndex{ FMath::RandRange(0, EnemyPoolSpawn.Num() - 1) };
+		spawnedEnemy = GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), {});
+
+		if (spawnedEnemy)
+			break;
+	}
+
+	if (!spawnedEnemy)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[SpawnZone] Enemy spawn failed — Reached MaxSpawnTries"));
 		return nullptr;
 	}
 
-	int32 randIndex{ FMath::RandRange(0, EnemyPoolSpawn.Num() - 1) };
-	AFSEnemy* spawnedEnemy{ GetWorld()->SpawnActor<AFSEnemy>(EnemyPoolSpawn[randIndex], enemyPosition.GetValue(), {}) };
-
-	if (spawnedEnemy)
-		spawnedEnemy->SpawnDefaultController();
+	spawnedEnemy->SpawnDefaultController();
 
 	return spawnedEnemy;
 }
@@ -51,8 +63,7 @@ TOptional<FTransform> AAFSSpawnZone::GetRandomTransform()
 	FVector origin{ SpawnZoneComponent->GetComponentLocation() };
 	float searchRadius{ SpawnZoneComponent->GetScaledSphereRadius() };
 
-	constexpr int32 maxTries{ 50 };
-	for (int32 tryCount{ 0 }; tryCount < maxTries; ++tryCount)
+	for (; CurrentSpawnTries < MaxSpawnTries; ++CurrentSpawnTries)
 	{
 		// Returns any navigable NavMesh point within searchRadius, regardless of pathfinding connectivity from origin
 		FNavLocation navLocation;
