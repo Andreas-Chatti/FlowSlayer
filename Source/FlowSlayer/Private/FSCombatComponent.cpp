@@ -250,7 +250,7 @@ void UFSCombatComponent::OnAttackInputReceived(EAttackType attackType)
         return;
     
     const FAttackData* ongoingAttack{ GetOngoingAttack() };
-    if (!ongoingAttack || (ongoingAttack && ongoingAttack->bOnCooldown))
+    if (!ongoingAttack || ongoingAttack->bOnCooldown)
         return;
 
     UAnimMontage* animAttack{ ongoingAttack->Montage };
@@ -408,7 +408,7 @@ void UFSCombatComponent::OnComboWindowInputReceived(EAttackType attackType)
 
     // Chaining to a new combo
     const FAttackData* ongoingAttack{ OngoingCombo->GetAttackAt(ComboIndex) };
-    bool bIsCurrentAttackChainableWithNewType{ ongoingAttack->ChainableAttacks.Contains(attackType) };
+    bool bIsCurrentAttackChainableWithNewType{ ongoingAttack && ongoingAttack->ChainableAttacks.Contains(attackType) };
     if (ongoingAttack && bIsCurrentAttackChainableWithNewType)
     {
         FCombo* nextCombo{ GetComboFromContext(attackType) };
