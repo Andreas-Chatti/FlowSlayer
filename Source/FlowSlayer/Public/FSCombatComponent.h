@@ -128,9 +128,6 @@ public:
 
     bool IsAttacking() const { return bIsAttacking; }
 
-    /** Returns whether we're currently chaining to a new combo */
-    bool GetChainingToNewCombo() const { return bChainingToNewCombo; }
-
     /** Set all combos and combat states back to default and stops the current attack animation */
     void CancelAttack(float blendOutTime = 0.2f);
 

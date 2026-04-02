@@ -78,3 +78,6 @@ DerivedDataCache/
 
 # Third-party editor plugins (reinstall separately)
 Plugins/AgentIntegrationKit/
+
+# Agent Integration Kit generated config
+Config/DefaultAgentIntegrationKit.ini

@@ -72,5 +72,11 @@ protected:
 
 	/** Number of tries of spawn before aborting and return nullptr */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SpawnSettings")
-	int32 maxSpawnTries{ 50 };
+	int32 MaxSpawnTries{ 50 };
+
+	/** Number of current tries to successfully spawn an enemy 
+	* This includes trying to find a valid transform (GetRandomTransform)
+	* And try to successfully spawn an AFSEnemy right after (SpawnEnemy() -> GetWorld()->SpawnActor(...))
+	*/
+	int16 CurrentSpawnTries{ 0 };
 };
