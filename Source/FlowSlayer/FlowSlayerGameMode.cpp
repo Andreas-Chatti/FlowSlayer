@@ -1,5 +1,4 @@
 #include "FlowSlayerGameMode.h"
-#include "Kismet/GameplayStatics.h"
 
 AFlowSlayerGameMode::AFlowSlayerGameMode()
 {
@@ -21,6 +20,14 @@ void AFlowSlayerGameMode::BeginPlay()
 
 	ARunManager* runManager{ Cast<ARunManager>(foundManagers[0]) };
 	runManager->OnRunCompleted.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnRunCompleted);
+
+	TArray<AActor*> foundChests;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ARewardChest::StaticClass(), foundChests);
+	for (AActor* actor : foundChests)
+	{
+		if (ARewardChest* chest{ Cast<ARewardChest>(actor) })
+			chest->OnChestOpened.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnChestOpened);
+	}
 }
 
 bool AFlowSlayerGameMode::IsScreenActive(UUserWidget* WidgetInstance) const
@@ -63,6 +70,11 @@ void AFlowSlayerGameMode::HandleOnPlayerPausePressed()
 
 	else if (!IsScreenActive(UpgradeScreenInstance) && !IsScreenActive(DeathScreenInstance) && !IsScreenActive(WinScreenInstance))
 		ShowScreen(PauseScreenClass, PauseScreenInstance, true);
+}
+
+void AFlowSlayerGameMode::HandleOnChestOpened()
+{
+	ShowScreen(UpgradeScreenClass, UpgradeScreenInstance, true);
 }
 
 void AFlowSlayerGameMode::ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance, bool bPauseWorld)

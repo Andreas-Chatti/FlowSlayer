@@ -3,6 +3,7 @@
 #include "GameFramework/Actor.h"
 #include "AFSSpawnZone.h"
 #include "ArenaPortal.h"
+#include "RewardChest.h"
 #include "../FlowSlayerCharacter.h"
 #include "ProgressionComponent.h"
 #include "FSArenaManager.generated.h"
@@ -24,11 +25,11 @@ struct FCapEscalationStep
 
 	/** Number of total kills required to trigger this escalation */
 	UPROPERTY(EditAnywhere, Category = "Escalation")
-	int32 KillThreshold{0};
+	int32 KillThreshold{ 0 };
 
 	/** How much the max alive count increases at this threshold */
 	UPROPERTY(EditAnywhere, Category = "Escalation")
-	int32 MaxAliveIncrease{1};
+	int32 MaxAliveIncrease{ 1 };
 };
 
 /**
@@ -103,15 +104,15 @@ private:
 
 	/** Total number of enemies to spawn in this arena */
 	UPROPERTY(EditAnywhere, Category = "Arena|Spawning")
-	int32 TotalEnemiesToSpawn{30};
+	int32 TotalEnemiesToSpawn{ 30 };
 
 	/** Max enemies alive at the same time when the arena starts */
 	UPROPERTY(EditAnywhere, Category = "Arena|Spawning")
-	int32 InitialMaxAlive{5};
+	int32 InitialMaxAlive{ 5 };
 
 	/** Absolute maximum that MaxAlive can reach through escalation */
 	UPROPERTY(EditAnywhere, Category = "Arena|Spawning")
-	int32 MaxAliveLimit{15};
+	int32 MaxAliveLimit{ 15 };
 
 	/**
 	 * Ordered escalation steps. Each step defines a kill threshold
@@ -133,6 +134,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Arena|Navigation")
 	AArenaPortal* ExitPortal{nullptr};
 
+	UPROPERTY(EditAnywhere, Category = "Arena|Reward")
+	ARewardChest* RewardChest{ nullptr };
+
 	UPROPERTY(EditAnywhere, Category = "Arena|Debug")
 	bool bForceActivate{ false };
 
@@ -142,19 +146,19 @@ private:
 	bool bIsArenaActive{false};
 
 	/** Current max alive enemies (starts at InitialMaxAlive, grows via escalation) */
-	int32 CurrentMaxAlive{0};
+	int32 CurrentMaxAlive{ 0 };
 
 	/** Total enemies spawned so far */
-	int32 TotalSpawned{0};
+	int32 TotalSpawned{ 0 };
 
 	/** Total enemies killed so far */
-	int32 TotalKills{0};
+	int32 TotalKills{ 0 };
 
 	/** Currently alive enemy count */
-	int32 AliveEnemyCount{0};
+	int32 AliveEnemyCount{ 0 };
 
 	/** Index into EscalationSteps, tracks the next threshold to check */
-	int32 NextEscalationIndex{0};
+	int32 NextEscalationIndex{ 0 };
 
 	/** Timer handle for the spawn loop */
 	FTimerHandle SpawnTimerHandle;
