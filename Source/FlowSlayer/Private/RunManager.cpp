@@ -77,6 +77,7 @@ void ARunManager::ActivateArena(AFSArenaManager* Arena)
 		return;
 
 	Arena->OnArenaCleared.AddUniqueDynamic(this, &ARunManager::HandleOnArenaCleared);
+	Arena->OnEnemySpawned.AddUniqueDynamic(this, &ARunManager::HandleOnEnemySpawned);
 
 	if (AArenaPortal* portal{ Arena->GetExitPortal() })
 		portal->OnPlayerTeleported.AddUniqueDynamic(this, &ARunManager::StartNextArena);
@@ -98,5 +99,16 @@ void ARunManager::HandleOnArenaCleared()
 	}
 
 	OnRunArenaCleared.Broadcast();
+}
+
+void ARunManager::HandleOnEnemySpawned(AFSEnemy* spawnedEnemy)
+{
+	spawnedEnemy->OnEnemyDeath.AddUniqueDynamic(this, &ARunManager::HandleOnEnemyDeath);
+}
+
+void ARunManager::HandleOnEnemyDeath(AFSEnemy* deadEnemy)
+{
+	CurrentScore += deadEnemy->GetScoreReward();
+	OnScoreChanged.Broadcast(CurrentScore);
 }
 

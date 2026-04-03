@@ -2,11 +2,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "FSArenaManager.h"
+#include "FSEnemy.h"
 #include "Kismet/GameplayStatics.h"
 #include "RunManager.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRunArenaCleared);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRunCompleted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnScoreChanged, int32, NewScore);
 
 /**
  * Singleton actor placed in the level.
@@ -38,6 +40,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Run|Events")
 	FOnRunCompleted OnRunCompleted;
 
+	/** Broadcasted each time the score increases */
+	UPROPERTY(BlueprintAssignable, Category = "Run|Events")
+	FOnScoreChanged OnScoreChanged;
+
 	// ==================== PUBLIC API ====================
 
 	/** Starts the run from the first arena. Called from BeginPlay. */
@@ -67,7 +73,11 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	float GetElapsedRunTime() const;
 
-private:
+	/** Returns the current score — valid at any point during or after the run */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	int32 GetScore() const { return CurrentScore; }
+
+protected:
 
 	// ==================== CONFIGURATION ====================
 
@@ -87,7 +97,11 @@ private:
 	float ElapsedRunTime{0.f};
 
 	/** Whether the run has completed */
-	bool bRunCompleted{false};
+	UPROPERTY(BlueprintReadOnly)
+	bool bRunCompleted{ false };
+
+	/** Accumulated score for this run */
+	int32 CurrentScore{0};
 
 	// ==================== INTERNAL ====================
 
@@ -97,4 +111,12 @@ private:
 	/** Called when the current arena broadcasts OnArenaCleared */
 	UFUNCTION()
 	void HandleOnArenaCleared();
+
+	/** Called when an arena enemy is spawned — used to bind OnEnemyDeath for score tracking */
+	UFUNCTION()
+	void HandleOnEnemySpawned(AFSEnemy* spawnedEnemy);
+
+	/** Called when a managed enemy dies — increments score and checks if arena is cleared */
+	UFUNCTION()
+	void HandleOnEnemyDeath(AFSEnemy* deadEnemy);
 };

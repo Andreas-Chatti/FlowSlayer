@@ -14,6 +14,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnArenaStarted);
 /** Broadcasted when the arena is fully cleared (all enemies spawned and killed) */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnArenaCleared);
 
+/** Broadcasted each time an enemy is spawned — passes the enemy so external systems can bind to it */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemySpawned, AFSEnemy*, Enemy);
+
 /**
  * Defines a cap escalation threshold.
  * When TotalKills reaches KillThreshold, the max alive enemy count increases by CapIncrease.
@@ -60,6 +63,10 @@ public:
 	/** Broadcasted when the arena is cleared */
 	UPROPERTY(BlueprintAssignable, Category = "Arena|Events")
 	FOnArenaCleared OnArenaCleared;
+
+	/** Broadcasted each time an enemy is spawned — RunManager binds here to track score */
+	UPROPERTY(BlueprintAssignable, Category = "Arena|Events")
+	FOnEnemySpawned OnEnemySpawned;
 
 	// ==================== PUBLIC API ====================
 
