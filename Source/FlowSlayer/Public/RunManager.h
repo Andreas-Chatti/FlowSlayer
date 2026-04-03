@@ -60,6 +60,13 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	bool IsLastArena() const { return CurrentArenaIndex >= Arenas.Num() - 1; }
 
+	/**
+	 * Returns the elapsed run time in seconds.
+	 * Live during the run, frozen after OnRunCompleted is broadcast.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	float GetElapsedRunTime() const;
+
 private:
 
 	// ==================== CONFIGURATION ====================
@@ -72,6 +79,15 @@ private:
 
 	/** Index of the currently active arena */
 	int32 CurrentArenaIndex{0};
+
+	/** World time at which StartRun() was called */
+	float RunStartTime{0.f};
+
+	/** Total elapsed run time in seconds — frozen when the run completes */
+	float ElapsedRunTime{0.f};
+
+	/** Whether the run has completed */
+	bool bRunCompleted{false};
 
 	// ==================== INTERNAL ====================
 

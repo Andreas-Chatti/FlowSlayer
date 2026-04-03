@@ -5,6 +5,14 @@ ARunManager::ARunManager()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
+float ARunManager::GetElapsedRunTime() const
+{
+	if (bRunCompleted)
+		return ElapsedRunTime;
+
+	return GetWorld()->GetTimeSeconds() - RunStartTime;
+}
+
 #if WITH_EDITOR
 void ARunManager::OnConstruction(const FTransform& Transform)
 {
@@ -42,6 +50,7 @@ void ARunManager::StartRun()
 	}
 
 	CurrentArenaIndex = 0;
+	RunStartTime = GetWorld()->GetTimeSeconds();
 	ActivateArena(Arenas[CurrentArenaIndex]);
 
 	UE_LOG(LogTemp, Log, TEXT("[RunManager] Run started. Total arenas: %d"), Arenas.Num());
@@ -81,7 +90,9 @@ void ARunManager::HandleOnArenaCleared()
 
 	if (IsLastArena())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[RunManager] Run completed!"));
+		ElapsedRunTime = GetWorld()->GetTimeSeconds() - RunStartTime;
+		bRunCompleted = true;
+		UE_LOG(LogTemp, Log, TEXT("[RunManager] Run completed in %.2f seconds."), ElapsedRunTime);
 		OnRunCompleted.Broadcast();
 		return;
 	}
