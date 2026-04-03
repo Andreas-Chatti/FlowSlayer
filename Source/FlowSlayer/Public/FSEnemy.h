@@ -101,7 +101,6 @@ protected:
     UPROPERTY()
     APawn* Player;
 
-
     /** Lock-on ui widget indicator when this enemy is locked-on */
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
     UWidgetComponent* LockOnWidget{ nullptr };

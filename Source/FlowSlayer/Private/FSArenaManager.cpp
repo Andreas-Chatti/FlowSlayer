@@ -139,6 +139,8 @@ void AFSArenaManager::CheckArenaCompletion()
 
 		if (ExitPortal)
 			ExitPortal->ShowPortal();
+		if (RewardChest)
+			RewardChest->ShowChest();
 
 		OnArenaCleared.Broadcast();
 	}

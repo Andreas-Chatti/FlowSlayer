@@ -1,7 +1,7 @@
 #pragma once
-
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "Kismet/GameplayStatics.h"
 #include "FlowSlayerCharacter.h"
 #include "Public/RunManager.h"
 #include "FlowSlayerGameMode.generated.h"
@@ -79,6 +79,10 @@ protected:
 	/** Called when player presses pause button */
 	UFUNCTION()
 	void HandleOnPlayerPausePressed();
+
+	/** Called when the reward chest is opened — shows the reward screen */
+	UFUNCTION()
+	void HandleOnChestOpened();
 
 	/** Shows the given widget and switches the player controller to UI-only input */
 	void ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance, bool bPauseWorld = false);
