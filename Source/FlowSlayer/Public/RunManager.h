@@ -2,11 +2,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "FSArenaManager.h"
+#include "FSEnemy.h"
 #include "Kismet/GameplayStatics.h"
 #include "RunManager.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRunArenaCleared);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnRunCompleted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnScoreChanged, int32, NewScore);
 
 /**
  * Singleton actor placed in the level.
@@ -38,6 +40,10 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Run|Events")
 	FOnRunCompleted OnRunCompleted;
 
+	/** Broadcasted each time the score increases */
+	UPROPERTY(BlueprintAssignable, Category = "Run|Events")
+	FOnScoreChanged OnScoreChanged;
+
 	// ==================== PUBLIC API ====================
 
 	/** Starts the run from the first arena. Called from BeginPlay. */
@@ -60,7 +66,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Run")
 	bool IsLastArena() const { return CurrentArenaIndex >= Arenas.Num() - 1; }
 
-private:
+	/**
+	 * Returns the elapsed run time in seconds.
+	 * Live during the run, frozen after OnRunCompleted is broadcast.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	float GetElapsedRunTime() const;
+
+	/** Returns the current score — valid at any point during or after the run */
+	UFUNCTION(BlueprintPure, Category = "Run")
+	int32 GetScore() const { return CurrentScore; }
+
+protected:
 
 	// ==================== CONFIGURATION ====================
 
@@ -73,6 +90,19 @@ private:
 	/** Index of the currently active arena */
 	int32 CurrentArenaIndex{0};
 
+	/** World time at which StartRun() was called */
+	float RunStartTime{0.f};
+
+	/** Total elapsed run time in seconds — frozen when the run completes */
+	float ElapsedRunTime{0.f};
+
+	/** Whether the run has completed */
+	UPROPERTY(BlueprintReadOnly)
+	bool bRunCompleted{ false };
+
+	/** Accumulated score for this run */
+	int32 CurrentScore{0};
+
 	// ==================== INTERNAL ====================
 
 	/** Binds OnArenaCleared on the given arena and starts it */
@@ -81,4 +111,12 @@ private:
 	/** Called when the current arena broadcasts OnArenaCleared */
 	UFUNCTION()
 	void HandleOnArenaCleared();
+
+	/** Called when an arena enemy is spawned — used to bind OnEnemyDeath for score tracking */
+	UFUNCTION()
+	void HandleOnEnemySpawned(AFSEnemy* spawnedEnemy);
+
+	/** Called when a managed enemy dies — increments score and checks if arena is cleared */
+	UFUNCTION()
+	void HandleOnEnemyDeath(AFSEnemy* deadEnemy);
 };

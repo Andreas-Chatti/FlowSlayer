@@ -44,6 +44,7 @@ public:
     bool IsAttacking() const { return bIsAttacking; }
     bool CanAttack() const { return bCanAttack; }
     int32 GetXPReward() const { return XPReward; }
+    int32 GetScoreReward() const { return ScoreReward; }
 
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
 
@@ -84,9 +85,15 @@ protected:
     /** Called when owning spawned projectile has hit a target */
     void HandleOnFSProjectileHit(AActor* hitActor, const FVector& hitLocation);
 
+    /** Score points added to the total score on each kill of this specific enemy */
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats")
+    int32 ScoreReward{ 30 };
+
+    /** XP points given to the player, on each kill of this specifc ennemy */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     int32 XPReward{ 10 };
-
+    
+    /** Distance (in meter) between this ennemy and the player in which it'll attack the player */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
     float AttackRange{ 150.f };
 

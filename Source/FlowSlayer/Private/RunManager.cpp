@@ -5,6 +5,14 @@ ARunManager::ARunManager()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
+float ARunManager::GetElapsedRunTime() const
+{
+	if (bRunCompleted)
+		return ElapsedRunTime;
+
+	return GetWorld()->GetTimeSeconds() - RunStartTime;
+}
+
 #if WITH_EDITOR
 void ARunManager::OnConstruction(const FTransform& Transform)
 {
@@ -42,6 +50,7 @@ void ARunManager::StartRun()
 	}
 
 	CurrentArenaIndex = 0;
+	RunStartTime = GetWorld()->GetTimeSeconds();
 	ActivateArena(Arenas[CurrentArenaIndex]);
 
 	UE_LOG(LogTemp, Log, TEXT("[RunManager] Run started. Total arenas: %d"), Arenas.Num());
@@ -68,6 +77,7 @@ void ARunManager::ActivateArena(AFSArenaManager* Arena)
 		return;
 
 	Arena->OnArenaCleared.AddUniqueDynamic(this, &ARunManager::HandleOnArenaCleared);
+	Arena->OnEnemySpawned.AddUniqueDynamic(this, &ARunManager::HandleOnEnemySpawned);
 
 	if (AArenaPortal* portal{ Arena->GetExitPortal() })
 		portal->OnPlayerTeleported.AddUniqueDynamic(this, &ARunManager::StartNextArena);
@@ -81,11 +91,24 @@ void ARunManager::HandleOnArenaCleared()
 
 	if (IsLastArena())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[RunManager] Run completed!"));
+		ElapsedRunTime = GetWorld()->GetTimeSeconds() - RunStartTime;
+		bRunCompleted = true;
+		UE_LOG(LogTemp, Log, TEXT("[RunManager] Run completed in %.2f seconds."), ElapsedRunTime);
 		OnRunCompleted.Broadcast();
 		return;
 	}
 
 	OnRunArenaCleared.Broadcast();
+}
+
+void ARunManager::HandleOnEnemySpawned(AFSEnemy* spawnedEnemy)
+{
+	spawnedEnemy->OnEnemyDeath.AddUniqueDynamic(this, &ARunManager::HandleOnEnemyDeath);
+}
+
+void ARunManager::HandleOnEnemyDeath(AFSEnemy* deadEnemy)
+{
+	CurrentScore += deadEnemy->GetScoreReward();
+	OnScoreChanged.Broadcast(CurrentScore);
 }
 
