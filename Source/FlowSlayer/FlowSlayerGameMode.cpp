@@ -28,6 +28,14 @@ void AFlowSlayerGameMode::BeginPlay()
 		if (ARewardChest* chest{ Cast<ARewardChest>(actor) })
 			chest->OnChestOpened.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnChestOpened);
 	}
+
+	TArray<AActor*> foundArenas;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AFSArenaManager::StaticClass(), foundArenas);
+	for (AActor* actor : foundArenas)
+	{
+		if (AFSArenaManager* arena{ Cast<AFSArenaManager>(actor) })
+			arena->OnEnemySpawned.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnEnemySpawned);
+	}
 }
 
 bool AFlowSlayerGameMode::IsScreenActive(UUserWidget* WidgetInstance) const
@@ -75,6 +83,27 @@ void AFlowSlayerGameMode::HandleOnPlayerPausePressed()
 void AFlowSlayerGameMode::HandleOnChestOpened()
 {
 	ShowScreen(UpgradeScreenClass, UpgradeScreenInstance, true);
+}
+
+void AFlowSlayerGameMode::HandleOnEnemySpawned(AFSEnemy* Enemy)
+{
+	if (!Enemy)
+		return;
+
+	Enemy->OnEnemyDeath.AddUniqueDynamic(this, &AFlowSlayerGameMode::HandleOnEnemyDeath);
+}
+
+void AFlowSlayerGameMode::HandleOnEnemyDeath(AFSEnemy* Enemy)
+{
+	if (!Enemy || !PlayerCharacter)
+		return;
+
+	UProgressionComponent* progressionComp{ PlayerCharacter->GetProgressionComponent() };
+
+	progressionComp->AddXP(Enemy->GetXPReward());
+
+	if (FMath::FRand() < Enemy->GetWeaponPartDropChance())
+		progressionComp->ApplyRandomWeaponPartDrop();
 }
 
 void AFlowSlayerGameMode::ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance, bool bPauseWorld)

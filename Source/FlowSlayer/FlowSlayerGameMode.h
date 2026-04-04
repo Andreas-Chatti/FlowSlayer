@@ -4,6 +4,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "FlowSlayerCharacter.h"
 #include "Public/RunManager.h"
+#include "Public/FSArenaManager.h"
+#include "Public/FSEnemy.h"
 #include "FlowSlayerGameMode.generated.h"
 
 UCLASS(minimalapi)
@@ -83,6 +85,14 @@ protected:
 	/** Called when the reward chest is opened — shows the reward screen */
 	UFUNCTION()
 	void HandleOnChestOpened();
+
+	/** Called when an arena spawns an enemy — binds HandleOnEnemyDeath to that enemy's OnEnemyDeath */
+	UFUNCTION()
+	void HandleOnEnemySpawned(AFSEnemy* Enemy);
+
+	/** Called when a managed enemy dies — awards XP and rolls weapon part drop */
+	UFUNCTION()
+	void HandleOnEnemyDeath(AFSEnemy* Enemy);
 
 	/** Shows the given widget and switches the player controller to UI-only input */
 	void ShowScreen(TSubclassOf<UUserWidget> WidgetClass, UUserWidget*& WidgetInstance, bool bPauseWorld = false);

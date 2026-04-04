@@ -476,6 +476,10 @@ void UFSCombatComponent::HandleOnHitLanded(AActor* hitActor, const FVector& hitL
     FAttackData scaledAttack{ *currentAttack };
     scaledAttack.Damage *= DamageMultiplier;
 
+    // Apply weapon part damage multiplier (1.0 if no Blade part equipped)
+    if (equippedWeapon)
+        scaledAttack.Damage *= equippedWeapon->GetDamageMultiplier();
+
     OnHitLanded.Broadcast(hitActor, hitLocation, scaledAttack);
 
     HitFeedBackComponent->OnLandHit(hitActor->GetActorLocation());

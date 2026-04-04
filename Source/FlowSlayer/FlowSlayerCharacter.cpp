@@ -94,6 +94,7 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(HealthComponent, &UHealthComponent::HandleOnUpgradeSelected);
 	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::HandleOnUpgradeSelected);
 	ProgressionComponent->OnUpgradeSelected.AddUniqueDynamic(this, &AFlowSlayerCharacter::HandleOnUpgradeSelected);
+	ProgressionComponent->OnWeaponPartSelected.AddUniqueDynamic(this, &AFlowSlayerCharacter::HandleOnWeaponPartSelected);
 	
 	JumpMaxCount = 2;
 }
@@ -117,6 +118,13 @@ void AFlowSlayerCharacter::BeginPlay()
 	Tags.Add("Player");
 
 	InitializeHUD();
+
+	// Inject the spawned weapon reference so ProgressionComponent can query equipped part tiers
+	// The weapon is guaranteed to exist here — CombatComponent spawns it during its own BeginPlay,
+	// which runs as part of Super::BeginPlay() before this body executes
+	AFSWeapon* spawnedWeapon{ CombatComponent->GetEquippedWeapon() };
+	checkf(spawnedWeapon, TEXT("[FlowSlayerCharacter] EquippedWeapon is null after BeginPlay — weaponClass likely unset in the Blueprint."));
+	ProgressionComponent->SetEquippedWeaponRef(spawnedWeapon);
 
 	APlayerController* pc{ InputManagerComponent->GetPlayerController() };
 	if (pc)
@@ -173,6 +181,18 @@ void AFlowSlayerCharacter::HandleOnLockOnStopped()
 void AFlowSlayerCharacter::HandleOnHitLanded(AActor* hitActor, const FVector& hitLocation, const FAttackData& usedAttack)
 {
 	FlowComponent->HandleOnHitLanded(hitActor, hitLocation, usedAttack.Damage, usedAttack.FlowReward);
+}
+
+void AFlowSlayerCharacter::HandleOnWeaponPartSelected(const FWeaponPartData& WeaponPart)
+{
+	AFSWeapon* weapon{ CombatComponent->GetEquippedWeapon() };
+	if (!weapon)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[FlowSlayerCharacter] HandleOnWeaponPartSelected: weapon is null, cannot equip part."));
+		return;
+	}
+
+	weapon->EquipPart(WeaponPart.PartType, WeaponPart);
 }
 
 void AFlowSlayerCharacter::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)

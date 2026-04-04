@@ -7,8 +7,6 @@ AFSArenaManager::AFSArenaManager()
 
 void AFSArenaManager::BeginPlay()
 {
-	PlayerCharacter = Cast<AFlowSlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-
 	if (bForceActivate)
 		StartArena();
 }
@@ -97,9 +95,6 @@ void AFSArenaManager::HandleOnEnemyDeath(AFSEnemy* Enemy)
 
 	UE_LOG(LogTemp, Log, TEXT("[FSArenaManager] Enemy killed. Kills: %d, Alive: %d, Remaining to spawn: %d"),
 		TotalKills, AliveEnemyCount, TotalEnemiesToSpawn - TotalSpawned);
-
-	if (PlayerCharacter)
-		PlayerCharacter->GetProgressionComponent()->AddXP(Enemy->GetXPReward());
 
 	CheckCapEscalation();
 	CheckArenaCompletion();
