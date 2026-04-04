@@ -4,8 +4,7 @@
 #include "AFSSpawnZone.h"
 #include "ArenaPortal.h"
 #include "RewardChest.h"
-#include "../FlowSlayerCharacter.h"
-#include "ProgressionComponent.h"
+#include "FSEnemy.h"
 #include "FSArenaManager.generated.h"
 
 /** Broadcasted when the arena encounter starts */
@@ -188,7 +187,4 @@ private:
 	/** Checks if the arena is completed (all enemies spawned and killed) */
 	void CheckArenaCompletion();
 
-	/** Cached player reference — used to award XP on enemy death */
-	UPROPERTY()
-	AFlowSlayerCharacter* PlayerCharacter{ nullptr };
 };

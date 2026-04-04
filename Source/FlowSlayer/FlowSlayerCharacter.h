@@ -235,6 +235,10 @@ private:
 	UFUNCTION()
 	void HandleOnUpgradeSelected(const FUpgradeData& Upgrade);
 
+	/** Forwards weapon part selection to the equipped weapon — bound to ProgressionComponent::OnWeaponPartSelected */
+	UFUNCTION()
+	void HandleOnWeaponPartSelected(const FWeaponPartData& WeaponPart);
+
 	/** IFSDamageable interface - broadcasts OnHitReceived when this character is hit */
 	UFUNCTION()
 	virtual void NotifyHitReceived(AActor* instigatorActor, const FAttackData& usedAttack) override;

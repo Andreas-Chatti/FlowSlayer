@@ -45,6 +45,7 @@ public:
     bool CanAttack() const { return bCanAttack; }
     int32 GetXPReward() const { return XPReward; }
     int32 GetScoreReward() const { return ScoreReward; }
+	float GetWeaponPartDropChance() const { return WeaponPartDropChance; }
 
     void SetIsAttacking(bool isAttacking) { bIsAttacking = isAttacking; }
 
@@ -90,8 +91,13 @@ protected:
     int32 ScoreReward{ 30 };
 
     /** XP points given to the player, on each kill of this specifc ennemy */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats|Rewards")
     int32 XPReward{ 10 };
+
+    /** Probability [0, 1] that killing an enemy drops a weapon part.
+ *  At 0.15, roughly one in seven kills yields a part. Tunable per-arena in the editor. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Stats|Reward", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float WeaponPartDropChance{ 0.15f };
     
     /** Distance (in meter) between this ennemy and the player in which it'll attack the player */
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stats")
