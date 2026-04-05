@@ -18,7 +18,7 @@ bool UDashComponent::CanDash() const
     if (CanAffordDash.IsBound() && !CanAffordDash.Execute(FlowCost))
         return false;
 
-    return !bIsDashing && !bIsOnCooldown && !OwningPlayer->GetCharacterMovement()->IsFalling() && !bIsAttacking;
+    return !bIsDashing && !OwningPlayer->GetCharacterMovement()->IsFalling() && !bIsAttacking;
 }
 
 void UDashComponent::OnAttackingStarted()
@@ -62,17 +62,12 @@ void UDashComponent::StartDash(const FVector2D& inputDirection)
     // Safety fallback — if NotifyEnd never fires (e.g. montage interrupted before NotifyBegin), force-end the dash
     GetWorld()->GetTimerManager().SetTimer(
         SafetyTimer,
-        [this]() { if (bIsDashing) EndDash(); },
+        [this]() 
+        { 
+            if (bIsDashing)
+                EndDash();
+        },
         MaxDashDuration,
-        false
-    );
-
-    // Cooldown
-    bIsOnCooldown = true;
-    GetWorld()->GetTimerManager().SetTimer(
-        cooldownTimer,
-        [this]() { bIsOnCooldown = false; },
-        CooldownDuration,
         false
     );
 
@@ -101,10 +96,6 @@ void UDashComponent::HandleOnUpgradeSelected(const FUpgradeData& Upgrade)
     case EUpgradeStat::DashFlowCost:
         ApplyValue(FlowCost);
         FlowCost = FMath::Max(0.f, FlowCost);
-        break;
-    case EUpgradeStat::DashCooldown:
-        ApplyValue(CooldownDuration);
-        CooldownDuration = FMath::Max(0.f, CooldownDuration);
         break;
     default:
         break;

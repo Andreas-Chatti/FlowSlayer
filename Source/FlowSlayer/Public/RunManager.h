@@ -85,23 +85,29 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "Run")
 	TArray<AFSArenaManager*> Arenas;
 
+	/** Prevent run from running and activating any ArenaManager from spawning enemies
+	* ONLY used for DEBUGGING purposes
+	*/
+	UPROPERTY(EditAnywhere, Category = "Run|Debug")
+	bool bDeactivateRun{ false };
+
 	// ==================== RUNTIME STATE ====================
 
 	/** Index of the currently active arena */
-	int32 CurrentArenaIndex{0};
+	int32 CurrentArenaIndex{ 0 };
 
 	/** World time at which StartRun() was called */
-	float RunStartTime{0.f};
+	float RunStartTime{ 0.f };
 
 	/** Total elapsed run time in seconds — frozen when the run completes */
-	float ElapsedRunTime{0.f};
+	float ElapsedRunTime{ 0.f };
 
 	/** Whether the run has completed */
 	UPROPERTY(BlueprintReadOnly)
 	bool bRunCompleted{ false };
 
 	/** Accumulated score for this run */
-	int32 CurrentScore{0};
+	int32 CurrentScore{ 0 };
 
 	// ==================== INTERNAL ====================
 

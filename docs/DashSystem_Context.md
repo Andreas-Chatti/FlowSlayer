@@ -279,3 +279,36 @@ Deux transition rules par stop animation (SprintToIdle, RunToIdle, WalkToIdle) :
 - Aerial dash variant
 - Dash I-frames (invincibility during dash)
 - Directional dash VFX variants
+
+---
+
+## Bugs connus (diagnostiqués 2026-04-05, non encore fixés)
+
+### Bug 1 — Dash locked définitivement (state stuck)
+**Symptôme** : Le joueur ne peut plus dasher sans restart. Variable d'état bloquée.
+
+**Cause** : `StopAllMontages()` appelé **en dehors** de `CombatComponent` (ex: `GameMode::HandleOnRunCompleted`, mort, écran pause) ne passe pas par `CancelAttack()` → `ResetComboState()` ne fire pas → `OnAttackingEnded` jamais broadcast → `DashComponent::bIsAttacking` reste `true` à jamais.
+
+**Fix prévu** : Bind `AnimInstance->OnMontageEnded` dans `FSCombatComponent::BeginPlay()`. Si `bInterrupted=true` et `bIsAttacking=true`, appeler `ResetComboState()`. Le guard `bIsAttacking` évite le double reset quand c'est `CancelAttack` qui a stoppé la montage.
+
+---
+
+### Bug 2 — Dash cancel pas réactif (input lag + double press)
+**Symptôme** : Dash cancel mid-attaque lent, peu réactif, feel mauvais. Nécessite deux pressions de Shift.
+
+**Cause A — Double press** : `AnimCancelWindow` broadcast `OnAnimationCanceled` → `CancelAttack()` → état reset. Mais le dash n'est pas lancé. Le joueur doit re-presser Shift après le cancel. Pipeline actuelle = deux actions distinctes.
+
+**Fix A prévu** : Input buffer dans `DashComponent`. Si `StartDash()` est appelé pendant `bIsAttacking` (seul bloqueur actif), stocker la direction dans `BufferedDashInput` + `bDashBuffered=true`. Dans `OnAttackingEnded()`, si `bDashBuffered`, consommer et lancer `StartDash(BufferedDashInput)` immédiatement. Vider le buffer dans `OnAttackingStarted()` (nouvelle attaque annule le buffer).
+
+**Cause B — Blend-out trop long** : `CancelAttack(0.2f)` — la montage met 200ms à s'arrêter, l'animation est lente à transitionner.
+
+**Fix B prévu** : Réduire le blend-out pour les dash cancels — passer `0.05f` au lieu de `0.2f`. Soit via un paramètre dans `HandleOnAnimationCanceled`, soit via une surcharge dédiée.
+
+---
+
+### Bug 3 — Transitions animation dash → locomotion lentes / absentes
+**Symptôme** : Transition dash → sprint/marche trop lente ou absente. Animation parfois incorrecte.
+
+**Cause** : Surtout côté ABP. La règle de sortie de `DashToRun`/`DashToWalk` requiert deux conditions simultanées (animation terminée ET `!bIsDashing`). Si le timing entre `EndDash()` et la fin d'animation est décalé d'un frame, la transition rate ou joue la mauvaise animation de stop. Le safety timer à `1.8s` (MaxDashDuration) peut aussi maintenir `bIsDashing=true` trop longtemps si `NotifyEnd` ne fire pas.
+
+**Fix prévu** : ABP tuning (ajuster timing des conditions de sortie). Vérifier que `MaxDashDuration` est cohérent avec la durée réelle du montage dash. Inspecter si le blend-out de 0.2f post-cancel laisse l'ABP dans un état ambigu.

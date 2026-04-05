@@ -9,8 +9,8 @@
 #include "UpgradeData.h"
 #include "DashComponent.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnDashStarted, float flowCost);
-DECLARE_MULTICAST_DELEGATE(FOnDashEnded);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDashStarted, float, flowCost);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDashEnded);
 
 DECLARE_DELEGATE_RetVal_OneParam(bool, FCanAffordDash, float flowCost);
 
@@ -40,9 +40,11 @@ public:
     virtual void BeginPlay() override;
 
     /** Broadcast when the dash starts — used to trigger animations, VFX, etc. */
+    UPROPERTY(BlueprintAssignable)
     FOnDashStarted OnDashStarted;
 
     /** Broadcast when the dash ends — used to restore movement state */
+    UPROPERTY(BlueprintAssignable)
     FOnDashEnded OnDashEnded;
 
     /** Broadcast to check whether the player has enough flow to perform a dash */
@@ -69,9 +71,6 @@ public:
     UFUNCTION(BlueprintPure)
     bool CanDash() const;
 
-    UFUNCTION(BlueprintPure)
-    bool IsOnCooldown() const { return bIsOnCooldown; }
-
     /** Applies upgrade effects that concern the dash system (DashFlowCost stat) */
     UFUNCTION()
     void HandleOnUpgradeSelected(const FUpgradeData& Upgrade);
@@ -85,10 +84,6 @@ public:
     void OnAttackingEnded();
 
 protected:
-
-    /** Time in seconds before the player can dash again after landing */
-    UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.0"))
-    float CooldownDuration{ 0.5f };
 
     /** Distance (in meter) the player travels when doing a complete dash */
     UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "1.0"))
@@ -119,14 +114,8 @@ private:
     /** True while the dash movement is in progress */
     bool bIsDashing{ false };
 
-    /** True during the delay between a completed dash and the next allowed dash */
-    bool bIsOnCooldown{ false };
-
     /** Set by UFSCombatComponent via delegates — prevents dashing during an attack */
     bool bIsAttacking{ false };
-
-    /** Timer handle for the post-dash cooldown */
-    FTimerHandle cooldownTimer;
 
     /** Safety fallback — fires EndDash() if NotifyEnd never triggers (e.g. montage interrupted before NotifyBegin) */
     FTimerHandle SafetyTimer;

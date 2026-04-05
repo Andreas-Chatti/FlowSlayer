@@ -60,8 +60,8 @@ AFlowSlayerCharacter::AFlowSlayerCharacter()
 
 	DashComponent = CreateDefaultSubobject<UDashComponent>(TEXT("DashComponent"));
 	checkf(DashComponent, TEXT("FATAL: DashComponent is NULL or INVALID !"));
-	DashComponent->OnDashStarted.AddUObject(FlowComponent, &UFSFlowComponent::RemoveFlow);
-	DashComponent->OnDashStarted.AddUObject(this, &AFlowSlayerCharacter::HandleOnDashStarted);
+	DashComponent->OnDashStarted.AddUniqueDynamic(FlowComponent, &UFSFlowComponent::RemoveFlow);
+	DashComponent->OnDashStarted.AddUniqueDynamic(this, &AFlowSlayerCharacter::HandleOnDashStarted);
 	DashComponent->CanAffordDash.BindUObject(FlowComponent, &UFSFlowComponent::HasEnoughFlow);
 
 	HealthComponent = CreateDefaultSubobject<UHealthComponent>(TEXT("HealthComponent"));
@@ -161,9 +161,9 @@ void AFlowSlayerCharacter::HandleOnDeath()
 	OnPlayerDeath.Broadcast(this);
 }
 
-void AFlowSlayerCharacter::HandleOnAnimationCanceled()
+void AFlowSlayerCharacter::HandleOnAnimationCanceled(float blendOutTime)
 {
-	CombatComponent->CancelAttack();
+	CombatComponent->CancelAttack(blendOutTime);
 }
 
 void AFlowSlayerCharacter::HandleOnLockOnStarted(AActor* lockedOnTarget)

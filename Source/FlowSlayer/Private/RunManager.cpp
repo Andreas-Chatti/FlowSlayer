@@ -49,6 +49,12 @@ void ARunManager::StartRun()
 		return;
 	}
 
+	else if (bDeactivateRun)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[RunManager] bDeactivateRun is TRUE (debug mode) - stopping run."));
+		return;
+	}
+
 	CurrentArenaIndex = 0;
 	RunStartTime = GetWorld()->GetTimeSeconds();
 	ActivateArena(Arenas[CurrentArenaIndex]);

@@ -35,7 +35,7 @@ void UAnimNotifyState_AnimCancelWindow::NotifyTick(USkeletalMeshComponent* MeshC
 	if (bDashCancel || bMoveCancel || bAnyCancel)
 	{
 		bAnimCancelTrigger = true;
-		FSCharacter->OnAnimationCanceled.Broadcast();
+		FSCharacter->OnAnimationCanceled.Broadcast(CancelBlendOutTime);
 	}
 }
 

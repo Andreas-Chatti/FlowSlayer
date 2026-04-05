@@ -39,8 +39,12 @@ private:
 	const AFlowSlayerCharacter* FSCharacter { nullptr };
 
 	/** Type of action that will cancel the current animation during this window */
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, Category = "AnimationCancel")
 	EAnimCancelWindowActionType CancelActionTrigger{ EAnimCancelWindowActionType::Any };
+
+	/** BlendOutTime of the current animation when canceling */
+	UPROPERTY(EditAnywhere, Category = "AnimationCancel")
+	float CancelBlendOutTime{ 0.f };
 
 	/** TRUE once OnAnimationCanceled has been broadcast — prevents firing multiple times per window */
 	bool bAnimCancelTrigger{ false };

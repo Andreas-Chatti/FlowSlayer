@@ -35,9 +35,6 @@ enum class EUpgradeStat : uint8
 	/** Maximum movement speed of the player */
 	MoveSpeed,
 
-	/** Cooldown duration between two dashes */
-	DashCooldown,
-
 	/** Cooldown duration multiplier applied to all individual attack cooldowns */
 	AttackCooldown,
 

@@ -191,7 +191,9 @@ PowerSlash, PierceThrust, GroundSlam, DiagonalRetourne
 - [x] XP + level progression (30 levels/run, milestones every 5)
 - [x] XP bar UI (WBP_PlayerXpBarUi)
 - [x] Full game loop (RunManager, ArenaPortal, arena transitions — validated)
-- [ ] Death screen + OpenLevel on player death
-- [ ] Chest placeholder on arena clear
-- [ ] Upgrade screen at milestone level-up
-- [ ] Modular weapon craft (Blade + Handle + Gem)
+- [x] Death screen + Win screen (graybox prototype)
+- [x] Chest reward on arena clear (graybox prototype)
+- [x] Upgrade screen at milestone level-up (graybox prototype)
+- [x] Pause menu
+- [x] Run timer + score
+- [x] Weapon loot system — auto-equip on enemy drop or reward screen (Blade/Handle/Gem T1→T3, WBP_ItemDropNotification)

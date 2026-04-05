@@ -45,6 +45,7 @@ public:
 	/** Removes flow either when the player gets hit
 	* or when the player stops attacking during a specific amount of time
 	*/
+	UFUNCTION()
 	void RemoveFlow(float amount);
 
 	/** Voluntarily consumes flow to trigger a special attack. */

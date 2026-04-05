@@ -69,6 +69,9 @@ void UAnimNotifyState_SafeMoveUpdated::NotifyEnd(USkeletalMeshComponent* MeshCom
 {
     Super::NotifyEnd(MeshComp, Animation, EventReference);
 
+    if (DashComp)
+        DashComp->EndDash();
+
     LastCurveValue = 0.f;
     TimeElapsed = 0.f;
     bDashFinished = false;
