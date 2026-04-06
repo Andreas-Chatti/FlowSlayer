@@ -1,5 +1,5 @@
 # AnimNotify System — Context
-*Last updated: 2026-03-22*
+*Last updated: 2026-04-06*
 
 All custom notifies and notify states are in `Source/FlowSlayer/Public/` and `Private/`.
 They are placed directly on animation montage timelines in the editor.
@@ -65,28 +65,53 @@ NotifyEnd   → CombatComponent->OnComboInputWindowClosed.Execute()
 
 ## AnimNotifyState_AnimCancelWindow — "Animation Cancel Window"
 
-**Purpose:** Defines a window where the player can cancel the current attack via dash or movement.
+*Last updated: 2026-04-06 — refactored from polling (NotifyTick) to event-driven Enhanced Input bindings*
+
+**Purpose:** Defines a window where the player can cancel the current attack via dash, movement, or guard.
 
 **Cancel action types** (`EAnimCancelWindowActionType`):
-- `Dash` — cancels only if LShift is held AND movement input is active
-- `Move` — cancels only if movement input is active (no LShift required)
-- `Any` — cancels on LShift OR movement input
+- `Dash` — cancels on LShift press (ETriggerEvent::Started)
+- `Move` — cancels while movement input is held (ETriggerEvent::Triggered)
+- `Guard` — cancels while guard key is held (ETriggerEvent::Triggered)
+- `Any` — all three above are bound simultaneously
+- `Custom` — manually chosen subset via `TSet<EAnimCancelWindowActionType> CancelActionTriggerCustom`
+
+**Configurable per-notify in the montage:**
+- `CancelActionTrigger` — which cancel type(s) apply
+- `CancelActionTriggerCustom` — (visible only if Custom) set of types to bind
+- `DashAction` / `MoveAction` / `GuardAction` — assign the correct UInputAction asset (shown only if that type is active)
+- `CancelBlendOutTime` — blend-out duration when cancelling (set low, e.g. 0.05f, for snappy dash cancels)
 
 ```
-NotifyBegin → caches FSCharacter reference
-NotifyTick  → checks input state each frame:
-              bDashCancel = LShift held + HasMovementInput + type is Dash
-              bMoveCancel = HasMovementInput + type is Move
-              bAnyCancel  = (LShift OR HasMovementInput) + type is Any
-              → if any true and not already triggered:
-                  bAnimCancelTrigger = true
-                  FSCharacter->OnAnimationCanceled.Broadcast()
-                      → FlowSlayerCharacter::HandleOnAnimationCanceled()
-                          → CombatComponent->CancelAttack()
-NotifyEnd   → bAnimCancelTrigger = false (reset for next window)
+NotifyBegin → Cast owner to AFlowSlayerCharacter → get EIC from PlayerController
+            → for each action type where ShouldBind() is true:
+                if (action != null): EIC->BindAction(action, trigger, handler) → store handle
+                else: LogError
+NotifyEnd   → if (EIC): RemoveBindingByHandle for each stored handle; EIC = null
+            → reset all handles + FSCharacter + bAnimCancelTrigger
 ```
 
-**Key detail:** Uses `GetInputKeyState(EKeys::LeftShift)` (raw key state) and `HasMovementInput()` (cached axis from `InputManagerComponent`). `bAnimCancelTrigger` prevents the cancel from firing more than once per window.
+**Trigger event choice:**
+- Dash → `ETriggerEvent::Started` : one shot on press (dash is a discrete action)
+- Move → `ETriggerEvent::Triggered` : fires every frame while held (window may open while key is already down)
+- Guard → `ETriggerEvent::Triggered` : same reason as Move
+
+**Broadcast path:**
+```
+HandleDash/Move/GuardCancelInput()
+  → if bAnimCancelTrigger: return   // prevents double-fire on overlapping bars
+  → FSCharacter->OnAnimationCanceled.Broadcast(CancelBlendOutTime, action*)
+      → FlowSlayerCharacter::HandleOnAnimationCanceled(float blendOutTime, const UInputAction* inputAction)
+          → CombatComponent->CancelAttack(blendOutTime)
+          → if inputAction == LShiftAction  → OnDashAction()
+          → if inputAction == MoveAction    → HandleMoveInput(axis)
+          → if inputAction == GuardAction   → HandleGuardInput()
+  → bAnimCancelTrigger = true
+```
+
+**Overlapping bars:** If two `AnimCancelWindow` bars overlap in the same montage (e.g., Dash covers full anim, Guard starts mid), each bar has its own instance with its own bindings and `bAnimCancelTrigger`. Risk: if both bind the same action (e.g., both are `Any`), the action fires twice in the overlap zone → double `CancelAttack` call. Avoid by using separate types per bar or `Custom` to exclude duplicates.
+
+**NotifyEnd guarantee:** UE calls `NotifyEnd` on all active notify states when a montage is stopped for any reason (`StopAllMontages`, `Montage_Stop`, natural end). Cleanup always runs — the only exception is actor destruction bypassing the animation system.
 
 ---
 

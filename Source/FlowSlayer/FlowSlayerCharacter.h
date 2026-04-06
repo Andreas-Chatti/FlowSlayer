@@ -28,7 +28,7 @@
 #include "FlowSlayerCharacter.generated.h"
 
 /** Broadcasted when an attack animation cancel window opens and the player inputs a cancel action (dash or jump) */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAnimationCanceled, float, blendOutTime);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAnimationCanceled, float, blendOutTime, const UInputAction*, inputAction);
 
 /** Broadcasted on this player's death */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerDeath, AFlowSlayerCharacter*, player);
@@ -219,7 +219,7 @@ private:
 
 	/** Called when the animation cancel window opens and the player inputs a cancel action */
 	UFUNCTION()
-	void HandleOnAnimationCanceled(float blendOutTime);
+	void HandleOnAnimationCanceled(float blendOutTime, const UInputAction* inputAction);
 
 	/** Called when lock-on engages on a target */
 	void HandleOnLockOnStarted(AActor* lockedOnTarget);

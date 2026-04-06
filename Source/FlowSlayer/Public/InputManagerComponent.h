@@ -69,6 +69,8 @@ public:
 	const UInputAction* GetHeavyAttackAction() const { return HeavyAttackAction; }
 	const UInputAction* GetGuardAction() const { return GuardAction; }
 	const UInputAction* GetHealAction() const { return HealAction; }
+	const UInputAction* GetDashAction() const { return LShiftAction; }
+	const UInputAction* GetMoveAction() const { return MoveAction; }
 
 	/** Toggle ON / OFF lock-on ONLY if there's a target within range */
 	FOnMiddleMouseButtonClicked OnMiddleMouseButtonClicked;

@@ -161,9 +161,16 @@ void AFlowSlayerCharacter::HandleOnDeath()
 	OnPlayerDeath.Broadcast(this);
 }
 
-void AFlowSlayerCharacter::HandleOnAnimationCanceled(float blendOutTime)
+void AFlowSlayerCharacter::HandleOnAnimationCanceled(float blendOutTime, const UInputAction* inputAction)
 {
 	CombatComponent->CancelAttack(blendOutTime);
+
+	if (inputAction == InputManagerComponent->GetDashAction())
+		OnDashAction();
+	else if (inputAction == InputManagerComponent->GetMoveAction())
+		HandleMoveInput(InputManagerComponent->GetMoveInputAxis());
+	else if (inputAction == InputManagerComponent->GetGuardAction())
+		HandleGuardInput();
 }
 
 void AFlowSlayerCharacter::HandleOnLockOnStarted(AActor* lockedOnTarget)
