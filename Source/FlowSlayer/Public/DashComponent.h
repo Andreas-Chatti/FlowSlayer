@@ -90,8 +90,8 @@ protected:
     float Distance{ 300.f };
 
     /** Maximum allowed dash duration — EndDash() is force-called if NotifyEnd hasn't fired by then */
-    UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.1"))
-    float MaxDashDuration{ 1.8f };
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Dash", meta = (ClampMin = "0.1"))
+    float MaxDashDuration{ 1.f };
 
     /** Flow cost per dash usage */
     UPROPERTY(EditDefaultsOnly, Category = "Dash", meta = (ClampMin = "0.0", ClampMax = "100.0"))

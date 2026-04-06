@@ -229,23 +229,33 @@ CombatComponent->OnAttackingEnded.AddUniqueDynamic(DashComponent, &UDashComponen
 
 ### Entry Flow
 ```
-WalkRun/Idle → InDashingStateAlias (bIsDashing) → DashingConduit (always true) → route by bLockOn + speed
+WalkRun/Idle → InDashingStateAlias (bIsDashing AND bDashAnimCompleted) → DashingConduit (always true) → route by bLockOn + speed
 ```
 
 ### Exit Flow — DashToRun / DashToWalk
 Transition vers WalkRun :
-- `Automatic Rule Based on Sequence Player` + `Automatic Rule Trigger Time = 0.0s`
-- Condition Blueprint supplémentaire : `NOT bIsDashing`
-- Les deux doivent être vrais simultanément : animation terminée **ET** `EndDash()` appelé
+- `Automatic Rule Based on Sequence Player` + **`Automatic Rule Trigger Time = 0.26s`** (fire quand SafeMoveUpdated finit, 0.26s avant la fin de la séquence)
+- **`Duration = 0.20s`** (blend court vers locomotion)
+- `OnDashAnimEnded` bindé sur **Transition End** et **Transition Interrupt** → remet `bDashAnimCompleted = true`
 
-### bDashAnimCompleted Variable
-Variable ABP dérivée de `bIsDashing` (poll chaque frame dans EventGraph) :
-```
-EventGraph Update → bDashAnimCompleted = NOT bIsDashing
-```
-**Ne plus utiliser** `On State Fully Blended Out` / `On State Entry` pour setter cette variable — trop fragile sur les chaînes de transitions rapides.
+### Exit Flow — Dashing8D
+Transition vers WalkRun :
+- Condition Blueprint : `NOT bIsDashing`
+- **`Min Time Before Exit = 0.7s`** sur le state Dashing8D — empêche la transition de fire pendant 0.7s après l'entrée dans l'état
+- **`Duration = 0.20s`**
+- Pourquoi Min Time Before Exit : `ETriggerEvent::Triggered` (LShift tenu) re-fire `StartDash()` le frame d'après `EndDash()` → `bIsDashing = true` → condition `NOT bIsDashing` jamais stable sans ce guard. Solution native UE, zéro C++.
 
-Utilisée par le EventGraph pour contrôler DashForward/DashLateral (zéroïsé quand dash terminé).
+### bDashAnimCompleted — Double safety net
+Variable ABP contrôlant la re-entrée dans les dash states (`bIsDashing AND bDashAnimCompleted` en entry condition).
+
+**Chemin normal** : Transition End/Interrupt `DashToX → WalkRunAlias` fire `OnDashAnimEnded` → `bDashAnimCompleted = true` (immédiat dès que la transition finit).
+
+**Chemin interrompu** (guard, mort, etc.) : fallback timer ABP (1.0s) fire `OnDashAnimEnded` → `bDashAnimCompleted = true`.
+
+Setup du fallback timer :
+- `OnDashStateEntry` (state entry function) → `bDashAnimCompleted = false`
+- `AnimNotify_OnDashStateEntry` (state machine notification sur chaque dash state) → `Set Timer by Event (1.0s)` → callback = `OnDashAnimEnded`
+- ⚠️ `AnimNotify_OnDashStateEntry` dans l'EventGraph est un **AnimNotify event** (déclenché par une notification de state machine), pas la même chose que la state entry function `OnDashStateEntry`. Les deux doivent exister pour que le système fonctionne.
 
 ### Stop Conduit — Dual Transition Rules
 Deux transition rules par stop animation (SprintToIdle, RunToIdle, WalkToIdle) :

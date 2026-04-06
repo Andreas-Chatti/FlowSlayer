@@ -66,6 +66,7 @@ void UDashComponent::StartDash(const FVector2D& inputDirection)
         { 
             if (bIsDashing)
                 EndDash();
+            UE_LOG(LogTemp, Warning, TEXT("SafetyTimer executed"));
         },
         MaxDashDuration,
         false

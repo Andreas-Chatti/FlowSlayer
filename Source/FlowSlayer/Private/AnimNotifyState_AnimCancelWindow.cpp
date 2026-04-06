@@ -36,7 +36,7 @@ void UAnimNotifyState_AnimCancelWindow::NotifyBegin(USkeletalMeshComponent* Mesh
 	{
 		if (DashAction)
 		{
-			FEnhancedInputActionEventBinding& binding{ EIC->BindAction(DashAction, ETriggerEvent::Started, this, &UAnimNotifyState_AnimCancelWindow::HandleDashCancelInput) };
+			FEnhancedInputActionEventBinding& binding{ EIC->BindAction(DashAction, ETriggerEvent::Triggered, this, &UAnimNotifyState_AnimCancelWindow::HandleDashCancelInput) };
 			DashBindingHandle = binding.GetHandle();
 		}
 		else
@@ -98,7 +98,7 @@ void UAnimNotifyState_AnimCancelWindow::HandleMoveCancelInput()
 {
 	if (bAnimCancelTrigger)
 		return;
-	UE_LOG(LogTemp, Error, TEXT("[UAnimNotifyState_AnimCancelWindow] MoveCancelInput launched"));
+
 	FSCharacter->OnAnimationCanceled.Broadcast(CancelBlendOutTime, MoveAction);
 	bAnimCancelTrigger = true;
 }
@@ -107,7 +107,7 @@ void UAnimNotifyState_AnimCancelWindow::HandleGuardCancelInput()
 {
 	if (bAnimCancelTrigger)
 		return;
-	UE_LOG(LogTemp, Error, TEXT("[UAnimNotifyState_AnimCancelWindow] GuardCancelInput launched"));
+
 	FSCharacter->OnAnimationCanceled.Broadcast(CancelBlendOutTime, GuardAction);
 	bAnimCancelTrigger = true;
 }
