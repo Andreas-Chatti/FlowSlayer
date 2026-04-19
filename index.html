@@ -22,7 +22,7 @@
                 <li><a href="#about">About</a></li>
                 <li><a href="#flow">Flow</a></li>
                 <li><a href="#combat">Combat</a></li>
-                <li><a href="#features">Features</a></li>
+                <li><a href="#features">Gameplay</a></li>
                 <li><a href="#controls">Controls</a></li>
                 <li><a href="#contact">Contact</a></li>
             </ul>
@@ -94,9 +94,9 @@
                 </div>
                 <div class="card reveal">
                     <div class="card-glow" aria-hidden="true"></div>
-                    <div class="card-icon">⚡</div>
-                    <h3>C++ Precision</h3>
-                    <p>~95% native C++ on Unreal Engine 5.7.4. Blueprints only for asset wiring. Every frame of response engineered from scratch.</p>
+                    <div class="card-icon">🔩</div>
+                    <h3>Built From Scratch</h3>
+                    <p>No off-the-shelf combat systems. Every mechanic — hit timing, dash physics, combo cancels — handcrafted from the ground up. What you feel is exactly what was designed.</p>
                 </div>
             </div>
         </div>
@@ -237,32 +237,31 @@
     </section>
 
     <!-- ============================================================
-         FEATURES
+         GAMEPLAY FEEL
     ============================================================ -->
     <section id="features" class="section section-dark">
         <div class="container">
             <div class="section-header reveal">
-                <div class="section-tag">Systems</div>
-                <h2>Every system, <span class="accent">built right</span></h2>
-                <p>A complete action roguelite, each system handcrafted and wired together with a clean component architecture.</p>
+                <div class="section-tag">Gameplay</div>
+                <h2>What it <span class="accent">feels</span> like</h2>
+                <p>Three seconds into your first combo, you'll understand.</p>
             </div>
-            <div class="features-grid">
-                <div class="feature reveal"><div class="feature-dot"></div><span>Flow / Momentum with hit immunity at max tier</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Combo state machine — chain, cancel, window</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Combo hit counter + streak UI (timed reset)</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Dash — 8-dir curve-driven movement</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Guard toggle with auto-cancel on dash/jump</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Lock-on + mouse-axis target switching</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Hitstop + knockback + camera shake</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Weapon trail VFX</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Full arena game loop (RunManager)</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>XP + 30 levels per run, milestones every 5</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Modular weapon crafting (Blade / Handle / Gem)</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Weapon loot on enemy drop and reward chests</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Score system + run timer HUD</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Death screen + Win screen</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Grunt + Runner enemies (BehaviorTree AI)</span></div>
-                <div class="feature reveal"><div class="feature-dot"></div><span>Pause menu</span></div>
+            <div class="exp-cards">
+                <div class="exp-card reveal">
+                    <div class="exp-number">01</div>
+                    <h3>One hit from glory.<br>One hit from ruin.</h3>
+                    <p>At max Flow you're untouchable — immune to all damage. But charging your meter demands aggression, and aggression demands risk. Play on the edge or don't play at all.</p>
+                </div>
+                <div class="exp-card reveal">
+                    <div class="exp-number">02</div>
+                    <h3>A weapon you can actually master.</h3>
+                    <p>20+ attacks across ground, aerial, and dash states. Chain combos, cancel into dashes, juggle enemies mid-air. There's always a better move you haven't found yet.</p>
+                </div>
+                <div class="exp-card reveal">
+                    <div class="exp-number">03</div>
+                    <h3>Die sharp.<br>Run it again.</h3>
+                    <p>20–30 minute sprints through escalating arenas. Upgrade your modular weapon, discover synergies, push further than last time — or fall trying.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -300,36 +299,6 @@
                         <div class="key-row"><kbd>Lock-on key</kbd><span>Target nearest enemy</span></div>
                         <div class="key-row"><kbd>Mouse X axis</kbd><span>Switch lock-on target</span></div>
                     </div>
-                    <h3>Tips</h3>
-                    <div class="tips-list">
-                        <div class="tip">Dash can cancel any attack during its cancel window — use it to extend combos</div>
-                        <div class="tip">Aerial attacks have gravity suppressed mid-execution (Air Stall)</div>
-                        <div class="tip">Guard automatically breaks on dash or jump — no manual release needed</div>
-                        <div class="tip">At max Flow you're immune — this is when you should go all-in</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- ============================================================
-         TECH
-    ============================================================ -->
-    <section id="tech" class="section section-dark">
-        <div class="container">
-            <div class="tech-content reveal">
-                <h2>Built with <span class="accent">Unreal Engine</span></h2>
-                <p>FlowSlayer is a solo indie project — a deep dive into the craft of action game feel. Every system is handcrafted to be responsive, extensible, and precisely tuned.</p>
-                <div class="tech-pills">
-                    <div class="tech-pill">Unreal Engine 5.7.4</div>
-                    <div class="tech-pill">C++ (~95%)</div>
-                    <div class="tech-pill">Enhanced Input System</div>
-                    <div class="tech-pill">Animation Blueprints</div>
-                    <div class="tech-pill">Motion Warping</div>
-                    <div class="tech-pill">Behavior Trees</div>
-                    <div class="tech-pill">Data Tables</div>
-                    <div class="tech-pill">UMG / Slate</div>
-                    <div class="tech-pill">Anim Notify States</div>
                 </div>
             </div>
         </div>
