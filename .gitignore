@@ -84,3 +84,6 @@ Config/DefaultAgentIntegrationKit.ini
 
 # Game assets — not versioned (paid Marketplace assets + large binaries)
 Content/
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
