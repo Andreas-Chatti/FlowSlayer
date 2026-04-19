@@ -3,7 +3,7 @@
 A **3D action roguelite** built with **Unreal Engine 5.7** and **C++**, featuring a stylish combo-based combat system inspired by Hades, Devil May Cry, Dead Cells, and Furi.
 
 ![Unreal Engine](https://img.shields.io/badge/Unreal%20Engine-5.7.4-blue?logo=unrealengine)
-![C++](https://img.shields.io/badge/C++-17-00599C?logo=cplusplus)
+[![Website](https://img.shields.io/badge/Website-FlowSlayer-00d4ff?logo=googlechrome&logoColor=white)](https://andreas-chatti.github.io/FlowSlayer/)
 ![Status](https://img.shields.io/badge/Status-In%20Development-yellow)
 [![Dev Videos](https://img.shields.io/badge/Dev%20Videos-Google%20Drive-4285F4?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/13BXUaIHeYjbny9D94_BoQ9VAFmhFtopz?usp=sharing)
 
