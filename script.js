@@ -102,6 +102,108 @@
 
 
 /* ----------------------------------------------------------------
+   FLOW WORD GLOW — particles rising from the "FLOW" title
+---------------------------------------------------------------- */
+(function initFlowWordGlow() {
+    const canvas = document.getElementById('flowGlowCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W, H, bounds, particles;
+
+    function calcBounds() {
+        const word = document.getElementById('flow-word');
+        const hero = document.getElementById('hero');
+        if (!word || !hero) return;
+        const h1 = word.closest('h1');
+        if (!h1) return;
+
+        /* Walk offsetParent chain from h1 up to hero to get canvas-relative Y.
+           offsetTop on a block element (h1) is reliable; using span was not. */
+        let top = 0;
+        let el = h1;
+        while (el && el !== hero) {
+            top += el.offsetTop;
+            el = el.offsetParent;
+        }
+
+        /* X still from viewport rects — reliable for inline text spans */
+        const wr = word.getBoundingClientRect();
+        const hr = hero.getBoundingClientRect();
+        const lift = Math.round(h1.offsetHeight * 0.13);
+        bounds = {
+            x1: wr.left  - hr.left,
+            x2: wr.right - hr.left,
+            y1: top - lift,
+            y2: top + h1.offsetHeight - lift,
+        };
+    }
+
+    function resize() {
+        W = canvas.width  = canvas.offsetWidth;
+        H = canvas.height = canvas.offsetHeight;
+        calcBounds();
+    }
+
+    class FP {
+        reset(initial = false) {
+            const b = bounds;
+            this.x       = b ? b.x1 + Math.random() * (b.x2 - b.x1) : W / 2;
+            this.y       = initial
+                ? (b ? b.y1 + Math.random() * (b.y2 - b.y1) : H / 2)
+                : (b ? b.y2 : H / 2);
+            this.size    = Math.random() * 2.0 + 0.5;
+            this.vy      = -(Math.random() * 0.85 + 0.25);
+            this.vx      = (Math.random() - 0.5) * 0.35;
+            this.opacity = 0;
+            this.maxOp   = Math.random() * 0.65 + 0.25;
+            this.life    = 0;
+            this.maxLife = Math.random() * 160 + 100;
+            const t = Math.random();
+            this.r = Math.round(t * 30);
+            this.g = Math.round(190 + t * 65);
+            this.b = 255;
+        }
+        constructor(initial) { this.reset(initial); }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.life++;
+            const ratio = this.life / this.maxLife;
+            if (ratio < 0.15)     this.opacity = (ratio / 0.15) * this.maxOp;
+            else if (ratio > 0.6) this.opacity = ((1 - ratio) / 0.4) * this.maxOp;
+            else                  this.opacity = this.maxOp;
+            const top = bounds ? bounds.y1 - 100 : -10;
+            if (this.life >= this.maxLife || this.y < top) this.reset();
+        }
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.opacity;
+            ctx.shadowBlur  = this.size * 8;
+            ctx.shadowColor = `rgba(${this.r},${this.g},${this.b},0.9)`;
+            ctx.fillStyle   = `rgb(${this.r},${this.g},${this.b})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, W, H);
+        particles.forEach(p => { p.update(); p.draw(); });
+        requestAnimationFrame(animate);
+    }
+
+    document.fonts.ready.then(() => {
+        resize();
+        particles = Array.from({ length: 60 }, () => new FP(true));
+        window.addEventListener('resize', resize, { passive: true });
+        animate();
+    });
+})();
+
+
+/* ----------------------------------------------------------------
    FLOW ORB CANVAS — pulsing max-tier orb
 ---------------------------------------------------------------- */
 (function initFlowCanvas() {
