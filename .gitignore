@@ -81,3 +81,6 @@ Plugins/AgentIntegrationKit/
 
 # Agent Integration Kit generated config
 Config/DefaultAgentIntegrationKit.ini
+
+# Game assets — not versioned (paid Marketplace assets + large binaries)
+Content/
