@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowSlayer — Hack'n'Slash Roguelite</title>
+    <meta name="description" content="A precision-driven 3D hack'n'slash roguelite. Build Flow, chain combos, tear through arenas. Built in Unreal Engine 5 with C++.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ============================================================
+         NAVIGATION
+    ============================================================ -->
+    <nav id="navbar">
+        <div class="nav-container">
+            <a href="#hero" class="nav-logo">FLOW<span>SLAYER</span></a>
+            <ul class="nav-links">
+                <li><a href="#about">About</a></li>
+                <li><a href="#flow">Flow</a></li>
+                <li><a href="#combat">Combat</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#controls">Controls</a></li>
+            </ul>
+            <a href="https://github.com/Andreas-Chatti/FlowSlayer" target="_blank" class="nav-github">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                </svg>
+                GitHub
+            </a>
+        </div>
+    </nav>
+
+    <!-- ============================================================
+         HERO
+    ============================================================ -->
+    <section id="hero">
+        <canvas id="heroCanvas" aria-hidden="true"></canvas>
+        <div class="hero-content">
+            <div class="hero-badge">Hack'n'Slash Roguelite · Unreal Engine 5 · C++</div>
+            <h1 class="hero-title">FLOW<span>SLAYER</span></h1>
+            <p class="hero-tagline">Master the Flow. Slay the Run.</p>
+            <p class="hero-desc">
+                A precision-driven 3D action roguelite. Build momentum, chain 20+ attacks,<br>
+                and tear through arenas — or lose it all in a single hit.
+            </p>
+            <div class="hero-cta">
+                <a href="https://github.com/Andreas-Chatti/FlowSlayer" target="_blank" class="btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    View on GitHub
+                </a>
+                <a href="#about" class="btn-secondary">Discover</a>
+            </div>
+            <div class="hero-pills">
+                <span>UE 5.4</span>
+                <span>~95% C++</span>
+                <span>PC (KB+M)</span>
+                <span>Roguelite</span>
+                <span>Solo Dev</span>
+            </div>
+        </div>
+        <div class="scroll-hint" aria-hidden="true">
+            <span>scroll</span>
+            <div class="scroll-line"></div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         ABOUT
+    ============================================================ -->
+    <section id="about" class="section">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-tag">The Game</div>
+                <h2>What is <span class="accent">FlowSlayer</span>?</h2>
+                <p>Inspired by Hades, Devil May Cry, Dead Cells, and Furi — FlowSlayer fuses deep combat mechanics with tight roguelite structure. Every run is a 30–40 minute sprint through escalating arenas.</p>
+            </div>
+            <div class="about-cards">
+                <div class="card reveal">
+                    <div class="card-glow" aria-hidden="true"></div>
+                    <div class="card-icon">⚔️</div>
+                    <h3>Deep Combat</h3>
+                    <p>20+ attacks, chorded inputs, combo windows, cancel mechanics, guard system — designed for players who want to master every tool available.</p>
+                </div>
+                <div class="card reveal">
+                    <div class="card-glow" aria-hidden="true"></div>
+                    <div class="card-icon">🎲</div>
+                    <h3>Roguelite Loop</h3>
+                    <p>30–40 min runs across 4 escalating arenas. Upgrade your modular weapon, level up every 5 milestones, discover synergies — start over if you fall.</p>
+                </div>
+                <div class="card reveal">
+                    <div class="card-glow" aria-hidden="true"></div>
+                    <div class="card-icon">⚡</div>
+                    <h3>C++ Precision</h3>
+                    <p>~95% native C++ on Unreal Engine 5.4. Blueprints only for asset wiring. Every frame of response engineered from scratch.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         FLOW SYSTEM
+    ============================================================ -->
+    <section id="flow" class="section section-dark">
+        <div class="container">
+            <div class="flow-layout">
+                <div class="flow-text reveal">
+                    <div class="section-tag">Core Mechanic</div>
+                    <h2>The <span class="accent-flow">Flow</span> System</h2>
+                    <p>Flow is the heartbeat of FlowSlayer. Aggressive play charges your meter — every hit landed pushes you closer to an unstoppable state. But every dash costs Flow, and every hit you take drains it.</p>
+                    <p>At <strong class="accent-max">maximum Flow</strong>, you become temporarily immune to all damage. Master the balance between relentless offense and resource management.</p>
+                    <div class="flow-tiers">
+                        <div class="tier reveal">
+                            <div class="tier-label">
+                                <span class="tier-name">Tier 1</span>
+                                <span class="tier-desc">Building</span>
+                            </div>
+                            <div class="tier-bar-wrap">
+                                <div class="tier-bar">
+                                    <div class="tier-fill t1" data-width="25"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tier reveal">
+                            <div class="tier-label">
+                                <span class="tier-name">Tier 2</span>
+                                <span class="tier-desc">Flowing</span>
+                            </div>
+                            <div class="tier-bar-wrap">
+                                <div class="tier-bar">
+                                    <div class="tier-fill t2" data-width="50"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tier reveal">
+                            <div class="tier-label">
+                                <span class="tier-name">Tier 3</span>
+                                <span class="tier-desc">Surging</span>
+                            </div>
+                            <div class="tier-bar-wrap">
+                                <div class="tier-bar">
+                                    <div class="tier-fill t3" data-width="75"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tier reveal">
+                            <div class="tier-label">
+                                <span class="tier-name">MAX</span>
+                                <span class="tier-desc tier-max-label">Untouchable ✦</span>
+                            </div>
+                            <div class="tier-bar-wrap">
+                                <div class="tier-bar tier-bar-max">
+                                    <div class="tier-fill tmax" data-width="100"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flow-visual reveal">
+                    <canvas id="flowCanvas" width="280" height="280" aria-label="Animated Flow orb at maximum tier"></canvas>
+                    <div class="flow-label">FLOW MAX</div>
+                    <p class="flow-visual-desc">Damage Immunity Active</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         COMBAT
+    ============================================================ -->
+    <section id="combat" class="section">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-tag">Combat</div>
+                <h2><span class="accent">20+</span> Ways to Fight</h2>
+                <p>Chorded inputs let you access dozens of moves without sacrificing movement clarity. Every combination opens a different avenue of attack.</p>
+            </div>
+            <div class="combat-grid">
+                <div class="combat-card reveal">
+                    <div class="combat-card-header">
+                        <div class="combat-icon ground" aria-hidden="true">🗡️</div>
+                        <h3>Ground</h3>
+                    </div>
+                    <ul>
+                        <li>Standing Light / Heavy</li>
+                        <li>Running Light / Heavy</li>
+                        <li>Power Slash / Pierce Thrust</li>
+                        <li>Spin Attack / Horizontal Sweep</li>
+                        <li>Ground Slam / Diagonal Retourne</li>
+                    </ul>
+                </div>
+                <div class="combat-card reveal">
+                    <div class="combat-card-header">
+                        <div class="combat-icon aerial" aria-hidden="true">🌀</div>
+                        <h3>Aerial</h3>
+                    </div>
+                    <ul>
+                        <li>Air Combo</li>
+                        <li>Aerial Slam</li>
+                        <li>Jump Slam / Forward / Upper</li>
+                        <li>Launcher / Power Launcher</li>
+                        <li>Air Stall (gravity override)</li>
+                    </ul>
+                </div>
+                <div class="combat-card reveal">
+                    <div class="combat-card-header">
+                        <div class="combat-icon dash" aria-hidden="true">💨</div>
+                        <h3>Dash</h3>
+                    </div>
+                    <ul>
+                        <li>Dash Pierce</li>
+                        <li>Dash Spinning Slash</li>
+                        <li>Dash Double Slash</li>
+                        <li>Dash Back Slash</li>
+                        <li>8-directional animation blend</li>
+                    </ul>
+                </div>
+                <div class="combat-card reveal">
+                    <div class="combat-card-header">
+                        <div class="combat-icon special" aria-hidden="true">✦</div>
+                        <h3>Special</h3>
+                    </div>
+                    <ul>
+                        <li>Guard (toggle, auto-cancel)</li>
+                        <li>Heal (costs Flow)</li>
+                        <li>Lock-on + target switch</li>
+                        <li>Double jump</li>
+                        <li>Combo cancel windows</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         FEATURES
+    ============================================================ -->
+    <section id="features" class="section section-dark">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-tag">Systems</div>
+                <h2>Every system, <span class="accent">built right</span></h2>
+                <p>A complete action roguelite, each subsystem handcrafted in C++ and wired together with a clean component architecture.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature reveal"><div class="feature-dot"></div><span>Flow / Momentum with hit immunity at max tier</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Combo state machine — chain, cancel, window</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Combo hit counter + streak UI (timed reset)</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Dash — 8-dir curve-driven movement</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Guard toggle with auto-cancel on dash/jump</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Lock-on + mouse-axis target switching</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Hitstop + knockback + camera shake</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Weapon trail VFX</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Full arena game loop (RunManager)</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>XP + 30 levels per run, milestones every 5</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Modular weapon crafting (Blade / Handle / Gem)</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Weapon loot on enemy drop and reward chests</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Score system + run timer HUD</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Death screen + Win screen</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Grunt + Runner enemies (BehaviorTree AI)</span></div>
+                <div class="feature reveal"><div class="feature-dot"></div><span>Pause menu</span></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         CONTROLS
+    ============================================================ -->
+    <section id="controls" class="section">
+        <div class="container">
+            <div class="section-header reveal">
+                <div class="section-tag">Controls</div>
+                <h2>Keyboard <span class="accent">&amp;</span> Mouse</h2>
+                <p>Designed for keyboard and mouse. Every action is one binding or chord away — no controller required.</p>
+            </div>
+            <div class="controls-grid">
+                <div class="controls-column reveal">
+                    <h3>Movement</h3>
+                    <div class="key-group">
+                        <div class="key-row"><kbd>W A S D</kbd><span>Move</span></div>
+                        <div class="key-row"><kbd>SPACE</kbd><span>Jump / Double Jump</span></div>
+                        <div class="key-row"><kbd>SHIFT</kbd><span>Dash (8-directional)</span></div>
+                    </div>
+                    <h3>Combat</h3>
+                    <div class="key-group">
+                        <div class="key-row"><kbd>LMB</kbd><span>Light Attack</span></div>
+                        <div class="key-row"><kbd>RMB</kbd><span>Heavy Attack</span></div>
+                        <div class="key-row"><kbd>LMB + RMB</kbd><span>Chorded combo attacks</span></div>
+                        <div class="key-row"><kbd>SHIFT + LMB/RMB</kbd><span>Dash attacks</span></div>
+                    </div>
+                </div>
+                <div class="controls-column reveal">
+                    <h3>Skills</h3>
+                    <div class="key-group">
+                        <div class="key-row"><kbd>LSHIFT + SPACE</kbd><span>Heal — costs Flow</span></div>
+                        <div class="key-row"><kbd>Lock-on key</kbd><span>Target nearest enemy</span></div>
+                        <div class="key-row"><kbd>Mouse X axis</kbd><span>Switch lock-on target</span></div>
+                    </div>
+                    <h3>Tips</h3>
+                    <div class="tips-list">
+                        <div class="tip">Dash can cancel any attack during its cancel window — use it to extend combos</div>
+                        <div class="tip">Aerial attacks have gravity suppressed mid-execution (Air Stall)</div>
+                        <div class="tip">Guard automatically breaks on dash or jump — no manual release needed</div>
+                        <div class="tip">At max Flow you're immune — this is when you should go all-in</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         TECH
+    ============================================================ -->
+    <section id="tech" class="section section-dark">
+        <div class="container">
+            <div class="tech-content reveal">
+                <h2>Built with <span class="accent">Unreal Engine 5</span></h2>
+                <p>FlowSlayer is a solo indie project — a deep dive into the craft of action game feel. Every system is handcrafted in C++ to be responsive, extensible, and precisely tuned.</p>
+                <div class="tech-pills">
+                    <div class="tech-pill">Unreal Engine 5.4</div>
+                    <div class="tech-pill">C++ (~95%)</div>
+                    <div class="tech-pill">Enhanced Input System</div>
+                    <div class="tech-pill">Animation Blueprints</div>
+                    <div class="tech-pill">Motion Warping</div>
+                    <div class="tech-pill">Behavior Trees</div>
+                    <div class="tech-pill">Data Tables</div>
+                    <div class="tech-pill">UMG / Slate</div>
+                    <div class="tech-pill">Anim Notify States</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         FOOTER
+    ============================================================ -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-logo">FLOW<span>SLAYER</span></div>
+                <p class="footer-desc">A 3D hack'n'slash roguelite built in Unreal Engine 5.</p>
+                <a href="https://github.com/Andreas-Chatti/FlowSlayer" target="_blank" class="footer-github">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                    View Source on GitHub
+                </a>
+            </div>
+            <div class="footer-bottom">
+                <span>FlowSlayer &mdash; Solo indie project by CHATTI Andréas</span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
