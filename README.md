@@ -11,7 +11,7 @@ A **3D action roguelite** built with **Unreal Engine 5.7** and **C++**, featurin
 
 ## About
 
-Flow Slayer is a skill-based action game where players fight through a series of arenas in short runs (30–40 min). The core mechanic revolves around **Flow/Momentum** — sustaining combos builds power and eventually grants damage immunity, while taking hits or dashing costs Flow.
+Flow Slayer is a skill-based action game where players fight through a series of arenas in short runs (20–30 min). The core mechanic revolves around **Flow/Momentum** — sustaining combos builds power and eventually grants damage immunity, while taking hits or dashing costs Flow.
 
 - Fast-paced combat with 20+ chainable attacks — ground combos, dash attacks, launchers, aerial moves
 - Air combat system with launchers, juggles, and aerial slams
@@ -86,15 +86,31 @@ Source/FlowSlayer/
 
 ## Status
 
+**Implemented:**
+- Full game loop — RunManager, chained arenas, portals, death/win screens
+- 20+ attacks across ground, aerial, and dash stances with chorded input pipeline
+- Combo state machine — chain windows, cancel mechanics, combo hit counter HUD
+- Flow/Momentum system — 4 tiers, damage immunity at max, decay, heal cost
+- Dash — 8-directional curve-driven movement, flow cost, cancel window from attacks
+- Guard system — toggle, auto-cancel on dash/jump
+- Lock-on targeting with mouse-axis target switching
+- Double jump + aerial combat (launchers, juggles, Air Stall)
+- XP + 30 levels per run, milestone upgrades every 5 levels
+- Upgrade system — DataTable-driven stats (UpgradeData.h)
+- Modular weapon craft — Blade / Handle / Gem (WeaponPartData.h)
+- Reward chest on arena clear + weapon loot on enemy drop
+- Score system + run timer HUD
+- Grunt + Runner enemies with BehaviorTree AI
+- Cel shader visual style + weapon trail VFX
+- SFX — hits, dash, portal, projectiles
+- GitHub Pages website
+
 **In Progress:**
-- Death screen + run reset
-- Reward chest on arena clear
-- Upgrade screen at milestone level-up
+- Dash feel improvements (animation tuning, ABP transitions)
 
 **Planned:**
-- Modular weapon craft (Blade + Handle + Gem)
-- More types of ennemies
-- Boss / Elite ennemies
+- More enemy types
+- Boss / Elite enemies
 
 ---
 
